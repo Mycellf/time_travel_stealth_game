@@ -1,0 +1,13 @@
+[package]
+name = "round_3"
+version = "0.1.0"
+edition = "2024"
+
+[dependencies]
+ggez = "0.10.0-rc0"
+image = "0.25.8"
+nalgebra = { version = "0.34.1", features = ["mint"] }
+rand = "0.9.2"
+serde = "1.0.228"
+slotmap = "1.0.7"
+toml = "0.9.8"
