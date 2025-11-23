@@ -30,7 +30,7 @@ fn main() {
             ..Default::default()
         },
         window_setup: WindowSetup {
-            title: "Space Madness Redux".to_owned(),
+            title: "Pixel Part Simulation".to_owned(),
             // samples: todo!(),
             // vsync: todo!(),
             // icon: todo!(),
