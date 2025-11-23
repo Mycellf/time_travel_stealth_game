@@ -8,7 +8,10 @@ use ggez::{
     winit::keyboard::{Key, NamedKey},
 };
 
+use crate::objects::pixels::Pixels;
+
 pub(crate) mod collections;
+pub(crate) mod objects;
 
 fn main() {
     let mut builder = ContextBuilder::new("pixel_part_simulation", "Mycellf").default_conf(Conf {

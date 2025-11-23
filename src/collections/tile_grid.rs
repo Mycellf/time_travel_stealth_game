@@ -63,6 +63,14 @@ impl<T: Emptyable> TileGrid<T> {
         self.bounds
     }
 
+    pub fn as_slice(&self) -> &[T] {
+        &self.tiles
+    }
+
+    pub fn as_slice_mut(&mut self) -> &mut [T] {
+        &mut self.tiles
+    }
+
     pub fn inner_index_of_tile(&self, index: TileIndex) -> Option<usize> {
         let tile_offset = index - self.bounds.origin;
         let tile_offset = vector![
