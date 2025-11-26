@@ -96,9 +96,9 @@ impl<T: Empty> TileGrid<T> {
     }
 
     /// Returns whether or not any expansion occurred
-    pub fn expand_to_fit_bounds(&mut self, bounds: TileRect) -> bool {
+    pub fn expand_to_fit_bounds(&mut self, new_bounds: TileRect) -> bool {
         let mut bounds = self.bounds;
-        let expanded = bounds.expand_to_include_bounds(bounds, self.bounds.size / 2);
+        let expanded = bounds.expand_to_include_bounds(new_bounds, self.bounds.size / 2);
 
         if expanded {
             self.set_bounds(bounds);
