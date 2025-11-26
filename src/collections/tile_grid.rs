@@ -38,7 +38,7 @@ impl<T: Empty> Index<TileIndex> for TileGrid<T> {
     type Output = T;
 
     fn index(&self, index: TileIndex) -> &Self::Output {
-        let Some(index) = self.inner_index_of_tile(index) else {
+        let Some(index) = self.linear_index_of_tile(index) else {
             return T::empty();
         };
 
@@ -51,7 +51,7 @@ impl<T: Empty> IndexMut<TileIndex> for TileGrid<T> {
         self.expand_to_fit_index(index);
 
         let index = self
-            .inner_index_of_tile(index)
+            .linear_index_of_tile(index)
             .expect("Tile index should be present");
 
         &mut self.tiles[index]
@@ -71,7 +71,7 @@ impl<T: Empty> TileGrid<T> {
         &mut self.tiles
     }
 
-    pub fn inner_index_of_tile(&self, index: TileIndex) -> Option<usize> {
+    pub fn linear_index_of_tile(&self, index: TileIndex) -> Option<usize> {
         let tile_offset = index - self.bounds.origin;
         let tile_offset = vector![
             usize::try_from(tile_offset.x).ok()?,
@@ -122,12 +122,12 @@ impl<T: Empty> TileGrid<T> {
             self.expand_to_fit_index(index);
         }
 
-        let inner_indexes = indexes.map(|index| {
-            self.inner_index_of_tile(index)
+        let linear_indexes = indexes.map(|index| {
+            self.linear_index_of_tile(index)
                 .expect("Should have expanded to fit all indexes")
         });
 
-        self.tiles.get_disjoint_mut(inner_indexes).ok()
+        self.tiles.get_disjoint_mut(linear_indexes).ok()
     }
 }
 
