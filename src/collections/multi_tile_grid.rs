@@ -21,6 +21,13 @@ impl<T: 'static> Empty for TileEntry<T> {
     fn empty() -> &'static Self {
         &TileEntry::Empty
     }
+
+    /// Returns `true` if the tile entry is [`Empty`].
+    ///
+    /// [`Empty`]: TileEntry::Empty
+    fn is_empty(&self) -> bool {
+        matches!(self, Self::Empty)
+    }
 }
 
 impl<T> TileEntry<T> {
@@ -30,14 +37,6 @@ impl<T> TileEntry<T> {
             TileEntry::Origin(_) => Some(vector![0, 0]),
             TileEntry::Offset(offset) => Some(offset.map(isize::from)),
         }
-    }
-
-    /// Returns `true` if the tile entry is [`Empty`].
-    ///
-    /// [`Empty`]: TileEntry::Empty
-    #[must_use]
-    fn is_empty(&self) -> bool {
-        matches!(self, Self::Empty)
     }
 
     /// Returns `true` if the tile entry is [`Origin`].
@@ -181,6 +180,10 @@ impl<T: Tile, S: TileShape> MultiTileGrid<T, S> {
             shape,
             origin,
         })
+    }
+
+    pub fn shrink_to_fit(&mut self) {
+        self.data.shrink_to_fit();
     }
 }
 

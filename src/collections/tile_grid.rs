@@ -18,11 +18,17 @@ pub struct TileGrid<T: Empty> {
 pub trait Empty: Default + 'static {
     /// The value returned by this should match the value of default for this type.
     fn empty() -> &'static Self;
+
+    fn is_empty(&self) -> bool;
 }
 
 impl<T: 'static> Empty for Option<T> {
     fn empty() -> &'static Self {
         &None
+    }
+
+    fn is_empty(&self) -> bool {
+        self.is_none()
     }
 }
 
@@ -105,6 +111,66 @@ impl<T: Empty> TileGrid<T> {
         }
 
         expanded
+    }
+
+    pub fn shrink_to_fit(&mut self) {
+        let mut new_bounds = self.bounds;
+
+        // Shrink from right
+        'outer: loop {
+            let x = new_bounds.right();
+
+            for y in self.bounds.top()..self.bounds.bottom() + 1 {
+                if !self[point![x, y]].is_empty() {
+                    break 'outer;
+                }
+            }
+
+            new_bounds.size.x -= 1;
+        }
+
+        // Shrink from bottom
+        'outer: loop {
+            let y = new_bounds.bottom();
+
+            for x in self.bounds.left()..self.bounds.right() + 1 {
+                if !self[point![x, y]].is_empty() {
+                    break 'outer;
+                }
+            }
+
+            new_bounds.size.y -= 1;
+        }
+
+        // Shrink from left
+        'outer: loop {
+            let x = new_bounds.left();
+
+            for y in self.bounds.top()..self.bounds.bottom() + 1 {
+                if !self[point![x, y]].is_empty() {
+                    break 'outer;
+                }
+            }
+
+            new_bounds.size.x -= 1;
+            new_bounds.origin.x += 1;
+        }
+
+        // Shrink from top
+        'outer: loop {
+            let y = new_bounds.top();
+
+            for x in self.bounds.left()..self.bounds.right() + 1 {
+                if !self[point![x, y]].is_empty() {
+                    break 'outer;
+                }
+            }
+
+            new_bounds.size.y -= 1;
+            new_bounds.origin.y += 1;
+        }
+
+        self.set_bounds(new_bounds);
     }
 
     pub fn set_bounds(&mut self, bounds: TileRect) {
@@ -198,7 +264,7 @@ impl TileRect {
     }
 
     pub fn right(&self) -> isize {
-        self.origin.x.checked_add_unsigned(self.size.x).unwrap() - 1
+        self.origin.x.wrapping_add_unsigned(self.size.x) - 1
     }
 
     pub fn top(&self) -> isize {
@@ -206,7 +272,7 @@ impl TileRect {
     }
 
     pub fn bottom(&self) -> isize {
-        self.origin.y.checked_add_unsigned(self.size.y).unwrap() - 1
+        self.origin.y.wrapping_add_unsigned(self.size.y) - 1
     }
 
     pub fn intersects(&self, rhs: &TileRect) -> bool {

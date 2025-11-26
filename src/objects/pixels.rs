@@ -18,6 +18,10 @@ impl Empty for PixelColor {
     fn empty() -> &'static Self {
         &PixelColor([0; 4])
     }
+
+    fn is_empty(&self) -> bool {
+        self.0 == [0; 4]
+    }
 }
 
 #[derive(Clone, Copy, Default, Debug)]
@@ -26,6 +30,10 @@ pub struct PixelData {}
 impl Empty for PixelData {
     fn empty() -> &'static Self {
         &PixelData {}
+    }
+
+    fn is_empty(&self) -> bool {
+        true
     }
 }
 
