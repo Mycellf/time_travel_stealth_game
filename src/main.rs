@@ -8,8 +8,6 @@ use ggez::{
     winit::keyboard::{Key, NamedKey},
 };
 
-use crate::objects::pixels::Pixels;
-
 pub(crate) mod collections;
 pub(crate) mod objects;
 

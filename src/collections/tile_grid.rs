@@ -9,23 +9,23 @@ use nalgebra::{Point2, Vector2, point, vector};
 pub type TileIndex = Point2<isize>;
 
 #[derive(Clone, Debug)]
-pub struct TileGrid<T: Emptyable> {
+pub struct TileGrid<T: Empty> {
     bounds: TileRect,
     tiles: Box<[T]>,
 }
 
-pub trait Emptyable: Default + 'static {
+pub trait Empty: Default + 'static {
     /// The value returned by this should match the value of default for this type.
     fn empty() -> &'static Self;
 }
 
-impl<T: 'static> Emptyable for Option<T> {
+impl<T: 'static> Empty for Option<T> {
     fn empty() -> &'static Self {
         &None
     }
 }
 
-impl<T: Emptyable> Default for TileGrid<T> {
+impl<T: Empty> Default for TileGrid<T> {
     fn default() -> Self {
         Self {
             bounds: TileRect::default(),
@@ -34,7 +34,7 @@ impl<T: Emptyable> Default for TileGrid<T> {
     }
 }
 
-impl<T: Emptyable> Index<TileIndex> for TileGrid<T> {
+impl<T: Empty> Index<TileIndex> for TileGrid<T> {
     type Output = T;
 
     fn index(&self, index: TileIndex) -> &Self::Output {
@@ -46,7 +46,7 @@ impl<T: Emptyable> Index<TileIndex> for TileGrid<T> {
     }
 }
 
-impl<T: Emptyable> IndexMut<TileIndex> for TileGrid<T> {
+impl<T: Empty> IndexMut<TileIndex> for TileGrid<T> {
     fn index_mut(&mut self, index: TileIndex) -> &mut Self::Output {
         self.expand_to_fit_index(index);
 
@@ -58,7 +58,7 @@ impl<T: Emptyable> IndexMut<TileIndex> for TileGrid<T> {
     }
 }
 
-impl<T: Emptyable> TileGrid<T> {
+impl<T: Empty> TileGrid<T> {
     pub fn bounds(&self) -> TileRect {
         self.bounds
     }

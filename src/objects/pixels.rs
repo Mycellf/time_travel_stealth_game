@@ -3,7 +3,7 @@ use ggez::{
     graphics::{Image, ImageFormat},
 };
 
-use crate::collections::tile_grid::{Emptyable, TileGrid};
+use crate::collections::tile_grid::{Empty, TileGrid};
 
 pub struct Pixels {
     colors: TileGrid<PixelColor>,
@@ -14,7 +14,7 @@ pub struct Pixels {
 #[derive(Clone, Copy, Default, Debug)]
 pub struct PixelColor(pub [u8; 4]);
 
-impl Emptyable for PixelColor {
+impl Empty for PixelColor {
     fn empty() -> &'static Self {
         &PixelColor([0; 4])
     }
@@ -23,7 +23,7 @@ impl Emptyable for PixelColor {
 #[derive(Clone, Copy, Default, Debug)]
 pub struct PixelData {}
 
-impl Emptyable for PixelData {
+impl Empty for PixelData {
     fn empty() -> &'static Self {
         &PixelData {}
     }
