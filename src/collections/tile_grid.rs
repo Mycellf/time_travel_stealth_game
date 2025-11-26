@@ -210,6 +210,92 @@ impl<T: Empty> TileGrid<T> {
     }
 }
 
+#[derive(Clone, Debug)]
+pub struct IntoIter<T: Empty> {
+    inner: TileGrid<T>,
+    index: usize,
+}
+
+impl<T: Empty> Iterator for IntoIter<T> {
+    type Item = (TileIndex, T);
+
+    fn next(&mut self) -> Option<Self::Item> {
+        while self.inner.tiles.get(self.index)?.is_empty() {
+            self.index += 1;
+        }
+
+        let tile_index = self
+            .inner
+            .bounds
+            .linear_index_to_tile_index(self.index)
+            .unwrap();
+
+        let tile = mem::take(&mut self.inner.tiles[self.index]);
+        self.index += 1;
+
+        Some((tile_index, tile))
+    }
+}
+
+impl<T: Empty> IntoIterator for TileGrid<T> {
+    type Item = (TileIndex, T);
+
+    type IntoIter = IntoIter<T>;
+
+    fn into_iter(self) -> Self::IntoIter {
+        IntoIter {
+            inner: self,
+            index: 0,
+        }
+    }
+}
+
+#[derive(Clone, Debug)]
+pub struct Iter<'a, T: Empty> {
+    inner: &'a TileGrid<T>,
+    index: usize,
+}
+
+impl<'a, T: Empty> Iterator for Iter<'a, T> {
+    type Item = (TileIndex, &'a T);
+
+    fn next(&mut self) -> Option<Self::Item> {
+        while self.inner.tiles.get(self.index)?.is_empty() {
+            self.index += 1;
+        }
+
+        let tile_index = self
+            .inner
+            .bounds
+            .linear_index_to_tile_index(self.index)
+            .unwrap();
+
+        let tile = &self.inner.tiles[self.index];
+        self.index += 1;
+
+        Some((tile_index, tile))
+    }
+}
+
+impl<T: Empty> TileGrid<T> {
+    fn iter(&self) -> Iter<'_, T> {
+        Iter {
+            inner: self,
+            index: 0,
+        }
+    }
+}
+
+impl<'a, T: Empty> IntoIterator for &'a TileGrid<T> {
+    type Item = (TileIndex, &'a T);
+
+    type IntoIter = Iter<'a, T>;
+
+    fn into_iter(self) -> Self::IntoIter {
+        self.iter()
+    }
+}
+
 #[derive(Clone, Copy, Debug)]
 pub struct TileRect {
     pub origin: TileIndex,
@@ -248,6 +334,17 @@ impl TileRect {
         TileRect {
             origin: min_corner,
             size: (max_corner - min_corner).map(|x| (x + 1).max(0) as usize),
+        }
+    }
+
+    pub fn linear_index_to_tile_index(&self, linear_index: usize) -> Option<TileIndex> {
+        if linear_index < self.area() {
+            let x_offset = (linear_index % self.size.x) as isize;
+            let y_offset = (linear_index / self.size.x) as isize;
+
+            Some(self.origin + vector![x_offset, y_offset])
+        } else {
+            None
         }
     }
 
