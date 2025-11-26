@@ -7,6 +7,7 @@ use ggez::graphics::Rect;
 use nalgebra::{Point2, Vector2, point, vector};
 
 pub type TileIndex = Point2<isize>;
+pub type TileIndexOffset = Vector2<isize>;
 
 #[derive(Clone, Debug)]
 pub struct TileGrid<T: Empty> {
@@ -86,6 +87,18 @@ impl<T: Empty> TileGrid<T> {
     pub fn expand_to_fit_index(&mut self, index: TileIndex) -> bool {
         let mut bounds = self.bounds;
         let expanded = bounds.expand_to_include_index(index, self.bounds.size / 2);
+
+        if expanded {
+            self.set_bounds(bounds);
+        }
+
+        expanded
+    }
+
+    /// Returns whether or not any expansion occurred
+    pub fn expand_to_fit_bounds(&mut self, bounds: TileRect) -> bool {
+        let mut bounds = self.bounds;
+        let expanded = bounds.expand_to_include_bounds(bounds, self.bounds.size / 2);
 
         if expanded {
             self.set_bounds(bounds);
