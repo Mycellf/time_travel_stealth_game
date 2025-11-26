@@ -88,3 +88,42 @@ where
         self.get_mut(index).unwrap()
     }
 }
+
+/// CREDIT: Adapted from slotmap's `new_key_type`.
+#[macro_export]
+macro_rules! new_small_key_type {
+    ( $(#[$outer:meta])* $vis:vis struct $name:ident($inner:ty); $($rest:tt)* ) => {
+        $(#[$outer])*
+        #[derive(Copy, Clone, Default,
+                 Eq, PartialEq, Ord, PartialOrd,
+                 Hash, Debug)]
+        #[repr(transparent)]
+        $vis struct $name($inner);
+
+        // Make it a bit harder to accidentally misuse the macro
+        const _: u32 = <$inner>::BITS;
+
+        impl From<$name> for usize {
+            fn from(value: $name) -> Self {
+                value.0.into()
+            }
+        }
+
+        impl TryFrom<usize> for $name {
+            type Error = std::num::TryFromIntError;
+
+            fn try_from(value: usize) -> Result<Self, Self::Error> {
+                Ok($name(value.try_into()?))
+            }
+        }
+
+        $crate::new_small_key_type!($($rest)*);
+    };
+
+    () => {}
+}
+
+new_small_key_type! {
+    pub struct DefaultU8Key(u8);
+    pub struct DefaultU16Key(u16);
+}
