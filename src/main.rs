@@ -11,7 +11,7 @@ use ggez::{
 pub(crate) mod collections;
 pub(crate) mod objects;
 
-fn main() {
+fn main() -> GameResult {
     let mut builder = ContextBuilder::new("pixel_part_simulation", "Mycellf").default_conf(Conf {
         window_mode: WindowMode {
             // width: todo!(),
@@ -48,11 +48,11 @@ fn main() {
         builder = builder.add_resource_path(path);
     }
 
-    let (ctx, event_loop) = builder.build().unwrap();
+    let (mut ctx, event_loop) = builder.build()?;
 
-    let state = State::default();
+    let state = State::new(&mut ctx)?;
 
-    event::run(ctx, event_loop, state).unwrap();
+    event::run(ctx, event_loop, state)
 }
 
 #[derive(Debug)]
@@ -60,9 +60,9 @@ pub(crate) struct State {
     fullscreen: bool,
 }
 
-impl Default for State {
-    fn default() -> Self {
-        State { fullscreen: true }
+impl State {
+    fn new(_ctx: &mut Context) -> GameResult<Self> {
+        Ok(State { fullscreen: true })
     }
 }
 
@@ -80,18 +80,20 @@ impl EventHandler for State {
             return Ok(());
         }
 
-        if input.event.logical_key == Key::Named(NamedKey::Escape) {
-            ctx.request_quit();
-        }
+        match input.event.logical_key {
+            Key::Named(NamedKey::Escape) => {
+                ctx.request_quit();
+            }
+            Key::Named(NamedKey::F11) => {
+                self.fullscreen ^= true;
 
-        if input.event.logical_key == Key::Named(NamedKey::F11) {
-            self.fullscreen ^= true;
-
-            ctx.gfx.set_fullscreen(if self.fullscreen {
-                FullscreenType::Desktop
-            } else {
-                FullscreenType::Windowed
-            })?;
+                ctx.gfx.set_fullscreen(if self.fullscreen {
+                    FullscreenType::Desktop
+                } else {
+                    FullscreenType::Windowed
+                })?;
+            }
+            _ => (),
         }
 
         Ok(())
