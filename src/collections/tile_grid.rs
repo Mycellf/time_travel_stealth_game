@@ -278,7 +278,7 @@ impl<'a, T: Empty> Iterator for Iter<'a, T> {
 }
 
 impl<T: Empty> TileGrid<T> {
-    fn iter(&self) -> Iter<'_, T> {
+    pub fn iter(&self) -> Iter<'_, T> {
         Iter {
             inner: self,
             index: 0,
