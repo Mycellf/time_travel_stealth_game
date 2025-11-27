@@ -32,6 +32,16 @@ impl<T: 'static> Empty for Option<T> {
     }
 }
 
+impl Empty for bool {
+    fn empty() -> &'static Self {
+        &false
+    }
+
+    fn is_empty(&self) -> bool {
+        !self
+    }
+}
+
 impl<T: Empty> Default for TileGrid<T> {
     fn default() -> Self {
         Self {
