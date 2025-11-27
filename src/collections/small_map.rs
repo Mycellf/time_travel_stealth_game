@@ -11,9 +11,15 @@ pub struct SmallMap<K, V> {
     _phantom: PhantomData<K>,
 }
 
+pub trait Key: Sized {
+    fn try_from_usize(value: usize) -> Option<Self>;
+
+    fn into_usize(self) -> usize;
+}
+
 impl<K, V> Default for SmallMap<K, V>
 where
-    K: TryFrom<usize> + Into<usize>,
+    K: Key,
 {
     fn default() -> Self {
         Self {
@@ -27,14 +33,14 @@ where
 
 impl<K, V> SmallMap<K, V>
 where
-    K: TryFrom<usize> + Into<usize>,
+    K: Key,
 {
     pub fn insert(&mut self, value: V) -> K {
         while self.first_free >= self.data.len() {
             self.data.push(None);
         }
 
-        let key = self.first_free.try_into().ok().expect("Too many elements");
+        let key = K::try_from_usize(self.first_free).expect("Too many elements");
         self.data[self.first_free] = Some(value);
 
         while let Some(Some(_)) = self.data.get(self.first_free) {
@@ -47,16 +53,16 @@ where
     }
 
     pub fn get(&self, key: K) -> Option<&V> {
-        self.data.get(key.into())?.as_ref()
+        self.data.get(key.into_usize())?.as_ref()
     }
 
     pub fn get_mut(&mut self, key: K) -> Option<&mut V> {
-        self.data.get_mut(key.into())?.as_mut()
+        self.data.get_mut(key.into_usize())?.as_mut()
     }
 
     /// Indexing with this key after this operation may result in unexpected behavior
     pub fn remove(&mut self, key: K) -> Option<V> {
-        let index = key.into();
+        let index = key.into_usize();
 
         let value = self.data.get_mut(index)?.take();
 
@@ -71,7 +77,7 @@ where
 
 impl<K, V> Index<K> for SmallMap<K, V>
 where
-    K: TryFrom<usize> + Into<usize>,
+    K: Key,
 {
     type Output = V;
 
@@ -82,7 +88,7 @@ where
 
 impl<K, V> IndexMut<K> for SmallMap<K, V>
 where
-    K: TryFrom<usize> + Into<usize>,
+    K: Key,
 {
     fn index_mut(&mut self, index: K) -> &mut Self::Output {
         self.get_mut(index).unwrap()
@@ -101,19 +107,15 @@ macro_rules! new_small_key_type {
         $vis struct $name($inner);
 
         // Make it a bit harder to accidentally misuse the macro
-        const _: u32 = <$inner>::BITS;
+        const _: () = assert!(<$inner>::BITS <= u32::BITS);
 
-        impl From<$name> for usize {
-            fn from(value: $name) -> Self {
-                value.0.into()
+        impl $crate::collections::small_map::Key for $name {
+            fn try_from_usize(value: usize) -> Option<Self> {
+                Some(Self(value.try_into().ok()?))
             }
-        }
 
-        impl TryFrom<usize> for $name {
-            type Error = std::num::TryFromIntError;
-
-            fn try_from(value: usize) -> Result<Self, Self::Error> {
-                Ok($name(value.try_into()?))
+            fn into_usize(self) -> usize {
+                self.0 as usize
             }
         }
 
@@ -126,4 +128,5 @@ macro_rules! new_small_key_type {
 new_small_key_type! {
     pub struct DefaultU8Key(u8);
     pub struct DefaultU16Key(u16);
+    pub struct DefaultU32Key(u32);
 }
