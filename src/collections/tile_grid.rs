@@ -1,4 +1,5 @@
 use std::{
+    hash::Hash,
     mem,
     ops::{Index, IndexMut},
 };
@@ -305,6 +306,22 @@ impl<'a, T: Empty> IntoIterator for &'a TileGrid<T> {
         self.iter()
     }
 }
+
+impl<T: Empty + Hash> Hash for TileGrid<T> {
+    fn hash<H: std::hash::Hasher>(&self, state: &mut H) {
+        for (index, tile) in self.iter() {
+            (index, tile).hash(state);
+        }
+    }
+}
+
+impl<T: Empty + PartialEq> PartialEq for TileGrid<T> {
+    fn eq(&self, other: &Self) -> bool {
+        self.iter().zip(other.iter()).all(|(a, b)| a == b)
+    }
+}
+
+impl<T: Empty + Eq> Eq for TileGrid<T> {}
 
 #[derive(Clone, Copy, Debug)]
 pub struct TileRect {

@@ -48,7 +48,7 @@ impl TileShapes {
     }
 }
 
-#[derive(Clone, Debug)]
+#[derive(Clone, PartialEq, Eq, Hash, Debug)]
 pub struct TileShapeEntry {
     offsets: TileGrid<bool>,
 }
