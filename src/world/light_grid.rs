@@ -1,4 +1,4 @@
-use std::mem;
+use std::{cmp::Ordering, mem};
 
 use nalgebra::{Point2, UnitVector2, Vector2, vector};
 
@@ -6,7 +6,7 @@ use crate::collections::tile_grid::{TileGrid, TileIndex};
 
 type Tile = Option<MaterialKind>;
 
-#[derive(Clone, Debug)]
+#[derive(Clone, Default, Debug)]
 pub struct LightGrid {
     pub grid: TileGrid<Tile>,
     pub corners: TileGrid<Vec<Corner>>,
@@ -116,6 +116,7 @@ impl LightGrid {
         mut function: impl FnMut(Point2<f64>, Tile) -> bool,
         start: Point2<f64>,
         direction: UnitVector2<f64>,
+        max_distance: f64,
     ) -> Point2<f64> {
         let mut location = start;
         let mut index = Self::index_of_location(location, direction.into_inner());
@@ -124,32 +125,43 @@ impl LightGrid {
         let dir_sign_y_int = if direction.y > 0.0 { 1 } else { -1 };
 
         loop {
-            let time_x = (1.0 - (location.x * direction.x.signum()).rem_euclid(1.0)) / direction.x;
-            let time_y = (1.0 - (location.y * direction.y.signum()).rem_euclid(1.0)) / direction.y;
-
-            if time_x <= time_y {
-                Self::move_in_direction(&mut location.x, direction.x);
+            if function(location, self.grid[index]) {
+                return location;
             }
 
-            if time_x >= time_y {
-                Self::move_in_direction(&mut location.y, direction.y);
+            if (start - location).magnitude_squared() >= max_distance.powi(2) {
+                return start + direction.into_inner() * max_distance;
             }
 
-            if time_x == time_y {
-                if function(location, self.grid[index + vector![dir_sign_x_int, 0]])
-                    || function(location, self.grid[index + vector![0, dir_sign_y_int]])
-                {
-                    break;
+            let time_x =
+                (1.0 - (location.x * direction.x.signum()).rem_euclid(1.0)) / direction.x.abs();
+            let time_y =
+                (1.0 - (location.y * direction.y.signum()).rem_euclid(1.0)) / direction.y.abs();
+
+            match time_x.partial_cmp(&time_y) {
+                Some(Ordering::Less) => {
+                    Self::move_in_direction(&mut location.x, direction.x);
+                    location.y += time_x * direction.y;
                 }
+                Some(Ordering::Equal) => {
+                    Self::move_in_direction(&mut location.x, direction.x);
+                    Self::move_in_direction(&mut location.y, direction.y);
+
+                    if function(location, self.grid[index + vector![dir_sign_x_int, 0]])
+                        || function(location, self.grid[index + vector![0, dir_sign_y_int]])
+                    {
+                        return location;
+                    }
+                }
+                Some(Ordering::Greater) => {
+                    location.x += time_y * direction.x;
+                    Self::move_in_direction(&mut location.y, direction.y);
+                }
+                None => unreachable!(),
             }
 
             index = Self::index_of_location(location, direction.into_inner());
-            if function(location, self.grid[index]) {
-                break;
-            }
         }
-
-        location
     }
 
     fn move_in_direction(location: &mut f64, direction: f64) {
@@ -165,7 +177,7 @@ impl LightGrid {
             (if direction[i] >= 0.0 {
                 location[i].floor()
             } else {
-                location[i].ceil()
+                location[i].ceil() - 1.0
             } as isize)
         })
         .into()
