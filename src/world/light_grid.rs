@@ -129,7 +129,7 @@ impl LightGrid {
                 .iter()
                 .map(|pixel| match pixel {
                     Some(_) => [0, 0, 0, 255],
-                    None => [255, 255, 255, 255],
+                    None => [0; 4],
                 })
                 .flatten()
                 .collect::<Vec<_>>(),
@@ -164,18 +164,25 @@ impl LightGrid {
         let mut location = start;
         let mut index = Self::index_of_location(location, direction.into_inner());
 
-        let dir_sign_x_int = if direction.x > 0.0 { 1 } else { -1 };
-        let dir_sign_y_int = if direction.y > 0.0 { 1 } else { -1 };
+        if function(location, self.grid[index]) {
+            return location;
+        }
+
+        let on_x_edge = direction.x == 0.0 && location.x.rem_euclid(1.0) == 0.0;
+        let on_y_edge = direction.y == 0.0 && location.y.rem_euclid(1.0) == 0.0;
+
+        if on_x_edge && function(location, self.grid[index + vector![-1, 0]])
+            || on_y_edge && function(location, self.grid[index + vector![0, -1]])
+        {
+            return location;
+        }
+
+        let dir_sign_x = if direction.x > 0.0 { 1 } else { -1 };
+        let dir_sign_y = if direction.y > 0.0 { 1 } else { -1 };
+
+        let max_distance_squared = max_distance.powi(2) - 1e-12;
 
         loop {
-            if function(location, self.grid[index]) {
-                return location;
-            }
-
-            if (start - location).magnitude_squared() >= max_distance.powi(2) {
-                return start + direction.into_inner() * max_distance;
-            }
-
             let time_x =
                 (1.0 - (location.x * direction.x.signum()).rem_euclid(1.0)) / direction.x.abs();
             let time_y =
@@ -189,12 +196,6 @@ impl LightGrid {
                 Some(Ordering::Equal) => {
                     Self::move_in_direction(&mut location.x, direction.x);
                     Self::move_in_direction(&mut location.y, direction.y);
-
-                    if function(location, self.grid[index + vector![dir_sign_x_int, 0]])
-                        || function(location, self.grid[index + vector![0, dir_sign_y_int]])
-                    {
-                        return location;
-                    }
                 }
                 Some(Ordering::Greater) => {
                     location.x += time_y * direction.x;
@@ -203,7 +204,35 @@ impl LightGrid {
                 None => unreachable!(),
             }
 
+            if (start - location).magnitude_squared() >= max_distance_squared {
+                return start + direction.into_inner() * max_distance;
+            }
+
+            match time_x.partial_cmp(&time_y) {
+                Some(Ordering::Less) => {
+                    if on_y_edge && function(location, self.grid[index + vector![dir_sign_x, -1]]) {
+                        return location;
+                    }
+                }
+                Some(Ordering::Equal) => {
+                    if function(location, self.grid[index + vector![dir_sign_x, 0]])
+                        || function(location, self.grid[index + vector![0, dir_sign_y]])
+                    {
+                        return location;
+                    }
+                }
+                Some(Ordering::Greater) => {
+                    if on_x_edge && function(location, self.grid[index + vector![-1, dir_sign_y]]) {
+                        return location;
+                    }
+                }
+                None => unreachable!(),
+            }
+
             index = Self::index_of_location(location, direction.into_inner());
+            if function(location, self.grid[index]) {
+                return location;
+            }
         }
     }
 
