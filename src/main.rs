@@ -116,7 +116,7 @@ impl EventHandler for State {
     }
 
     fn draw(&mut self, ctx: &mut Context) -> GameResult {
-        let mut canvas = Canvas::from_frame(ctx, Some(Color::WHITE));
+        let mut canvas = Canvas::from_frame(ctx, Some(Color::BLUE));
         canvas.set_sampler(Sampler::nearest_clamp());
 
         canvas.set_screen_coordinates(self.screen_rect());
@@ -181,31 +181,15 @@ impl EventHandler for State {
                 }
             }
             MouseButton::Right => {
-                self.raycast_start = mouse_position.map(|x| x as f64);
-            }
-            _ => (),
-        }
-
-        Ok(())
-    }
-
-    fn mouse_button_up_event(
-        &mut self,
-        _ctx: &mut Context,
-        button: MouseButton,
-        x: f32,
-        y: f32,
-    ) -> GameResult {
-        let mouse_position = self.screen_to_world(point![x, y]);
-
-        match button {
-            MouseButton::Right => {
                 if let Some(raycast_direction) = UnitVector2::try_new(
                     mouse_position.map(|x| x as f64) - self.raycast_start,
                     f64::EPSILON,
                 ) {
                     self.raycast_direction = raycast_direction;
                 }
+            }
+            MouseButton::Middle => {
+                self.raycast_start = mouse_position.map(|x| x as f64);
             }
             _ => (),
         }
