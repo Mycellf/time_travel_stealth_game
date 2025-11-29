@@ -2376,19 +2376,6 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "3b3cff922bd51709b605d9ead9aa71031d81447142d828eb4a6eba76fe619f9b"
 
 [[package]]
-name = "pixel_part_simulation"
-version = "0.1.0"
-dependencies = [
- "ggez",
- "image",
- "nalgebra",
- "rand",
- "serde",
- "slotmap",
- "toml",
-]
-
-[[package]]
 name = "pkg-config"
 version = "0.3.32"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -3166,6 +3153,19 @@ dependencies = [
  "quick-error",
  "weezl",
  "zune-jpeg 0.4.21",
+]
+
+[[package]]
+name = "time_travel_stealth_game"
+version = "0.1.0"
+dependencies = [
+ "ggez",
+ "image",
+ "nalgebra",
+ "rand",
+ "serde",
+ "slotmap",
+ "toml",
 ]
 
 [[package]]

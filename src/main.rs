@@ -9,37 +9,37 @@ use ggez::{
 };
 
 pub(crate) mod collections;
-pub(crate) mod objects;
 
 fn main() -> GameResult {
-    let mut builder = ContextBuilder::new("pixel_part_simulation", "Mycellf").default_conf(Conf {
-        window_mode: WindowMode {
-            // width: todo!(),
-            // height: todo!(),
-            // maximized: true,
-            fullscreen_type: FullscreenType::Desktop,
-            // borderless: todo!(),
-            // transparent: todo!(),
-            min_width: 300.0,
-            min_height: 300.0,
-            // max_width: todo!(),
-            // max_height: todo!(),
-            // resizable: todo!(),
-            // visible: todo!(),
-            // resize_on_scale_factor_change: todo!(),
-            // logical_size: todo!(),
-            ..Default::default()
-        },
-        window_setup: WindowSetup {
-            title: "Pixel Part Simulation".to_owned(),
-            // samples: todo!(),
-            // vsync: todo!(),
-            // icon: todo!(),
-            // srgb: todo!(),
-            ..Default::default()
-        },
-        backend: Backend::default(),
-    });
+    let mut builder =
+        ContextBuilder::new("time_travel_stealth_game", "CODER-J").default_conf(Conf {
+            window_mode: WindowMode {
+                // width: todo!(),
+                // height: todo!(),
+                // maximized: true,
+                fullscreen_type: FullscreenType::Desktop,
+                // borderless: todo!(),
+                // transparent: todo!(),
+                min_width: 300.0,
+                min_height: 300.0,
+                // max_width: todo!(),
+                // max_height: todo!(),
+                // resizable: todo!(),
+                // visible: todo!(),
+                // resize_on_scale_factor_change: todo!(),
+                // logical_size: todo!(),
+                ..Default::default()
+            },
+            window_setup: WindowSetup {
+                title: "Time Travel Stealth Game".to_owned(),
+                // samples: todo!(),
+                // vsync: todo!(),
+                // icon: todo!(),
+                // srgb: todo!(),
+                ..Default::default()
+            },
+            backend: Backend::default(),
+        });
 
     if let Ok(manifest_dir) = env::var("CARGO_MANIFEST_DIR") {
         let mut path = PathBuf::from(manifest_dir);
