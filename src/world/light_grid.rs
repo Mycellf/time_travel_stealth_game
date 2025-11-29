@@ -1,6 +1,10 @@
 use std::{cmp::Ordering, mem};
 
-use nalgebra::{Point2, UnitVector2, Vector2, vector};
+use ggez::{
+    Context,
+    graphics::{Canvas, Color, DrawParam, Image, ImageFormat, Transform},
+};
+use nalgebra::{Point2, UnitVector2, Vector2, point, vector};
 
 use crate::collections::tile_grid::{TileGrid, TileIndex};
 
@@ -111,6 +115,45 @@ pub struct AngleRange {
 }
 
 impl LightGrid {
+    pub fn draw(&self, ctx: &mut Context, canvas: &mut Canvas) {
+        if self.grid.bounds().area() == 0 {
+            return;
+        }
+
+        // TODO: This should definitely be cached somewhere.
+        let image = Image::from_pixels(
+            ctx,
+            &self
+                .grid
+                .as_slice()
+                .iter()
+                .map(|pixel| match pixel {
+                    Some(_) => [0, 0, 0, 255],
+                    None => [255, 255, 255, 255],
+                })
+                .flatten()
+                .collect::<Vec<_>>(),
+            ImageFormat::Rgba8UnormSrgb,
+            self.grid.bounds().size.x as u32,
+            self.grid.bounds().size.y as u32,
+        );
+
+        let origin = self.grid.bounds().origin.map(|x| x as f32);
+
+        canvas.draw(
+            &image,
+            DrawParam {
+                transform: Transform::Values {
+                    dest: origin.into(),
+                    rotation: 0.0,
+                    scale: vector![1.0, 1.0].into(),
+                    offset: point![0.0, 0.0].into(),
+                },
+                ..Default::default()
+            },
+        );
+    }
+
     pub fn raycast_with(
         &self,
         mut function: impl FnMut(Point2<f64>, Tile) -> bool,

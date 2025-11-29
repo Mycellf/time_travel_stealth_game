@@ -4,9 +4,16 @@ use ggez::{
     Context, ContextBuilder, GameResult,
     conf::{Backend, Conf, FullscreenType, WindowMode, WindowSetup},
     event::{self, EventHandler},
+    graphics::{Canvas, Color, DrawParam, Mesh, Rect, Sampler},
     input::keyboard::KeyInput,
-    winit::keyboard::{Key, NamedKey},
+    winit::{
+        event::MouseButton,
+        keyboard::{Key, NamedKey},
+    },
 };
+use nalgebra::{Point2, UnitVector2, Vector2, point, vector};
+
+use crate::world::light_grid::{LightGrid, MaterialKind};
 
 pub(crate) mod collections;
 pub(crate) mod world;
@@ -59,20 +66,74 @@ fn main() -> GameResult {
 #[derive(Debug)]
 pub(crate) struct State {
     fullscreen: bool,
+    window_size: Vector2<f32>,
+
+    raycast_start: Point2<f64>,
+    raycast_direction: UnitVector2<f64>,
+    raycast_finish: Point2<f64>,
+
+    light_grid: LightGrid,
 }
 
 impl State {
     fn new(_ctx: &mut Context) -> GameResult<Self> {
-        Ok(State { fullscreen: true })
+        Ok(State {
+            fullscreen: true,
+            window_size: vector![800.0, 600.0],
+
+            raycast_start: point![0.0, 0.0],
+            raycast_direction: UnitVector2::new_normalize(vector![-1.0, 2.0]),
+            raycast_finish: point![0.0, 0.0],
+
+            light_grid: LightGrid::default(),
+        })
+    }
+}
+
+impl State {
+    fn screen_rect(&self) -> Rect {
+        rectangle_of_centered_camera(self.window_size, point![0.0, 0.0], 10.0)
+    }
+
+    fn screen_to_world(&self, point: Point2<f32>) -> Point2<f32> {
+        let world = self.screen_rect();
+        let screen = Rect::new(0.0, 0.0, self.window_size.x, self.window_size.y);
+
+        transform_between_rectangles(screen, world, point)
     }
 }
 
 impl EventHandler for State {
     fn update(&mut self, _ctx: &mut Context) -> GameResult {
+        self.raycast_finish = self.light_grid.raycast_with(
+            |_, pixel| pixel.is_some(),
+            self.raycast_start,
+            self.raycast_direction,
+            100.0,
+        );
+
         Ok(())
     }
 
-    fn draw(&mut self, _ctx: &mut Context) -> GameResult {
+    fn draw(&mut self, ctx: &mut Context) -> GameResult {
+        let mut canvas = Canvas::from_frame(ctx, Some(Color::WHITE));
+        canvas.set_sampler(Sampler::nearest_clamp());
+
+        canvas.set_screen_coordinates(self.screen_rect());
+
+        self.light_grid.draw(ctx, &mut canvas);
+
+        let line = Mesh::new_line(
+            ctx,
+            &[self.raycast_start, self.raycast_finish].map(|point| point.map(|x| x as f32)),
+            0.1,
+            Color::RED,
+        )?;
+
+        canvas.draw(&line, DrawParam::default());
+
+        canvas.finish(ctx)?;
+
         Ok(())
     }
 
@@ -99,4 +160,90 @@ impl EventHandler for State {
 
         Ok(())
     }
+
+    fn mouse_button_down_event(
+        &mut self,
+        _ctx: &mut Context,
+        button: MouseButton,
+        x: f32,
+        y: f32,
+    ) -> GameResult {
+        let mouse_position = self.screen_to_world(point![x, y]);
+
+        match button {
+            MouseButton::Left => {
+                let index = mouse_position.map(|x| x.floor() as isize);
+                let pixel = &mut self.light_grid.grid[index];
+
+                match pixel {
+                    Some(_) => *pixel = None,
+                    None => *pixel = Some(MaterialKind::Solid),
+                }
+            }
+            MouseButton::Right => {
+                self.raycast_start = mouse_position.map(|x| x as f64);
+            }
+            _ => (),
+        }
+
+        Ok(())
+    }
+
+    fn mouse_button_up_event(
+        &mut self,
+        _ctx: &mut Context,
+        button: MouseButton,
+        x: f32,
+        y: f32,
+    ) -> GameResult {
+        let mouse_position = self.screen_to_world(point![x, y]);
+
+        match button {
+            MouseButton::Right => {
+                if let Some(raycast_direction) = UnitVector2::try_new(
+                    mouse_position.map(|x| x as f64) - self.raycast_start,
+                    f64::EPSILON,
+                ) {
+                    self.raycast_direction = raycast_direction;
+                }
+            }
+            _ => (),
+        }
+
+        Ok(())
+    }
+
+    fn resize_event(&mut self, _ctx: &mut Context, width: f32, height: f32) -> GameResult {
+        self.window_size = vector![width, height];
+
+        Ok(())
+    }
+}
+
+fn rectangle_of_centered_camera(
+    screen_size: Vector2<f32>,
+    center: Point2<f32>,
+    height: f32,
+) -> Rect {
+    let size = vector![height * screen_size.x / screen_size.y, height];
+    let corner = center - size / 2.0;
+
+    Rect::new(corner.x, corner.y, size.x, size.y)
+}
+
+fn transform_between_rectangles(
+    source: Rect,
+    destination: Rect,
+    point: Point2<f32>,
+) -> Point2<f32> {
+    let source_origin = point![source.x, source.y];
+    let source_size = vector![source.w, source.h];
+
+    let destination_origin = point![destination.x, destination.y];
+    let destination_size = vector![destination.w, destination.h];
+
+    destination_origin
+        + (point - source_origin)
+            .component_div(&source_size)
+            .component_mul(&destination_size)
 }
