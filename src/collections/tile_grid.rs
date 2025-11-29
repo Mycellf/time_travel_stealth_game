@@ -33,6 +33,16 @@ impl<T: 'static> Empty for Option<T> {
     }
 }
 
+impl<T: 'static> Empty for Vec<T> {
+    fn empty() -> &'static Self {
+        const { &Vec::new() }
+    }
+
+    fn is_empty(&self) -> bool {
+        Vec::is_empty(self)
+    }
+}
+
 impl Empty for bool {
     fn empty() -> &'static Self {
         &false

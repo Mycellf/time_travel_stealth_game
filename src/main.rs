@@ -9,6 +9,7 @@ use ggez::{
 };
 
 pub(crate) mod collections;
+pub(crate) mod world;
 
 fn main() -> GameResult {
     let mut builder =
