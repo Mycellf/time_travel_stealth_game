@@ -4,7 +4,7 @@ use ggez::{
     Context, ContextBuilder, GameResult,
     conf::{Backend, Conf, FullscreenType, WindowMode, WindowSetup},
     event::{self, EventHandler},
-    graphics::{Canvas, Color, DrawParam, Mesh, Rect, Sampler},
+    graphics::{Canvas, Color, DrawParam, Mesh, Rect, Sampler, Text, Transform},
     input::keyboard::KeyInput,
     winit::{
         event::MouseButton,
@@ -14,7 +14,7 @@ use ggez::{
 };
 use nalgebra::{Point2, UnitVector2, Vector2, point, vector};
 
-use crate::world::light_grid::{AngleRange, LightArea, LightGrid, MaterialKind};
+use crate::world::light_grid::{self, AngleRange, LightArea, LightGrid, MaterialKind};
 
 pub(crate) mod collections;
 pub(crate) mod world;
@@ -141,11 +141,12 @@ impl EventHandler for State {
 
         self.light_grid.draw(ctx, &mut canvas)?;
 
-        for &ray in &self.light_area.rays {
+        for (i, &ray) in self.light_area.rays.iter().enumerate() {
+            let finish = self.light_area.origin + ray;
+
             let line = Mesh::new_line(
                 ctx,
-                &[self.light_area.origin, self.light_area.origin + ray]
-                    .map(|point| point.map(|x| x as f32)),
+                &[self.light_area.origin, finish].map(|point| point.map(|x| x as f32)),
                 0.05,
                 Color {
                     a: 0.5,
@@ -154,6 +155,22 @@ impl EventHandler for State {
             )?;
 
             canvas.draw(&line, DrawParam::default());
+
+            let text = Text::new(format!("{i}"));
+
+            canvas.draw(
+                &text,
+                DrawParam {
+                    color: Color::GREEN,
+                    transform: Transform::Values {
+                        dest: finish.map(|x| x as f32).into(),
+                        rotation: 0.0,
+                        scale: vector![0.01, 0.01].into(),
+                        offset: point![0.0, 0.0].into(),
+                    },
+                    ..Default::default()
+                },
+            );
         }
 
         canvas.finish(ctx)?;

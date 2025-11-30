@@ -40,6 +40,8 @@ impl IndexMut<TileIndex> for LightGrid {
 }
 
 impl LightGrid {
+    pub const MAXIMUM_RAY_RANGE: f64 = 128.0;
+
     pub fn corners(&mut self) -> &[Corner] {
         if self.updated {
             self.updated = false;
@@ -158,7 +160,7 @@ impl LightGrid {
                     |_, index| self[index].is_some(),
                     area.origin,
                     range.left,
-                    128.0,
+                    Self::MAXIMUM_RAY_RANGE,
                     Default::default(),
                 )
                 .0 - area.origin,
@@ -169,7 +171,7 @@ impl LightGrid {
                     |_, index| self[index].is_some(),
                     area.origin,
                     range.right,
-                    128.0,
+                    Self::MAXIMUM_RAY_RANGE,
                     Default::default(),
                 )
                 .0 - area.origin,
@@ -220,28 +222,46 @@ impl LightGrid {
                 |_, index| self[index].is_some(),
                 corner.location,
                 direction_to_corner,
-                128.0,
+                Self::MAXIMUM_RAY_RANGE,
                 state,
             );
 
             area.rays.push(finish - area.origin);
         }
 
-        let reference_angle = match area.range {
-            Some(range) => angle_of_vector(range.right.into_inner()),
-            None => 0.0,
+        let reference = match area.range {
+            Some(range) => range.left.into_inner(),
+            None => vector![1.0, 0.0],
         };
 
-        // area.rays.sort_by_cached_key(|&ray| {
-        //     use std::f64::consts::PI;
-        //
-        //     let angle = angle_of_vector(ray);
-        //
-        //     (angle - reference_angle).rem_euclid(2.0 * PI)
-        // });
+        area.rays
+            .sort_unstable_by(|&lhs, &rhs| compare_vector_angles(lhs, rhs, reference));
 
         area
     }
+}
+
+/// Compares the counter clockwise angle from reference to lhs to that of rhs
+fn compare_vector_angles(
+    lhs: Vector2<f64>,
+    rhs: Vector2<f64>,
+    reference: Vector2<f64>,
+) -> Ordering {
+    counter_clockwise_cos_angle(lhs, reference)
+        .total_cmp(&counter_clockwise_cos_angle(rhs, reference))
+}
+
+pub fn counter_clockwise_cos_angle(vector: Vector2<f64>, reference: Vector2<f64>) -> f64 {
+    let result = cos_angle(vector, reference);
+    if reference.perp(&vector) >= -1e-6 {
+        -result
+    } else {
+        result + 3.0
+    }
+}
+
+fn cos_angle(lhs: Vector2<f64>, rhs: Vector2<f64>) -> f64 {
+    lhs.dot(&rhs) / (lhs.magnitude() * rhs.magnitude())
 }
 
 #[derive(Clone, Copy, Debug)]
@@ -570,12 +590,4 @@ fn index_of_location(location: Point2<f64>, direction: Vector2<f64>) -> Point2<i
         } as isize)
     })
     .into()
-}
-
-fn angle_of_vector(vector: Vector2<f64>) -> f64 {
-    use std::f64::consts::PI;
-
-    let angle = vector.angle(&vector![1.0, 0.0]);
-
-    if vector.y >= 0.0 { angle } else { angle + PI }
 }
