@@ -9,6 +9,7 @@ use ggez::{
     winit::{
         event::MouseButton,
         keyboard::{Key, NamedKey},
+        platform::modifier_supplement::KeyEventExtModifierSupplement,
     },
 };
 use nalgebra::{Point2, UnitVector2, Vector2, point, vector};
@@ -178,7 +179,7 @@ impl EventHandler for State {
             return Ok(());
         }
 
-        match input.event.logical_key {
+        match input.event.key_without_modifiers() {
             Key::Named(NamedKey::Escape) => {
                 ctx.request_quit();
             }
@@ -196,6 +197,13 @@ impl EventHandler for State {
             }
             Key::Named(NamedKey::Control) => {
                 self.set_raycast_distance = true;
+            }
+            Key::Character(char) if char == "r" => {
+                if self.set_raycast_distance {
+                    self.raycast_distance = 100.0;
+
+                    self.update_raycast = true;
+                }
             }
             _ => (),
         }
