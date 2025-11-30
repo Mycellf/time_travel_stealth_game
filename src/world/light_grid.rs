@@ -231,6 +231,22 @@ impl CornerDirection {
     }
 
     pub fn contains_offset<T: PartialOrd + Default>(self, offset: Vector2<T>) -> bool {
+        let (horizontal_ok, vertical_ok) = self.filter_offsets(offset);
+
+        if self.is_convex() {
+            horizontal_ok || vertical_ok
+        } else {
+            horizontal_ok && vertical_ok
+        }
+    }
+
+    pub fn contains_offset_strict<T: PartialOrd + Default>(self, offset: Vector2<T>) -> bool {
+        let (horizontal_ok, vertical_ok) = self.filter_offsets(offset);
+
+        horizontal_ok && vertical_ok
+    }
+
+    fn filter_offsets<T: PartialOrd + Default>(self, offset: Vector2<T>) -> (bool, bool) {
         let horizontal_ok = if self.is_east() {
             offset[0] >= T::default()
         } else {
@@ -243,11 +259,7 @@ impl CornerDirection {
             offset[1] >= T::default()
         };
 
-        if self.is_convex() {
-            horizontal_ok || vertical_ok
-        } else {
-            horizontal_ok && vertical_ok
-        }
+        (horizontal_ok, vertical_ok)
     }
 
     pub fn out<T: From<i8> + Scalar>(self) -> Vector2<T> {
