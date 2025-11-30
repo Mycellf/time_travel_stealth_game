@@ -241,7 +241,7 @@ impl EventHandler for State {
         match button {
             MouseButton::Left => {
                 let index = mouse_position.map(|x| x.floor() as isize);
-                let pixel = &mut self.light_grid.grid[index];
+                let pixel = &mut self.light_grid[index];
 
                 match pixel {
                     Some(_) => *pixel = None,

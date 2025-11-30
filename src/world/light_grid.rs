@@ -1,25 +1,78 @@
-use std::{cmp::Ordering, collections::HashSet, mem};
+use std::{
+    array,
+    cmp::Ordering,
+    mem,
+    ops::{Index, IndexMut},
+};
 
 use ggez::{
-    Context,
-    graphics::{Canvas, DrawParam, Image, ImageFormat, Transform},
+    Context, GameResult,
+    graphics::{
+        Canvas, Color, DrawMode, DrawParam, FillOptions, Image, ImageFormat, Mesh, Rect, Transform,
+    },
 };
-use nalgebra::{Point2, UnitVector2, Vector2, point, vector};
+use nalgebra::{Point2, Scalar, UnitVector2, Vector2, point, vector};
 
 use crate::collections::tile_grid::{TileGrid, TileIndex};
 
-type Tile = Option<MaterialKind>;
+pub type Pixel = Option<MaterialKind>;
 
 #[derive(Clone, Default, Debug)]
 pub struct LightGrid {
-    pub grid: TileGrid<Tile>,
-    pub corners: HashSet<Corner>,
+    grid: TileGrid<Pixel>,
+    updated: bool,
+    corners: Vec<Corner>,
+}
+
+impl Index<TileIndex> for LightGrid {
+    type Output = Pixel;
+
+    fn index(&self, index: TileIndex) -> &Self::Output {
+        &self.grid[index]
+    }
+}
+
+impl IndexMut<TileIndex> for LightGrid {
+    fn index_mut(&mut self, index: TileIndex) -> &mut Self::Output {
+        self.updated = true;
+        &mut self.grid[index]
+    }
 }
 
 impl LightGrid {
-    pub fn draw(&self, ctx: &mut Context, canvas: &mut Canvas) {
+    pub fn corners(&mut self) -> &[Corner] {
+        if self.updated {
+            self.updated = false;
+            self.regenerate_corners();
+        }
+
+        &self.corners
+    }
+
+    fn regenerate_corners(&mut self) {
+        self.corners.clear();
+
+        let bounds = self.grid.bounds();
+
+        for x in bounds.left()..bounds.right() + 2 {
+            for y in bounds.top()..bounds.bottom() + 2 {
+                let neighborhood = array::from_fn(|v| {
+                    array::from_fn(|u| self.grid[point![x + u as isize - 1, y + v as isize - 1]])
+                });
+
+                for &direction in CornerDirection::from_neighborhood(neighborhood) {
+                    self.corners.push(Corner {
+                        location: point![x, y],
+                        direction,
+                    })
+                }
+            }
+        }
+    }
+
+    pub fn draw(&mut self, ctx: &mut Context, canvas: &mut Canvas) -> GameResult {
         if self.grid.bounds().area() == 0 {
-            return;
+            return Ok(());
         }
 
         // TODO: This should definitely be cached somewhere.
@@ -54,11 +107,43 @@ impl LightGrid {
                 ..Default::default()
             },
         );
+
+        let rectangle = Mesh::new_rectangle(
+            ctx,
+            DrawMode::Fill(FillOptions::default()),
+            Rect::one(),
+            Color::WHITE,
+        )?;
+
+        for &corner in self.corners() {
+            let rotation = corner.direction.left_angle();
+            let origin = corner.location.map(|x| x as f32);
+
+            canvas.draw(
+                &rectangle,
+                DrawParam {
+                    color: if corner.direction.is_convex() {
+                        Color::RED
+                    } else {
+                        Color::BLUE
+                    },
+                    transform: Transform::Values {
+                        dest: origin.into(),
+                        rotation,
+                        scale: vector![0.2, 0.2].into(),
+                        offset: point![0.0, 0.0].into(),
+                    },
+                    ..Default::default()
+                },
+            );
+        }
+
+        Ok(())
     }
 
     pub fn raycast_with(
         &self,
-        mut function: impl FnMut(Point2<f64>, Tile) -> bool,
+        mut function: impl FnMut(Point2<f64>, Pixel) -> bool,
         start: Point2<f64>,
         direction: UnitVector2<f64>,
         max_distance: f64,
@@ -200,7 +285,7 @@ impl CornerDirection {
         }
     }
 
-    pub fn from_neighborhood(neighborhood: [[Tile; 2]; 2]) -> &'static [Self] {
+    pub fn from_neighborhood(neighborhood: [[Pixel; 2]; 2]) -> &'static [Self] {
         match neighborhood {
             [[None, None], [None, None]]
             | [[Some(_), Some(_)], [None, None]]
@@ -271,6 +356,49 @@ impl CornerDirection {
             horizontal_ok || vertical_ok
         } else {
             horizontal_ok && vertical_ok
+        }
+    }
+
+    pub fn out<T: From<i8> + Scalar>(self) -> Vector2<T> {
+        match self {
+            CornerDirection::ConcaveNorthEast | CornerDirection::ConvexNorthEast => vector![1, -1],
+            CornerDirection::ConcaveNorthWest | CornerDirection::ConvexNorthWest => vector![-1, -1],
+            CornerDirection::ConcaveSouthEast | CornerDirection::ConvexSouthEast => vector![1, 1],
+            CornerDirection::ConcaveSouthWest | CornerDirection::ConvexSouthWest => vector![-1, 1],
+        }
+        .map(T::from)
+    }
+
+    pub fn out_angle(self) -> f32 {
+        use std::f32::consts::PI;
+
+        match self {
+            CornerDirection::ConcaveNorthEast | CornerDirection::ConvexNorthEast => PI * 7.0 / 4.0,
+            CornerDirection::ConcaveNorthWest | CornerDirection::ConvexNorthWest => PI * 5.0 / 4.0,
+            CornerDirection::ConcaveSouthEast | CornerDirection::ConvexSouthEast => PI * 1.0 / 4.0,
+            CornerDirection::ConcaveSouthWest | CornerDirection::ConvexSouthWest => PI * 3.0 / 4.0,
+        }
+    }
+
+    pub fn left_angle(self) -> f32 {
+        use std::f32::consts::PI;
+
+        match self {
+            CornerDirection::ConcaveNorthEast | CornerDirection::ConvexNorthEast => PI * 3.0 / 2.0,
+            CornerDirection::ConcaveNorthWest | CornerDirection::ConvexNorthWest => PI,
+            CornerDirection::ConcaveSouthEast | CornerDirection::ConvexSouthEast => 0.0,
+            CornerDirection::ConcaveSouthWest | CornerDirection::ConvexSouthWest => PI * 1.0 / 2.0,
+        }
+    }
+
+    pub fn right_angle(self) -> f32 {
+        use std::f32::consts::PI;
+
+        match self {
+            CornerDirection::ConcaveNorthEast | CornerDirection::ConvexNorthEast => 0.0,
+            CornerDirection::ConcaveNorthWest | CornerDirection::ConvexNorthWest => PI * 3.0 / 2.0,
+            CornerDirection::ConcaveSouthEast | CornerDirection::ConvexSouthEast => PI * 1.0 / 2.0,
+            CornerDirection::ConcaveSouthWest | CornerDirection::ConvexSouthWest => PI,
         }
     }
 }
