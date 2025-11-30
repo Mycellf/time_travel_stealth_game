@@ -50,6 +50,36 @@ impl CornerDirection {
         }
     }
 
+    pub fn from_neighborhood(neighborhood: [[Tile; 2]; 2]) -> &'static [Self] {
+        match neighborhood {
+            [[None, None], [None, None]]
+            | [[Some(_), Some(_)], [None, None]]
+            | [[None, None], [Some(_), Some(_)]]
+            | [[None, Some(_)], [None, Some(_)]]
+            | [[Some(_), None], [Some(_), None]]
+            | [[Some(_), Some(_)], [Some(_), Some(_)]] => &[],
+
+            [[Some(_), None], [None, None]] => &[CornerDirection::ConvexSouthEast],
+            [[None, Some(_)], [None, None]] => &[CornerDirection::ConvexSouthWest],
+            [[None, None], [Some(_), None]] => &[CornerDirection::ConvexNorthEast],
+            [[None, None], [None, Some(_)]] => &[CornerDirection::ConvexNorthWest],
+
+            [[Some(_), None], [None, Some(_)]] => &[
+                CornerDirection::ConcaveNorthEast,
+                CornerDirection::ConcaveSouthWest,
+            ],
+            [[None, Some(_)], [Some(_), None]] => &[
+                CornerDirection::ConcaveNorthWest,
+                CornerDirection::ConcaveSouthEast,
+            ],
+
+            [[Some(_), None], [Some(_), Some(_)]] => &[CornerDirection::ConcaveNorthEast],
+            [[None, Some(_)], [Some(_), Some(_)]] => &[CornerDirection::ConcaveNorthWest],
+            [[Some(_), Some(_)], [Some(_), None]] => &[CornerDirection::ConcaveSouthEast],
+            [[Some(_), Some(_)], [None, Some(_)]] => &[CornerDirection::ConcaveSouthWest],
+        }
+    }
+
     pub fn is_concave(self) -> bool {
         self as u8 & Self::CONVEX_CONCAVE_MASK == Self::CONVEX_CONCAVE_MASK
     }
