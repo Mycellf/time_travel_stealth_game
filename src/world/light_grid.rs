@@ -147,24 +147,31 @@ impl LightGrid {
         start: Point2<f64>,
         direction: UnitVector2<f64>,
         max_distance: f64,
-    ) -> Point2<f64> {
+    ) -> (Point2<f64>, bool) {
         const EPSILON: f64 = 1e-6;
 
         let mut location = start;
         let mut index = Self::index_of_location(location, direction.into_inner());
 
-        if function(location, self.grid[index]) {
-            return location;
-        }
-
         let on_x_edge = direction.x == 0.0 && location.x.rem_euclid(1.0) == 0.0;
         let on_y_edge = direction.y == 0.0 && location.y.rem_euclid(1.0) == 0.0;
 
-        if on_x_edge && function(location, self.grid[index + vector![-1, 0]])
-            || on_y_edge && function(location, self.grid[index + vector![0, -1]])
-        {
-            return location;
+        let a = if on_x_edge {
+            function(location, self.grid[index + vector![-1, 0]])
+        } else if on_y_edge {
+            function(location, self.grid[index + vector![0, -1]])
+        } else {
+            true
+        };
+
+        let b = function(location, self.grid[index]);
+
+        if a && b {
+            return (location, true);
         }
+
+        let mut last_a = a;
+        let mut last_b = b;
 
         let dir_sign_x = if direction.x > 0.0 { 1 } else { -1 };
         let dir_sign_y = if direction.y > 0.0 { 1 } else { -1 };
@@ -200,34 +207,35 @@ impl LightGrid {
             }
 
             if (start - location).magnitude_squared() >= max_distance_squared {
-                return start + direction.into_inner() * max_distance;
+                return (start + direction.into_inner() * max_distance, false);
             }
 
-            match time_x.partial_cmp(&time_y) {
-                Some(Ordering::Less) => {
-                    if on_y_edge && function(location, self.grid[index + vector![dir_sign_x, -1]]) {
-                        return location;
-                    }
-                }
-                Some(Ordering::Equal) => {
-                    if function(location, self.grid[index + vector![dir_sign_x, 0]])
-                        || function(location, self.grid[index + vector![0, dir_sign_y]])
-                    {
-                        return location;
-                    }
-                }
-                Some(Ordering::Greater) => {
-                    if on_x_edge && function(location, self.grid[index + vector![-1, dir_sign_y]]) {
-                        return location;
-                    }
-                }
-                None => unreachable!(),
+            if time_x == time_y
+                && (function(location, self.grid[index + vector![dir_sign_x, 0]])
+                    || function(location, self.grid[index + vector![0, dir_sign_y]]))
+            {
+                return (location, true);
             }
 
+            // TODO: Don't evaluate as much in the unlikely case that on_x_edge or on_y_edge are
+            // true.
             index = Self::index_of_location(location, direction.into_inner());
-            if function(location, self.grid[index]) {
-                return location;
+            let a = if on_x_edge {
+                function(location, self.grid[index + vector![-1, 0]])
+            } else if on_y_edge {
+                function(location, self.grid[index + vector![0, -1]])
+            } else {
+                true
+            };
+
+            let b = function(location, self.grid[index]);
+
+            if (a || last_a) && (b || last_b) {
+                return (location, true);
             }
+
+            last_a = a;
+            last_b = b;
         }
     }
 

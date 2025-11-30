@@ -73,7 +73,7 @@ pub(crate) struct State {
     raycast_direction: UnitVector2<f64>,
     raycast_distance: f64,
 
-    raycast_reached_distance: bool,
+    raycast_collided: bool,
     raycast_finish: Point2<f64>,
 
     update_raycast: bool,
@@ -94,7 +94,7 @@ impl State {
             raycast_direction: UnitVector2::new_normalize(vector![1.0, 0.0]),
             raycast_distance: 100.0,
 
-            raycast_reached_distance: false,
+            raycast_collided: false,
             raycast_finish: point![0.0, 0.0],
 
             update_raycast: true,
@@ -123,24 +123,12 @@ impl State {
 impl EventHandler for State {
     fn update(&mut self, _ctx: &mut Context) -> GameResult {
         if self.update_raycast {
-            let mut reached_distance = true;
-
-            self.raycast_finish = self.light_grid.raycast_with(
-                |_, pixel| {
-                    let stop = pixel.is_some();
-
-                    if stop {
-                        reached_distance = false;
-                    }
-
-                    stop
-                },
+            (self.raycast_finish, self.raycast_collided) = self.light_grid.raycast_with(
+                |_, pixel| pixel.is_some(),
                 self.raycast_start,
                 self.raycast_direction,
                 self.raycast_distance,
             );
-
-            self.raycast_reached_distance = reached_distance;
 
             self.update_raycast = false;
         }
@@ -154,16 +142,16 @@ impl EventHandler for State {
 
         canvas.set_screen_coordinates(self.screen_rect());
 
-        self.light_grid.draw(ctx, &mut canvas);
+        self.light_grid.draw(ctx, &mut canvas)?;
 
         let line = Mesh::new_line(
             ctx,
             &[self.raycast_start, self.raycast_finish].map(|point| point.map(|x| x as f32)),
             0.1,
-            if self.raycast_reached_distance {
-                Color::BLUE
-            } else {
+            if self.raycast_collided {
                 Color::RED
+            } else {
+                Color::BLUE
             },
         )?;
 
