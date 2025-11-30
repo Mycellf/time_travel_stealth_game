@@ -382,31 +382,30 @@ pub fn raycast_with(
         }
 
         if time_x == time_y
-            && (function(location, index + vector![dir_sign_x, 0])
-                || function(location, index + vector![0, dir_sign_y]))
+            && function(location, index + vector![dir_sign_x, 0])
+            && function(location, index + vector![0, dir_sign_y])
         {
             return (location, true);
         }
 
-        // TODO: Don't evaluate as much in the unlikely case that on_x_edge or on_y_edge are
-        // true.
         index = index_of_location(location, direction.into_inner());
-        let a = if on_x_edge {
-            function(location, index + vector![-1, 0])
-        } else if on_y_edge {
-            function(location, index + vector![0, -1])
-        } else {
-            true
-        };
-
-        let b = function(location, index);
-
-        if (a || last_a) && (b || last_b) {
-            return (location, true);
+        if !last_a {
+            last_a = if on_x_edge {
+                function(location, index + vector![-1, 0])
+            } else if on_y_edge {
+                function(location, index + vector![0, -1])
+            } else {
+                true
+            };
         }
 
-        last_a = a;
-        last_b = b;
+        if !last_b {
+            last_b = function(location, index);
+        }
+
+        if last_a && last_b {
+            return (location, true);
+        }
     }
 }
 
