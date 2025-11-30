@@ -140,123 +140,6 @@ impl LightGrid {
 
         Ok(())
     }
-
-    pub fn raycast_with(
-        &self,
-        mut function: impl FnMut(Point2<f64>, Pixel) -> bool,
-        start: Point2<f64>,
-        direction: UnitVector2<f64>,
-        max_distance: f64,
-    ) -> (Point2<f64>, bool) {
-        const EPSILON: f64 = 1e-6;
-
-        let mut location = start;
-        let mut index = Self::index_of_location(location, direction.into_inner());
-
-        let on_x_edge = direction.x == 0.0 && location.x.rem_euclid(1.0) == 0.0;
-        let on_y_edge = direction.y == 0.0 && location.y.rem_euclid(1.0) == 0.0;
-
-        let a = if on_x_edge {
-            function(location, self.grid[index + vector![-1, 0]])
-        } else if on_y_edge {
-            function(location, self.grid[index + vector![0, -1]])
-        } else {
-            true
-        };
-
-        let b = function(location, self.grid[index]);
-
-        if a && b {
-            return (location, true);
-        }
-
-        let mut last_a = a;
-        let mut last_b = b;
-
-        let dir_sign_x = if direction.x > 0.0 { 1 } else { -1 };
-        let dir_sign_y = if direction.y > 0.0 { 1 } else { -1 };
-
-        let max_distance_squared = (max_distance - EPSILON).powi(2);
-
-        loop {
-            let mut time_x =
-                (1.0 - (location.x * direction.x.signum()).rem_euclid(1.0)) / direction.x.abs();
-            let time_y =
-                (1.0 - (location.y * direction.y.signum()).rem_euclid(1.0)) / direction.y.abs();
-
-            if (time_x - time_y).abs() < EPSILON {
-                time_x = time_y;
-            }
-
-            let time_x = time_x;
-
-            match time_x.partial_cmp(&time_y) {
-                Some(Ordering::Less) => {
-                    Self::move_in_direction(&mut location.x, direction.x);
-                    location.y += time_x * direction.y;
-                }
-                Some(Ordering::Equal) => {
-                    Self::move_in_direction(&mut location.x, direction.x);
-                    Self::move_in_direction(&mut location.y, direction.y);
-                }
-                Some(Ordering::Greater) => {
-                    location.x += time_y * direction.x;
-                    Self::move_in_direction(&mut location.y, direction.y);
-                }
-                None => unreachable!(),
-            }
-
-            if (start - location).magnitude_squared() >= max_distance_squared {
-                return (start + direction.into_inner() * max_distance, false);
-            }
-
-            if time_x == time_y
-                && (function(location, self.grid[index + vector![dir_sign_x, 0]])
-                    || function(location, self.grid[index + vector![0, dir_sign_y]]))
-            {
-                return (location, true);
-            }
-
-            // TODO: Don't evaluate as much in the unlikely case that on_x_edge or on_y_edge are
-            // true.
-            index = Self::index_of_location(location, direction.into_inner());
-            let a = if on_x_edge {
-                function(location, self.grid[index + vector![-1, 0]])
-            } else if on_y_edge {
-                function(location, self.grid[index + vector![0, -1]])
-            } else {
-                true
-            };
-
-            let b = function(location, self.grid[index]);
-
-            if (a || last_a) && (b || last_b) {
-                return (location, true);
-            }
-
-            last_a = a;
-            last_b = b;
-        }
-    }
-
-    fn move_in_direction(location: &mut f64, direction: f64) {
-        if direction > 0.0 {
-            *location = location.floor() + 1.0;
-        } else {
-            *location = location.ceil() - 1.0;
-        }
-    }
-
-    fn index_of_location(location: Point2<f64>, direction: Vector2<f64>) -> Point2<isize> {
-        Vector2::from_fn(|i, _| {
-            (if direction[i] >= 0.0 {
-                location[i].floor()
-            } else {
-                location[i].ceil() - 1.0
-            } as isize)
-        })
-        .into()
-    }
 }
 
 #[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
@@ -428,4 +311,120 @@ pub struct LightArea {
 pub struct AngleRange {
     pub left: UnitVector2<f64>,
     pub right: UnitVector2<f64>,
+}
+
+pub fn raycast_with(
+    mut function: impl FnMut(Point2<f64>, TileIndex) -> bool,
+    start: Point2<f64>,
+    direction: UnitVector2<f64>,
+    max_distance: f64,
+) -> (Point2<f64>, bool) {
+    const EPSILON: f64 = 1e-6;
+
+    let mut location = start;
+    let mut index = index_of_location(location, direction.into_inner());
+
+    let on_x_edge = direction.x == 0.0 && location.x.rem_euclid(1.0) == 0.0;
+    let on_y_edge = direction.y == 0.0 && location.y.rem_euclid(1.0) == 0.0;
+
+    let a = if on_x_edge {
+        function(location, index + vector![-1, 0])
+    } else if on_y_edge {
+        function(location, index + vector![0, -1])
+    } else {
+        true
+    };
+
+    let b = function(location, index);
+
+    if a && b {
+        return (location, true);
+    }
+
+    let mut last_a = a;
+    let mut last_b = b;
+
+    let dir_sign_x = if direction.x > 0.0 { 1 } else { -1 };
+    let dir_sign_y = if direction.y > 0.0 { 1 } else { -1 };
+
+    let max_distance_squared = (max_distance - EPSILON).powi(2);
+
+    loop {
+        let mut time_x =
+            (1.0 - (location.x * direction.x.signum()).rem_euclid(1.0)) / direction.x.abs();
+        let time_y =
+            (1.0 - (location.y * direction.y.signum()).rem_euclid(1.0)) / direction.y.abs();
+
+        if (time_x - time_y).abs() < EPSILON {
+            time_x = time_y;
+        }
+
+        let time_x = time_x;
+
+        match time_x.partial_cmp(&time_y) {
+            Some(Ordering::Less) => {
+                move_in_direction(&mut location.x, direction.x);
+                location.y += time_x * direction.y;
+            }
+            Some(Ordering::Equal) => {
+                move_in_direction(&mut location.x, direction.x);
+                move_in_direction(&mut location.y, direction.y);
+            }
+            Some(Ordering::Greater) => {
+                location.x += time_y * direction.x;
+                move_in_direction(&mut location.y, direction.y);
+            }
+            None => unreachable!(),
+        }
+
+        if (start - location).magnitude_squared() >= max_distance_squared {
+            return (start + direction.into_inner() * max_distance, false);
+        }
+
+        if time_x == time_y
+            && (function(location, index + vector![dir_sign_x, 0])
+                || function(location, index + vector![0, dir_sign_y]))
+        {
+            return (location, true);
+        }
+
+        // TODO: Don't evaluate as much in the unlikely case that on_x_edge or on_y_edge are
+        // true.
+        index = index_of_location(location, direction.into_inner());
+        let a = if on_x_edge {
+            function(location, index + vector![-1, 0])
+        } else if on_y_edge {
+            function(location, index + vector![0, -1])
+        } else {
+            true
+        };
+
+        let b = function(location, index);
+
+        if (a || last_a) && (b || last_b) {
+            return (location, true);
+        }
+
+        last_a = a;
+        last_b = b;
+    }
+}
+
+fn move_in_direction(location: &mut f64, direction: f64) {
+    if direction > 0.0 {
+        *location = location.floor() + 1.0;
+    } else {
+        *location = location.ceil() - 1.0;
+    }
+}
+
+fn index_of_location(location: Point2<f64>, direction: Vector2<f64>) -> Point2<isize> {
+    Vector2::from_fn(|i, _| {
+        (if direction[i] >= 0.0 {
+            location[i].floor()
+        } else {
+            location[i].ceil() - 1.0
+        } as isize)
+    })
+    .into()
 }

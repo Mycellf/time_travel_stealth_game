@@ -14,7 +14,7 @@ use ggez::{
 };
 use nalgebra::{Point2, UnitVector2, Vector2, point, vector};
 
-use crate::world::light_grid::{LightGrid, MaterialKind};
+use crate::world::light_grid::{self, LightGrid, MaterialKind};
 
 pub(crate) mod collections;
 pub(crate) mod world;
@@ -123,8 +123,8 @@ impl State {
 impl EventHandler for State {
     fn update(&mut self, _ctx: &mut Context) -> GameResult {
         if self.update_raycast {
-            (self.raycast_finish, self.raycast_collided) = self.light_grid.raycast_with(
-                |_, pixel| pixel.is_some(),
+            (self.raycast_finish, self.raycast_collided) = light_grid::raycast_with(
+                |_, index| self.light_grid[index].is_some(),
                 self.raycast_start,
                 self.raycast_direction,
                 self.raycast_distance,
