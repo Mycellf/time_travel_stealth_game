@@ -14,7 +14,7 @@ use ggez::{
 };
 use nalgebra::{Point2, UnitVector2, Vector2, point, vector};
 
-use crate::world::light_grid::{self, AngleRange, LightArea, LightGrid, MaterialKind};
+use crate::world::light_grid::{self, AngleRange, LightArea, LightGrid, MaterialKind, Ray};
 
 pub(crate) mod collections;
 pub(crate) mod world;
@@ -141,8 +141,8 @@ impl EventHandler for State {
 
         self.light_grid.draw(ctx, &mut canvas)?;
 
-        for (i, &ray) in self.light_area.rays.iter().enumerate() {
-            let finish = self.light_area.origin + ray;
+        for (i, &Ray { offset, .. }) in self.light_area.rays.iter().enumerate() {
+            let finish = self.light_area.origin + offset;
 
             let line = Mesh::new_line(
                 ctx,

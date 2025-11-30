@@ -155,8 +155,8 @@ impl LightGrid {
         };
 
         if let Some(range) = &area.range {
-            area.rays.push(
-                raycast(
+            area.rays.push(Ray {
+                offset: raycast(
                     |_, index| self[index].is_some(),
                     area.origin,
                     range.left,
@@ -164,10 +164,11 @@ impl LightGrid {
                     Default::default(),
                 )
                 .0 - area.origin,
-            );
+                partition: Some(RayPartition::Right),
+            });
 
-            area.rays.push(
-                raycast(
+            area.rays.push(Ray {
+                offset: raycast(
                     |_, index| self[index].is_some(),
                     area.origin,
                     range.right,
@@ -175,7 +176,8 @@ impl LightGrid {
                     Default::default(),
                 )
                 .0 - area.origin,
-            );
+                partition: Some(RayPartition::Left),
+            });
         }
 
         // HACK: Update the corners, then get them without rust thinking we still need a unique
@@ -210,7 +212,10 @@ impl LightGrid {
                 continue;
             }
 
-            area.rays.push(finish - area.origin);
+            area.rays.push(Ray {
+                offset: finish - area.origin,
+                partition: None,
+            });
 
             if corner.direction.is_concave()
                 || corner.direction.contains_offset_strict(-offset_to_corner)
@@ -226,7 +231,14 @@ impl LightGrid {
                 state,
             );
 
-            area.rays.push(finish - area.origin);
+            area.rays.push(Ray {
+                offset: finish - area.origin,
+                partition: Some(if corner.direction.is_offset_to_left(-offset_to_corner) {
+                    RayPartition::Right
+                } else {
+                    RayPartition::Left
+                }),
+            });
         }
 
         let reference = match area.range {
@@ -235,23 +247,37 @@ impl LightGrid {
         };
 
         area.rays
-            .sort_unstable_by(|&lhs, &rhs| compare_vector_angles(lhs, rhs, reference));
+            .sort_unstable_by(|&lhs, &rhs| compare_ray_angles(lhs, rhs, reference));
 
         area
     }
 }
 
 /// Compares the counter clockwise angle from reference to lhs to that of rhs
-fn compare_vector_angles(
-    lhs: Vector2<f64>,
-    rhs: Vector2<f64>,
-    reference: Vector2<f64>,
-) -> Ordering {
-    counter_clockwise_cos_angle(lhs, reference)
-        .total_cmp(&counter_clockwise_cos_angle(rhs, reference))
+fn compare_ray_angles(lhs: Ray, rhs: Ray, reference: Vector2<f64>) -> Ordering {
+    let lhs_cos_angle = counter_clockwise_cos_angle(lhs.offset, reference);
+    let rhs_cos_angle = counter_clockwise_cos_angle(rhs.offset, reference);
+
+    if (lhs_cos_angle - rhs_cos_angle).abs() <= 1e-6 {
+        match (lhs.partition, rhs.partition) {
+            (None, None)
+            | (Some(RayPartition::Right), Some(RayPartition::Right))
+            | (Some(RayPartition::Left), Some(RayPartition::Left)) => Ordering::Equal,
+
+            (Some(RayPartition::Right), Some(RayPartition::Left))
+            | (None, Some(RayPartition::Left))
+            | (Some(RayPartition::Right), None) => Ordering::Less,
+
+            (Some(RayPartition::Left), Some(RayPartition::Right))
+            | (Some(RayPartition::Left), None)
+            | (None, Some(RayPartition::Right)) => Ordering::Greater,
+        }
+    } else {
+        lhs_cos_angle.total_cmp(&rhs_cos_angle)
+    }
 }
 
-pub fn counter_clockwise_cos_angle(vector: Vector2<f64>, reference: Vector2<f64>) -> f64 {
+fn counter_clockwise_cos_angle(vector: Vector2<f64>, reference: Vector2<f64>) -> f64 {
     let result = cos_angle(vector, reference);
     if reference.perp(&vector) >= -1e-6 {
         -result
@@ -368,6 +394,19 @@ impl CornerDirection {
         horizontal_ok && vertical_ok
     }
 
+    pub fn is_offset_to_left<T: PartialOrd + Default>(self, offset: Vector2<T>) -> bool {
+        match (self.is_north(), self.is_east()) {
+            // Southwest
+            (false, false) => offset[0] >= T::default(),
+            // Southeast
+            (false, true) => offset[1] <= T::default(),
+            // Northwest
+            (true, false) => offset[1] >= T::default(),
+            // Northeast
+            (true, true) => offset[0] <= T::default(),
+        }
+    }
+
     fn filter_offsets<T: PartialOrd + Default>(self, offset: Vector2<T>) -> (bool, bool) {
         let horizontal_ok = if self.is_east() {
             offset[0] >= T::default()
@@ -437,8 +476,20 @@ pub enum MaterialKind {
 #[derive(Clone, Default, Debug)]
 pub struct LightArea {
     pub origin: Point2<f64>,
-    pub rays: Vec<Vector2<f64>>,
+    pub rays: Vec<Ray>,
     pub range: Option<AngleRange>,
+}
+
+#[derive(Clone, Copy, Debug)]
+pub struct Ray {
+    pub offset: Vector2<f64>,
+    pub partition: Option<RayPartition>,
+}
+
+#[derive(Clone, Copy, Debug)]
+pub enum RayPartition {
+    Left,
+    Right,
 }
 
 #[derive(Clone, Copy, Debug)]
