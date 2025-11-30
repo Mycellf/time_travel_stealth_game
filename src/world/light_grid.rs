@@ -2,7 +2,7 @@ use std::{cmp::Ordering, mem};
 
 use ggez::{
     Context,
-    graphics::{Canvas, Color, DrawParam, Image, ImageFormat, Transform},
+    graphics::{Canvas, DrawParam, Image, ImageFormat, Transform},
 };
 use nalgebra::{Point2, UnitVector2, Vector2, point, vector};
 
