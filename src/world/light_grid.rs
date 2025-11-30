@@ -1,4 +1,4 @@
-use std::{cmp::Ordering, mem};
+use std::{cmp::Ordering, collections::HashSet, mem};
 
 use ggez::{
     Context,
@@ -13,16 +13,16 @@ type Tile = Option<MaterialKind>;
 #[derive(Clone, Default, Debug)]
 pub struct LightGrid {
     pub grid: TileGrid<Tile>,
-    pub corners: TileGrid<Vec<Corner>>,
+    pub corners: HashSet<Corner>,
 }
 
-#[derive(Clone, Copy, Debug)]
+#[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
 pub struct Corner {
     pub location: TileIndex,
     pub direction: CornerDirection,
 }
 
-#[derive(Clone, Copy, Debug)]
+#[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
 pub enum CornerDirection {
     ConvexNorthEast = 0b000,
     ConvexNorthWest = 0b001,
