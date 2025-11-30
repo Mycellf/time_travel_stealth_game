@@ -161,6 +161,8 @@ impl LightGrid {
         direction: UnitVector2<f64>,
         max_distance: f64,
     ) -> Point2<f64> {
+        const EPSILON: f64 = 1e-6;
+
         let mut location = start;
         let mut index = Self::index_of_location(location, direction.into_inner());
 
@@ -180,13 +182,19 @@ impl LightGrid {
         let dir_sign_x = if direction.x > 0.0 { 1 } else { -1 };
         let dir_sign_y = if direction.y > 0.0 { 1 } else { -1 };
 
-        let max_distance_squared = max_distance.powi(2) - 1e-12;
+        let max_distance_squared = (max_distance - EPSILON).powi(2);
 
         loop {
-            let time_x =
+            let mut time_x =
                 (1.0 - (location.x * direction.x.signum()).rem_euclid(1.0)) / direction.x.abs();
             let time_y =
                 (1.0 - (location.y * direction.y.signum()).rem_euclid(1.0)) / direction.y.abs();
+
+            if (time_x - time_y).abs() < EPSILON {
+                time_x = time_y;
+            }
+
+            let time_x = time_x;
 
             match time_x.partial_cmp(&time_y) {
                 Some(Ordering::Less) => {
