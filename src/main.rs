@@ -70,7 +70,15 @@ pub(crate) struct State {
 
     raycast_start: Point2<f64>,
     raycast_direction: UnitVector2<f64>,
+    raycast_distance: f64,
+
+    raycast_reached_distance: bool,
     raycast_finish: Point2<f64>,
+
+    update_raycast: bool,
+
+    round_mouse_position: bool,
+    set_raycast_distance: bool,
 
     light_grid: LightGrid,
 }
@@ -82,8 +90,16 @@ impl State {
             window_size: vector![800.0, 600.0],
 
             raycast_start: point![0.0, 0.0],
-            raycast_direction: UnitVector2::new_normalize(vector![-1.0, 2.0]),
+            raycast_direction: UnitVector2::new_normalize(vector![1.0, 0.0]),
+            raycast_distance: 100.0,
+
+            raycast_reached_distance: false,
             raycast_finish: point![0.0, 0.0],
+
+            update_raycast: true,
+
+            round_mouse_position: false,
+            set_raycast_distance: false,
 
             light_grid: LightGrid::default(),
         })
@@ -105,18 +121,34 @@ impl State {
 
 impl EventHandler for State {
     fn update(&mut self, _ctx: &mut Context) -> GameResult {
-        self.raycast_finish = self.light_grid.raycast_with(
-            |_, pixel| pixel.is_some(),
-            self.raycast_start,
-            self.raycast_direction,
-            100.0,
-        );
+        if self.update_raycast {
+            let mut reached_distance = true;
+
+            self.raycast_finish = self.light_grid.raycast_with(
+                |_, pixel| {
+                    let stop = pixel.is_some();
+
+                    if stop {
+                        reached_distance = false;
+                    }
+
+                    stop
+                },
+                self.raycast_start,
+                self.raycast_direction,
+                self.raycast_distance,
+            );
+
+            self.raycast_reached_distance = reached_distance;
+
+            self.update_raycast = false;
+        }
 
         Ok(())
     }
 
     fn draw(&mut self, ctx: &mut Context) -> GameResult {
-        let mut canvas = Canvas::from_frame(ctx, Some(Color::BLUE));
+        let mut canvas = Canvas::from_frame(ctx, Some(Color::WHITE));
         canvas.set_sampler(Sampler::nearest_clamp());
 
         canvas.set_screen_coordinates(self.screen_rect());
@@ -127,7 +159,11 @@ impl EventHandler for State {
             ctx,
             &[self.raycast_start, self.raycast_finish].map(|point| point.map(|x| x as f32)),
             0.1,
-            Color::RED,
+            if self.raycast_reached_distance {
+                Color::BLUE
+            } else {
+                Color::RED
+            },
         )?;
 
         canvas.draw(&line, DrawParam::default());
@@ -155,6 +191,26 @@ impl EventHandler for State {
                     FullscreenType::Windowed
                 })?;
             }
+            Key::Named(NamedKey::Shift) => {
+                self.round_mouse_position = true;
+            }
+            Key::Named(NamedKey::Control) => {
+                self.set_raycast_distance = true;
+            }
+            _ => (),
+        }
+
+        Ok(())
+    }
+
+    fn key_up_event(&mut self, _ctx: &mut Context, input: KeyInput) -> GameResult {
+        match input.event.logical_key {
+            Key::Named(NamedKey::Shift) => {
+                self.round_mouse_position = false;
+            }
+            Key::Named(NamedKey::Control) => {
+                self.set_raycast_distance = false;
+            }
             _ => (),
         }
 
@@ -168,7 +224,11 @@ impl EventHandler for State {
         x: f32,
         y: f32,
     ) -> GameResult {
-        let mouse_position = self.screen_to_world(point![x, y]);
+        let mut mouse_position = self.screen_to_world(point![x, y]);
+
+        if self.round_mouse_position {
+            mouse_position.apply(|x| *x = (*x * 2.0).round() / 2.0);
+        }
 
         match button {
             MouseButton::Left => {
@@ -179,17 +239,26 @@ impl EventHandler for State {
                     Some(_) => *pixel = None,
                     None => *pixel = Some(MaterialKind::Solid),
                 }
+
+                self.update_raycast = true;
             }
             MouseButton::Right => {
-                if let Some(raycast_direction) = UnitVector2::try_new(
-                    mouse_position.map(|x| x as f64) - self.raycast_start,
-                    f64::EPSILON,
-                ) {
-                    self.raycast_direction = raycast_direction;
+                let direction = mouse_position.map(|x| x as f64) - self.raycast_start;
+
+                if let Some(normalized_direction) = UnitVector2::try_new(direction, f64::EPSILON) {
+                    self.raycast_direction = normalized_direction;
+
+                    if self.set_raycast_distance {
+                        self.raycast_distance = direction.magnitude() - f64::EPSILON;
+                    }
                 }
+
+                self.update_raycast = true;
             }
             MouseButton::Middle => {
                 self.raycast_start = mouse_position.map(|x| x as f64);
+
+                self.update_raycast = true;
             }
             _ => (),
         }
