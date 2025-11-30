@@ -525,7 +525,7 @@ impl AngleRange {
 pub fn raycast(
     mut function: impl FnMut(Point2<f64>, TileIndex) -> bool,
     start: Point2<f64>,
-    direction: UnitVector2<f64>,
+    mut direction: UnitVector2<f64>,
     max_distance: f64,
     state: (bool, bool),
 ) -> (Point2<f64>, bool, (bool, bool)) {
@@ -534,8 +534,28 @@ pub fn raycast(
     let mut location = start;
     let mut index = index_of_location(location, direction.into_inner());
 
-    let on_x_edge = direction.x == 0.0 && location.x.rem_euclid(1.0) == 0.0;
-    let on_y_edge = direction.y == 0.0 && location.y.rem_euclid(1.0) == 0.0;
+    let mut on_x_edge = false;
+    let mut on_y_edge = false;
+
+    if direction.x.abs() <= EPSILON {
+        direction = UnitVector2::new_unchecked(vector![0.0, direction.y.signum()]);
+        on_x_edge = true;
+    } else if direction.y.abs() <= EPSILON {
+        direction = UnitVector2::new_unchecked(vector![direction.x.signum(), 0.0]);
+        on_y_edge = true;
+    }
+
+    if ((location.x + 0.5).rem_euclid(1.0) - 0.5).abs() <= EPSILON {
+        location.x = location.x.round();
+    } else {
+        on_x_edge = false;
+    }
+
+    if ((location.y + 0.5).rem_euclid(1.0) - 0.5).abs() <= EPSILON {
+        location.y = location.y.round();
+    } else {
+        on_y_edge = false;
+    }
 
     let a = state.0
         || if on_x_edge {
