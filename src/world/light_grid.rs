@@ -11,7 +11,7 @@ use ggez::{
         Canvas, Color, DrawMode, DrawParam, FillOptions, Image, ImageFormat, Mesh, Rect, Transform,
     },
 };
-use nalgebra::{Point2, Scalar, UnitVector2, Vector2, point, vector};
+use nalgebra::{Point2, Scalar, UnitComplex, UnitVector2, Vector2, point, vector};
 
 use crate::collections::tile_grid::{TileGrid, TileIndex};
 
@@ -62,7 +62,7 @@ impl LightGrid {
 
                 for &direction in CornerDirection::from_neighborhood(neighborhood) {
                     self.corners.push(Corner {
-                        location: point![x, y],
+                        location: point![x as f64, y as f64],
                         direction,
                     })
                 }
@@ -140,15 +140,117 @@ impl LightGrid {
 
         Ok(())
     }
+
+    pub fn trace_light_from(
+        &mut self,
+        origin: Point2<f64>,
+        angle_range: Option<AngleRange>,
+    ) -> LightArea {
+        let mut area = LightArea {
+            origin,
+            rays: Vec::new(),
+            range: angle_range,
+        };
+
+        if let Some(range) = &area.range {
+            area.rays.push(
+                raycast(
+                    |_, index| self[index].is_some(),
+                    area.origin,
+                    range.left,
+                    128.0,
+                    Default::default(),
+                )
+                .0 - area.origin,
+            );
+
+            area.rays.push(
+                raycast(
+                    |_, index| self[index].is_some(),
+                    area.origin,
+                    range.right,
+                    128.0,
+                    Default::default(),
+                )
+                .0 - area.origin,
+            );
+        }
+
+        // HACK: Update the corners, then get them without rust thinking we still need a unique
+        // pointer to self.
+        let _ = self.corners();
+
+        for corner in &self.corners {
+            let offset_to_corner = corner.location - area.origin;
+
+            if !(corner.direction.contains_offset(-offset_to_corner)
+                && area
+                    .range
+                    .is_none_or(|range| range.contains_offset(offset_to_corner)))
+            {
+                continue;
+            }
+
+            let Some(direction_to_corner) = UnitVector2::try_new(offset_to_corner, f64::EPSILON)
+            else {
+                continue;
+            };
+
+            let (finish, collided, state) = raycast(
+                |_, index| self[index].is_some(),
+                area.origin,
+                direction_to_corner,
+                offset_to_corner.magnitude(),
+                Default::default(),
+            );
+
+            if collided {
+                continue;
+            }
+
+            area.rays.push(finish - area.origin);
+
+            if corner.direction.is_concave()
+                || corner.direction.contains_offset_strict(-offset_to_corner)
+            {
+                continue;
+            }
+
+            let (finish, _, _) = raycast(
+                |_, index| self[index].is_some(),
+                corner.location,
+                direction_to_corner,
+                128.0,
+                state,
+            );
+
+            area.rays.push(finish - area.origin);
+        }
+
+        let reference_angle = match area.range {
+            Some(range) => angle_of_vector(range.right.into_inner()),
+            None => 0.0,
+        };
+
+        // area.rays.sort_by_cached_key(|&ray| {
+        //     use std::f64::consts::PI;
+        //
+        //     let angle = angle_of_vector(ray);
+        //
+        //     (angle - reference_angle).rem_euclid(2.0 * PI)
+        // });
+
+        area
+    }
 }
 
-#[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
+#[derive(Clone, Copy, Debug)]
 pub struct Corner {
-    pub location: TileIndex,
+    pub location: Point2<f64>,
     pub direction: CornerDirection,
 }
 
-#[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
+#[derive(Clone, Copy, Debug)]
 pub enum CornerDirection {
     ConvexNorthEast = 0b000,
     ConvexNorthWest = 0b001,
@@ -312,7 +414,7 @@ pub enum MaterialKind {
     Mirror,
 }
 
-#[derive(Clone, Debug)]
+#[derive(Clone, Default, Debug)]
 pub struct LightArea {
     pub origin: Point2<f64>,
     pub rays: Vec<Vector2<f64>>,
@@ -325,12 +427,37 @@ pub struct AngleRange {
     pub right: UnitVector2<f64>,
 }
 
-pub fn raycast_with(
+impl AngleRange {
+    pub fn from_direction_and_width(direction: UnitVector2<f64>, width: f64) -> AngleRange {
+        AngleRange {
+            left: UnitComplex::new(-width / 2.0) * direction,
+            right: UnitComplex::new(width / 2.0) * direction,
+        }
+    }
+
+    pub fn contains_offset(&self, offset: Vector2<f64>) -> bool {
+        match self.left.perp(&self.right).partial_cmp(&0.0) {
+            Some(Ordering::Less) => {
+                self.left.perp(&offset) >= 0.0 || self.right.perp(&offset) <= 0.0
+            }
+            Some(Ordering::Equal) => self.left.perp(&offset) >= 0.0,
+            Some(Ordering::Greater) => {
+                self.left.perp(&offset) >= 0.0 && self.right.perp(&offset) <= 0.0
+            }
+
+            None => false,
+        }
+    }
+}
+
+#[must_use]
+pub fn raycast(
     mut function: impl FnMut(Point2<f64>, TileIndex) -> bool,
     start: Point2<f64>,
     direction: UnitVector2<f64>,
     max_distance: f64,
-) -> (Point2<f64>, bool) {
+    state: (bool, bool),
+) -> (Point2<f64>, bool, (bool, bool)) {
     const EPSILON: f64 = 1e-6;
 
     let mut location = start;
@@ -339,18 +466,19 @@ pub fn raycast_with(
     let on_x_edge = direction.x == 0.0 && location.x.rem_euclid(1.0) == 0.0;
     let on_y_edge = direction.y == 0.0 && location.y.rem_euclid(1.0) == 0.0;
 
-    let a = if on_x_edge {
-        function(location, index + vector![-1, 0])
-    } else if on_y_edge {
-        function(location, index + vector![0, -1])
-    } else {
-        true
-    };
+    let a = state.0
+        || if on_x_edge {
+            function(location, index + vector![-1, 0])
+        } else if on_y_edge {
+            function(location, index + vector![0, -1])
+        } else {
+            true
+        };
 
-    let b = function(location, index);
+    let b = state.1 || function(location, index);
 
     if a && b {
-        return (location, true);
+        return (location, true, (a, b));
     }
 
     let mut last_a = a;
@@ -390,14 +518,18 @@ pub fn raycast_with(
         }
 
         if (start - location).magnitude_squared() >= max_distance_squared {
-            return (start + direction.into_inner() * max_distance, false);
+            return (
+                start + direction.into_inner() * max_distance,
+                false,
+                (last_a, last_b),
+            );
         }
 
         if time_x == time_y
             && function(location, index + vector![dir_sign_x, 0])
             && function(location, index + vector![0, dir_sign_y])
         {
-            return (location, true);
+            return (location, true, (last_a, last_b));
         }
 
         index = index_of_location(location, direction.into_inner());
@@ -416,7 +548,7 @@ pub fn raycast_with(
         }
 
         if last_a && last_b {
-            return (location, true);
+            return (location, true, (last_a, last_b));
         }
     }
 }
@@ -438,4 +570,12 @@ fn index_of_location(location: Point2<f64>, direction: Vector2<f64>) -> Point2<i
         } as isize)
     })
     .into()
+}
+
+fn angle_of_vector(vector: Vector2<f64>) -> f64 {
+    use std::f64::consts::PI;
+
+    let angle = vector.angle(&vector![1.0, 0.0]);
+
+    if vector.y >= 0.0 { angle } else { angle + PI }
 }

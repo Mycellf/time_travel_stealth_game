@@ -14,7 +14,7 @@ use ggez::{
 };
 use nalgebra::{Point2, UnitVector2, Vector2, point, vector};
 
-use crate::world::light_grid::{self, LightGrid, MaterialKind};
+use crate::world::light_grid::{AngleRange, LightArea, LightGrid, MaterialKind};
 
 pub(crate) mod collections;
 pub(crate) mod world;
@@ -70,11 +70,9 @@ pub(crate) struct State {
     window_size: Vector2<f32>,
 
     raycast_start: Point2<f64>,
-    raycast_direction: UnitVector2<f64>,
-    raycast_distance: f64,
+    raycast_direction: Option<UnitVector2<f64>>,
 
-    raycast_collided: bool,
-    raycast_finish: Point2<f64>,
+    light_area: LightArea,
 
     update_raycast: bool,
 
@@ -91,11 +89,9 @@ impl State {
             window_size: vector![800.0, 600.0],
 
             raycast_start: point![0.0, 0.0],
-            raycast_direction: UnitVector2::new_normalize(vector![1.0, 0.0]),
-            raycast_distance: 100.0,
+            raycast_direction: None,
 
-            raycast_collided: false,
-            raycast_finish: point![0.0, 0.0],
+            light_area: LightArea::default(),
 
             update_raycast: true,
 
@@ -123,11 +119,12 @@ impl State {
 impl EventHandler for State {
     fn update(&mut self, _ctx: &mut Context) -> GameResult {
         if self.update_raycast {
-            (self.raycast_finish, self.raycast_collided) = light_grid::raycast_with(
-                |_, index| self.light_grid[index].is_some(),
+            use std::f64::consts::PI;
+
+            self.light_area = self.light_grid.trace_light_from(
                 self.raycast_start,
-                self.raycast_direction,
-                self.raycast_distance,
+                self.raycast_direction
+                    .map(|direction| AngleRange::from_direction_and_width(direction, PI / 2.0)),
             );
 
             self.update_raycast = false;
@@ -144,18 +141,20 @@ impl EventHandler for State {
 
         self.light_grid.draw(ctx, &mut canvas)?;
 
-        let line = Mesh::new_line(
-            ctx,
-            &[self.raycast_start, self.raycast_finish].map(|point| point.map(|x| x as f32)),
-            0.1,
-            if self.raycast_collided {
-                Color::RED
-            } else {
-                Color::BLUE
-            },
-        )?;
+        for &ray in &self.light_area.rays {
+            let line = Mesh::new_line(
+                ctx,
+                &[self.light_area.origin, self.light_area.origin + ray]
+                    .map(|point| point.map(|x| x as f32)),
+                0.05,
+                Color {
+                    a: 0.5,
+                    ..Color::BLUE
+                },
+            )?;
 
-        canvas.draw(&line, DrawParam::default());
+            canvas.draw(&line, DrawParam::default());
+        }
 
         canvas.finish(ctx)?;
 
@@ -188,7 +187,7 @@ impl EventHandler for State {
             }
             Key::Character(char) if char == "r" => {
                 if self.set_raycast_distance {
-                    self.raycast_distance = 100.0;
+                    self.raycast_direction = None;
 
                     self.update_raycast = true;
                 }
@@ -239,20 +238,16 @@ impl EventHandler for State {
                 self.update_raycast = true;
             }
             MouseButton::Right => {
-                let direction = mouse_position.map(|x| x as f64) - self.raycast_start;
-
-                if let Some(normalized_direction) = UnitVector2::try_new(direction, f64::EPSILON) {
-                    self.raycast_direction = normalized_direction;
-
-                    if self.set_raycast_distance {
-                        self.raycast_distance = direction.magnitude() - f64::EPSILON;
-                    }
-                }
+                self.raycast_start = mouse_position.map(|x| x as f64);
 
                 self.update_raycast = true;
             }
             MouseButton::Middle => {
-                self.raycast_start = mouse_position.map(|x| x as f64);
+                let direction = mouse_position.map(|x| x as f64) - self.raycast_start;
+
+                if let Some(normalized_direction) = UnitVector2::try_new(direction, f64::EPSILON) {
+                    self.raycast_direction = Some(normalized_direction);
+                }
 
                 self.update_raycast = true;
             }
