@@ -152,8 +152,10 @@ impl LightGrid {
             range: angle_range,
         };
 
+        let mut unorganized_rays = Vec::new();
+
         if let Some(range) = &area.range {
-            area.rays.push(Ray {
+            unorganized_rays.push(Ray {
                 offset: raycast(
                     |_, index| self[index].is_some(),
                     area.origin,
@@ -165,7 +167,7 @@ impl LightGrid {
                 partition: Some(RayPartition::Right),
             });
 
-            area.rays.push(Ray {
+            unorganized_rays.push(Ray {
                 offset: raycast(
                     |_, index| self[index].is_some(),
                     area.origin,
@@ -211,7 +213,7 @@ impl LightGrid {
             }
 
             if !corner.direction.should_skip(-offset_to_corner) {
-                area.rays.push(Ray {
+                unorganized_rays.push(Ray {
                     offset: finish - area.origin,
                     partition: if corner.direction.is_on_edge(-offset_to_corner) {
                         Some(
@@ -243,7 +245,7 @@ impl LightGrid {
                 state,
             );
 
-            area.rays.push(Ray {
+            unorganized_rays.push(Ray {
                 offset: finish - area.origin,
                 partition: Some(if corner.direction.is_offset_to_left(-offset_to_corner) {
                     RayPartition::Right
@@ -258,8 +260,44 @@ impl LightGrid {
             None => vector![1.0, 0.0],
         };
 
-        area.rays
-            .sort_unstable_by(|&lhs, &rhs| compare_ray_angles(lhs, rhs, reference));
+        unorganized_rays.sort_unstable_by(|&lhs, &rhs| compare_ray_angles(lhs, rhs, reference));
+
+        for chunk in unorganized_rays
+            .chunk_by(|&lhs, &rhs| compare_ray_angles(lhs, rhs, reference) == Ordering::Equal)
+        {
+            if chunk.len() <= 1 {
+                area.rays.push(chunk[0]);
+
+                continue;
+            }
+
+            let shortest = chunk
+                .iter()
+                .min_by(|lhs, rhs| {
+                    lhs.offset
+                        .magnitude_squared()
+                        .total_cmp(&rhs.offset.magnitude_squared())
+                })
+                .unwrap();
+
+            let longest = chunk
+                .iter()
+                .max_by(|lhs, rhs| {
+                    lhs.offset
+                        .magnitude_squared()
+                        .total_cmp(&rhs.offset.magnitude_squared())
+                })
+                .unwrap();
+
+            let (left, right) = match compare_partitions(shortest.partition, longest.partition) {
+                Ordering::Less => (shortest, longest),
+                Ordering::Equal => (shortest, longest),
+                Ordering::Greater => (longest, shortest),
+            };
+
+            area.rays.push(*left);
+            area.rays.push(*right);
+        }
 
         area
     }
@@ -271,19 +309,7 @@ fn compare_ray_angles(lhs: Ray, rhs: Ray, reference: Vector2<f64>) -> Ordering {
     let rhs_cos_angle = counter_clockwise_cos_angle(rhs.offset, reference);
 
     if (lhs_cos_angle - rhs_cos_angle).abs() <= 1e-6 {
-        match (lhs.partition, rhs.partition) {
-            (None, None)
-            | (Some(RayPartition::Right), Some(RayPartition::Right))
-            | (Some(RayPartition::Left), Some(RayPartition::Left)) => Ordering::Equal,
-
-            (Some(RayPartition::Right), Some(RayPartition::Left))
-            | (None, Some(RayPartition::Left))
-            | (Some(RayPartition::Right), None) => Ordering::Less,
-
-            (Some(RayPartition::Left), Some(RayPartition::Right))
-            | (Some(RayPartition::Left), None)
-            | (None, Some(RayPartition::Right)) => Ordering::Greater,
-        }
+        Ordering::Equal
     } else {
         lhs_cos_angle.total_cmp(&rhs_cos_angle)
     }
@@ -300,6 +326,22 @@ fn counter_clockwise_cos_angle(vector: Vector2<f64>, reference: Vector2<f64>) ->
 
 fn cos_angle(lhs: Vector2<f64>, rhs: Vector2<f64>) -> f64 {
     lhs.dot(&rhs) / (lhs.magnitude() * rhs.magnitude())
+}
+
+fn compare_partitions(lhs: Option<RayPartition>, rhs: Option<RayPartition>) -> Ordering {
+    match (lhs, rhs) {
+        (None, None)
+        | (Some(RayPartition::Right), Some(RayPartition::Right))
+        | (Some(RayPartition::Left), Some(RayPartition::Left)) => Ordering::Equal,
+
+        (Some(RayPartition::Right), Some(RayPartition::Left))
+        | (None, Some(RayPartition::Left))
+        | (Some(RayPartition::Right), None) => Ordering::Less,
+
+        (Some(RayPartition::Left), Some(RayPartition::Right))
+        | (Some(RayPartition::Left), None)
+        | (None, Some(RayPartition::Right)) => Ordering::Greater,
+    }
 }
 
 #[derive(Clone, Copy, Debug)]
