@@ -576,11 +576,11 @@ impl AngleRange {
     pub fn contains_offset(&self, offset: Vector2<f64>) -> bool {
         match self.left.perp(&self.right).partial_cmp(&0.0) {
             Some(Ordering::Less) => {
-                self.left.perp(&offset) >= 0.0 || self.right.perp(&offset) <= 0.0
+                self.left.perp(&offset) >= -1e-6 || self.right.perp(&offset) <= 1e-6
             }
             Some(Ordering::Equal) => self.left.perp(&offset) >= 0.0,
             Some(Ordering::Greater) => {
-                self.left.perp(&offset) >= 0.0 && self.right.perp(&offset) <= 0.0
+                self.left.perp(&offset) >= -1e-6 && self.right.perp(&offset) <= 1e-6
             }
 
             None => false,
@@ -684,8 +684,8 @@ pub fn raycast(
         }
 
         if time_x == time_y
-            && function(location, index + vector![dir_sign_x, 0])
-            && function(location, index + vector![0, dir_sign_y])
+            && (function(location, index + vector![dir_sign_x, 0])
+                || function(location, index + vector![0, dir_sign_y]))
         {
             return (location, true, (last_a, last_b));
         }
