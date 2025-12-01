@@ -80,6 +80,7 @@ pub(crate) struct State {
     set_raycast_distance: bool,
     draw_brush: Option<Pixel>,
     follow_mouse: bool,
+    face_mouse: bool,
 
     light_grid: LightGrid,
 }
@@ -101,6 +102,7 @@ impl State {
             set_raycast_distance: false,
             draw_brush: None,
             follow_mouse: false,
+            face_mouse: false,
 
             light_grid: LightGrid::default(),
         })
@@ -140,6 +142,16 @@ impl EventHandler for State {
 
         if self.follow_mouse {
             self.raycast_start = mouse_position.map(|x| x as f64);
+
+            self.update_raycast = true;
+        }
+
+        if self.face_mouse {
+            let direction = mouse_position.map(|x| x as f64) - self.raycast_start;
+
+            if let Some(normalized_direction) = UnitVector2::try_new(direction, f64::EPSILON) {
+                self.raycast_direction = Some(normalized_direction);
+            }
 
             self.update_raycast = true;
         }
@@ -295,6 +307,8 @@ impl EventHandler for State {
                 }
 
                 self.update_raycast = true;
+
+                self.face_mouse = true;
             }
             _ => (),
         }
@@ -315,6 +329,9 @@ impl EventHandler for State {
             }
             MouseButton::Right => {
                 self.follow_mouse = false;
+            }
+            MouseButton::Middle => {
+                self.face_mouse = false;
             }
             _ => (),
         }
