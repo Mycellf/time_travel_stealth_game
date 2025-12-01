@@ -4,6 +4,7 @@ version = "0.1.0"
 edition = "2024"
 
 [dependencies]
+earcut = "0.4.4"
 ggez = "0.10.0-rc0"
 image = "0.25.8"
 nalgebra = { version = "0.34.1", features = ["mint"] }

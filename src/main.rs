@@ -1,10 +1,13 @@
 use std::{env, path::PathBuf};
 
+use earcut::Earcut;
 use ggez::{
     Context, ContextBuilder, GameResult,
     conf::{Backend, Conf, FullscreenType, WindowMode, WindowSetup},
     event::{self, EventHandler},
-    graphics::{Canvas, Color, DrawMode, DrawParam, FillOptions, Mesh, Rect, Sampler},
+    graphics::{
+        Canvas, Color, DrawMode, DrawParam, FillOptions, Mesh, MeshData, Rect, Sampler, Vertex,
+    },
     input::keyboard::KeyInput,
     winit::{
         event::MouseButton,
@@ -14,7 +17,7 @@ use ggez::{
 };
 use nalgebra::{Point2, UnitVector2, Vector2, point, vector};
 
-use crate::world::light_grid::{AngleRange, LightArea, LightGrid, MaterialKind, Pixel, Ray};
+use crate::world::light_grid::{AngleRange, LightArea, LightGrid, MaterialKind, Pixel};
 
 pub(crate) mod collections;
 pub(crate) mod world;
@@ -64,7 +67,6 @@ fn main() -> GameResult {
     event::run(ctx, event_loop, state)
 }
 
-#[derive(Debug)]
 pub(crate) struct State {
     fullscreen: bool,
     window_size: Vector2<f32>,
@@ -82,6 +84,8 @@ pub(crate) struct State {
     face_mouse: bool,
 
     light_grid: LightGrid,
+
+    earcut: Earcut<f32>,
 }
 
 impl State {
@@ -103,6 +107,8 @@ impl State {
             face_mouse: false,
 
             light_grid: LightGrid::default(),
+
+            earcut: Earcut::default(),
         })
     }
 }
@@ -177,7 +183,7 @@ impl EventHandler for State {
 
         self.light_grid.draw(ctx, &mut canvas)?;
 
-        let points = self
+        let vertices = self
             .light_area
             .rays
             .iter()
@@ -188,20 +194,33 @@ impl EventHandler for State {
                     .is_some()
                     .then(|| self.light_area.origin.map(|x| x as f32)),
             )
+            .map(|point| Vertex {
+                position: point.into(),
+                uv: [0.0, 0.0],
+                color: [1.0; 4],
+            })
             .collect::<Vec<_>>();
 
-        if points.len() >= 3 {
-            let mesh = Mesh::new_polygon(
+        if vertices.len() >= 3 {
+            let mut indices = Vec::new();
+            self.earcut
+                .earcut(vertices.iter().map(|x| x.position), &[], &mut indices);
+
+            let mesh = Mesh::from_data(
                 ctx,
-                DrawMode::Fill(FillOptions::default()),
-                &points,
-                Color::WHITE,
-            )?;
+                MeshData {
+                    vertices: &vertices,
+                    indices: &indices,
+                },
+            );
 
             canvas.draw(
                 &mesh,
                 DrawParam {
-                    color: Color::GREEN,
+                    color: Color {
+                        a: 0.75,
+                        ..Color::GREEN
+                    },
                     ..Default::default()
                 },
             );

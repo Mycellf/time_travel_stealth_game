@@ -735,6 +735,15 @@ dependencies = [
 ]
 
 [[package]]
+name = "earcut"
+version = "0.4.4"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "d565e947a723df9f069393f8c3e723cf386ff9a052443339235ae2a4d9ffee3f"
+dependencies = [
+ "num-traits",
+]
+
+[[package]]
 name = "either"
 version = "1.15.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -3159,6 +3168,7 @@ dependencies = [
 name = "time_travel_stealth_game"
 version = "0.1.0"
 dependencies = [
+ "earcut",
  "ggez",
  "image",
  "nalgebra",
