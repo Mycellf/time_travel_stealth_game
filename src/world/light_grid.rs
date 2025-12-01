@@ -2,7 +2,7 @@ use std::{
     array,
     cmp::Ordering,
     mem,
-    ops::{Index, IndexMut, Neg},
+    ops::{Index, IndexMut},
 };
 
 use ggez::{
