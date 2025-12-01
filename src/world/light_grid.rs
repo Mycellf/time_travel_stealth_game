@@ -7,9 +7,7 @@ use std::{
 
 use ggez::{
     Context, GameResult,
-    graphics::{
-        Canvas, Color, DrawMode, DrawParam, FillOptions, Image, ImageFormat, Mesh, Rect, Transform,
-    },
+    graphics::{Canvas, DrawParam, Image, ImageFormat, Transform},
 };
 use nalgebra::{Point2, Scalar, UnitComplex, UnitVector2, Vector2, point, vector};
 
@@ -40,7 +38,7 @@ impl IndexMut<TileIndex> for LightGrid {
 }
 
 impl LightGrid {
-    pub const MAXIMUM_RAY_RANGE: f64 = 128.0;
+    pub const MAXIMUM_RAY_RANGE: f64 = 1024.0;
 
     pub fn corners(&mut self) -> &[Corner] {
         if self.updated {
@@ -110,35 +108,35 @@ impl LightGrid {
             },
         );
 
-        let rectangle = Mesh::new_rectangle(
-            ctx,
-            DrawMode::Fill(FillOptions::default()),
-            Rect::one(),
-            Color::WHITE,
-        )?;
-
-        for &corner in self.corners() {
-            let rotation = corner.direction.left_angle();
-            let origin = corner.location.map(|x| x as f32);
-
-            canvas.draw(
-                &rectangle,
-                DrawParam {
-                    color: if corner.direction.is_convex() {
-                        Color::RED
-                    } else {
-                        Color::BLUE
-                    },
-                    transform: Transform::Values {
-                        dest: origin.into(),
-                        rotation,
-                        scale: vector![0.2, 0.2].into(),
-                        offset: point![0.0, 0.0].into(),
-                    },
-                    ..Default::default()
-                },
-            );
-        }
+        // let rectangle = Mesh::new_rectangle(
+        //     ctx,
+        //     DrawMode::Fill(FillOptions::default()),
+        //     Rect::one(),
+        //     Color::WHITE,
+        // )?;
+        //
+        // for &corner in self.corners() {
+        //     let rotation = corner.direction.left_angle();
+        //     let origin = corner.location.map(|x| x as f32);
+        //
+        //     canvas.draw(
+        //         &rectangle,
+        //         DrawParam {
+        //             color: if corner.direction.is_convex() {
+        //                 Color::RED
+        //             } else {
+        //                 Color::BLUE
+        //             },
+        //             transform: Transform::Values {
+        //                 dest: origin.into(),
+        //                 rotation,
+        //                 scale: vector![0.2, 0.2].into(),
+        //                 offset: point![0.0, 0.0].into(),
+        //             },
+        //             ..Default::default()
+        //         },
+        //     );
+        // }
 
         Ok(())
     }
@@ -467,7 +465,7 @@ impl CornerDirection {
     }
 }
 
-#[derive(Clone, Copy, Debug)]
+#[derive(Clone, Copy, PartialEq, Eq, Debug)]
 pub enum MaterialKind {
     Solid,
     Mirror,

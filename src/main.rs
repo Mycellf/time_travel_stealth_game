@@ -4,7 +4,7 @@ use ggez::{
     Context, ContextBuilder, GameResult,
     conf::{Backend, Conf, FullscreenType, WindowMode, WindowSetup},
     event::{self, EventHandler},
-    graphics::{Canvas, Color, DrawParam, Mesh, Rect, Sampler, Text, Transform},
+    graphics::{Canvas, Color, DrawMode, DrawParam, FillOptions, Mesh, Rect, Sampler},
     input::keyboard::KeyInput,
     winit::{
         event::MouseButton,
@@ -14,7 +14,7 @@ use ggez::{
 };
 use nalgebra::{Point2, UnitVector2, Vector2, point, vector};
 
-use crate::world::light_grid::{self, AngleRange, LightArea, LightGrid, MaterialKind, Ray};
+use crate::world::light_grid::{AngleRange, LightArea, LightGrid, MaterialKind, Pixel, Ray};
 
 pub(crate) mod collections;
 pub(crate) mod world;
@@ -78,6 +78,7 @@ pub(crate) struct State {
 
     round_mouse_position: bool,
     set_raycast_distance: bool,
+    draw_brush: Option<Pixel>,
 
     light_grid: LightGrid,
 }
@@ -97,6 +98,7 @@ impl State {
 
             round_mouse_position: false,
             set_raycast_distance: false,
+            draw_brush: None,
 
             light_grid: LightGrid::default(),
         })
@@ -105,7 +107,7 @@ impl State {
 
 impl State {
     fn screen_rect(&self) -> Rect {
-        rectangle_of_centered_camera(self.window_size, point![0.0, 0.0], 10.0)
+        rectangle_of_centered_camera(self.window_size, point![0.0, 0.0], 100.0)
     }
 
     fn screen_to_world(&self, point: Point2<f32>) -> Point2<f32> {
@@ -117,7 +119,17 @@ impl State {
 }
 
 impl EventHandler for State {
-    fn update(&mut self, _ctx: &mut Context) -> GameResult {
+    fn update(&mut self, ctx: &mut Context) -> GameResult {
+        if let Some(draw_brush) = self.draw_brush {
+            let mouse_position = self.screen_to_world(ctx.mouse.position().into());
+            let index = mouse_position.map(|x| x.floor() as isize);
+
+            if self.light_grid[index] != draw_brush {
+                self.light_grid[index] = draw_brush;
+                self.update_raycast = true;
+            }
+        }
+
         if self.update_raycast {
             use std::f64::consts::PI;
 
@@ -141,33 +153,31 @@ impl EventHandler for State {
 
         self.light_grid.draw(ctx, &mut canvas)?;
 
-        for (i, &Ray { offset, .. }) in self.light_area.rays.iter().enumerate() {
-            let finish = self.light_area.origin + offset;
+        let points = self
+            .light_area
+            .rays
+            .iter()
+            .map(|Ray { offset, .. }| (self.light_area.origin + offset).map(|x| x as f32))
+            .chain(
+                self.light_area
+                    .range
+                    .is_some()
+                    .then(|| self.light_area.origin.map(|x| x as f32)),
+            )
+            .collect::<Vec<_>>();
 
-            let line = Mesh::new_line(
+        if points.len() >= 3 {
+            let mesh = Mesh::new_polygon(
                 ctx,
-                &[self.light_area.origin, finish].map(|point| point.map(|x| x as f32)),
-                0.05,
-                Color {
-                    a: 0.5,
-                    ..Color::BLUE
-                },
+                DrawMode::Fill(FillOptions::default()),
+                &points,
+                Color::WHITE,
             )?;
 
-            canvas.draw(&line, DrawParam::default());
-
-            let text = Text::new(format!("{i}"));
-
             canvas.draw(
-                &text,
+                &mesh,
                 DrawParam {
                     color: Color::GREEN,
-                    transform: Transform::Values {
-                        dest: finish.map(|x| x as f32).into(),
-                        rotation: 0.0,
-                        scale: vector![0.01, 0.01].into(),
-                        offset: point![0.0, 0.0].into(),
-                    },
                     ..Default::default()
                 },
             );
@@ -252,6 +262,8 @@ impl EventHandler for State {
                     None => *pixel = Some(MaterialKind::Solid),
                 }
 
+                self.draw_brush = Some(*pixel);
+
                 self.update_raycast = true;
             }
             MouseButton::Right => {
@@ -267,6 +279,23 @@ impl EventHandler for State {
                 }
 
                 self.update_raycast = true;
+            }
+            _ => (),
+        }
+
+        Ok(())
+    }
+
+    fn mouse_button_up_event(
+        &mut self,
+        _ctx: &mut Context,
+        button: MouseButton,
+        _x: f32,
+        _y: f32,
+    ) -> GameResult {
+        match button {
+            MouseButton::Left => {
+                self.draw_brush = None;
             }
             _ => (),
         }
