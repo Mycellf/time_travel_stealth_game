@@ -77,7 +77,6 @@ pub(crate) struct State {
     update_raycast: bool,
 
     round_mouse_position: bool,
-    set_raycast_distance: bool,
     draw_brush: Option<Pixel>,
     follow_mouse: bool,
     face_mouse: bool,
@@ -99,7 +98,6 @@ impl State {
             update_raycast: true,
 
             round_mouse_position: false,
-            set_raycast_distance: false,
             draw_brush: None,
             follow_mouse: false,
             face_mouse: false,
@@ -235,15 +233,10 @@ impl EventHandler for State {
             Key::Named(NamedKey::Shift) => {
                 self.round_mouse_position = true;
             }
-            Key::Named(NamedKey::Control) => {
-                self.set_raycast_distance = true;
-            }
             Key::Character(char) if char == "r" => {
-                if self.set_raycast_distance {
-                    self.raycast_direction = None;
+                self.raycast_direction = None;
 
-                    self.update_raycast = true;
-                }
+                self.update_raycast = true;
             }
             _ => (),
         }
@@ -255,9 +248,6 @@ impl EventHandler for State {
         match input.event.logical_key {
             Key::Named(NamedKey::Shift) => {
                 self.round_mouse_position = false;
-            }
-            Key::Named(NamedKey::Control) => {
-                self.set_raycast_distance = false;
             }
             _ => (),
         }
