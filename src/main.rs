@@ -181,7 +181,7 @@ impl EventHandler for State {
             .light_area
             .rays
             .iter()
-            .map(|Ray { offset, .. }| (self.light_area.origin + offset).map(|x| x as f32))
+            .map(|offset| (self.light_area.origin + offset).map(|x| x as f32))
             .chain(
                 self.light_area
                     .range
