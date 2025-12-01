@@ -79,6 +79,7 @@ pub(crate) struct State {
     round_mouse_position: bool,
     set_raycast_distance: bool,
     draw_brush: Option<Pixel>,
+    follow_mouse: bool,
 
     light_grid: LightGrid,
 }
@@ -99,6 +100,7 @@ impl State {
             round_mouse_position: false,
             set_raycast_distance: false,
             draw_brush: None,
+            follow_mouse: false,
 
             light_grid: LightGrid::default(),
         })
@@ -107,7 +109,7 @@ impl State {
 
 impl State {
     fn screen_rect(&self) -> Rect {
-        rectangle_of_centered_camera(self.window_size, point![0.0, 0.0], 100.0)
+        rectangle_of_centered_camera(self.window_size, point![0.0, 0.0], 10.0)
     }
 
     fn screen_to_world(&self, point: Point2<f32>) -> Point2<f32> {
@@ -120,14 +122,26 @@ impl State {
 
 impl EventHandler for State {
     fn update(&mut self, ctx: &mut Context) -> GameResult {
+        let mut mouse_position = self.screen_to_world(ctx.mouse.position().into());
+
+        if self.round_mouse_position {
+            mouse_position.apply(|x| *x = (*x * 2.0).round() / 2.0);
+        }
+
         if let Some(draw_brush) = self.draw_brush {
-            let mouse_position = self.screen_to_world(ctx.mouse.position().into());
             let index = mouse_position.map(|x| x.floor() as isize);
 
             if self.light_grid[index] != draw_brush {
                 self.light_grid[index] = draw_brush;
+
                 self.update_raycast = true;
             }
+        }
+
+        if self.follow_mouse {
+            self.raycast_start = mouse_position.map(|x| x as f64);
+
+            self.update_raycast = true;
         }
 
         if self.update_raycast {
@@ -270,6 +284,8 @@ impl EventHandler for State {
                 self.raycast_start = mouse_position.map(|x| x as f64);
 
                 self.update_raycast = true;
+
+                self.follow_mouse = true;
             }
             MouseButton::Middle => {
                 let direction = mouse_position.map(|x| x as f64) - self.raycast_start;
@@ -296,6 +312,9 @@ impl EventHandler for State {
         match button {
             MouseButton::Left => {
                 self.draw_brush = None;
+            }
+            MouseButton::Right => {
+                self.follow_mouse = false;
             }
             _ => (),
         }
