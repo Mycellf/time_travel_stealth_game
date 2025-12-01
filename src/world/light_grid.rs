@@ -2,7 +2,7 @@ use std::{
     array,
     cmp::Ordering,
     mem,
-    ops::{Index, IndexMut},
+    ops::{Index, IndexMut, Neg},
 };
 
 use ggez::{
@@ -210,10 +210,24 @@ impl LightGrid {
                 continue;
             }
 
-            area.rays.push(Ray {
-                offset: finish - area.origin,
-                partition: None,
-            });
+            if !corner.direction.should_skip(-offset_to_corner) {
+                area.rays.push(Ray {
+                    offset: finish - area.origin,
+                    partition: if corner.direction.is_on_edge(-offset_to_corner) {
+                        Some(
+                            if corner.direction.is_convex()
+                                ^ corner.direction.is_on_left_edge(-offset_to_corner)
+                            {
+                                RayPartition::Right
+                            } else {
+                                RayPartition::Left
+                            },
+                        )
+                    } else {
+                        None
+                    },
+                });
+            }
 
             if corner.direction.is_concave()
                 || corner.direction.contains_offset_strict(-offset_to_corner)
@@ -395,13 +409,68 @@ impl CornerDirection {
     pub fn is_offset_to_left<T: PartialOrd + Default>(self, offset: Vector2<T>) -> bool {
         match (self.is_north(), self.is_east()) {
             // Southwest
-            (false, false) => offset[0] >= T::default(),
+            (false, false) => offset[0] >= T::default() && offset[1] >= T::default(),
             // Southeast
-            (false, true) => offset[1] <= T::default(),
+            (false, true) => offset[0] >= T::default() && offset[1] <= T::default(),
             // Northwest
-            (true, false) => offset[1] >= T::default(),
+            (true, false) => offset[0] <= T::default() && offset[1] >= T::default(),
             // Northeast
-            (true, true) => offset[0] <= T::default(),
+            (true, true) => offset[0] <= T::default() && offset[1] <= T::default(),
+        }
+    }
+
+    pub fn is_on_edge<T: PartialOrd + Default + Copy>(self, offset: Vector2<T>) -> bool {
+        self.is_on_left_edge(offset) || self.is_on_right_edge(offset)
+    }
+
+    pub fn is_on_left_edge<T: PartialOrd + Default>(self, offset: Vector2<T>) -> bool {
+        match (self.is_north(), self.is_east()) {
+            // Southwest
+            (false, false) => offset[1] >= T::default() && offset[0] == T::default(),
+            // Southeast
+            (false, true) => offset[0] >= T::default() && offset[1] == T::default(),
+            // Northwest
+            (true, false) => offset[0] <= T::default() && offset[1] == T::default(),
+            // Northeast
+            (true, true) => offset[1] <= T::default() && offset[0] == T::default(),
+        }
+    }
+
+    pub fn is_on_right_edge<T: PartialOrd + Default>(self, offset: Vector2<T>) -> bool {
+        match (self.is_north(), self.is_east()) {
+            // Southwest
+            (false, false) => offset[0] <= T::default() && offset[1] == T::default(),
+            // Southeast
+            (false, true) => offset[1] >= T::default() && offset[0] == T::default(),
+            // Northwest
+            (true, false) => offset[1] <= T::default() && offset[0] == T::default(),
+            // Northeast
+            (true, true) => offset[0] >= T::default() && offset[1] == T::default(),
+        }
+    }
+
+    pub fn should_skip<T: PartialOrd + Default>(self, offset: Vector2<T>) -> bool {
+        match (self.is_north(), self.is_east()) {
+            // Southwest
+            (false, false) => {
+                (offset[0] >= T::default() && offset[1] == T::default())
+                    || (offset[1] <= T::default() && offset[0] == T::default())
+            }
+            // Southeast
+            (false, true) => {
+                (offset[0] <= T::default() && offset[1] == T::default())
+                    || (offset[1] <= T::default() && offset[0] == T::default())
+            }
+            // Northwest
+            (true, false) => {
+                (offset[0] >= T::default() && offset[1] == T::default())
+                    || (offset[1] >= T::default() && offset[0] == T::default())
+            }
+            // Northeast
+            (true, true) => {
+                (offset[0] <= T::default() && offset[1] == T::default())
+                    || (offset[1] >= T::default() && offset[0] == T::default())
+            }
         }
     }
 
