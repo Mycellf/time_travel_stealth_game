@@ -16,7 +16,7 @@ use ggez::{
 use nalgebra::{Point2, Vector2, point, vector};
 
 pub(crate) mod collections;
-pub(crate) mod world;
+pub(crate) mod input;
 
 fn main() -> GameResult {
     let mut builder =
