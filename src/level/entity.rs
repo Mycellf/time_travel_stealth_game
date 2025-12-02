@@ -1,7 +1,9 @@
 use std::fmt::Debug;
 
 use ggez::{Context, graphics::Canvas, input::keyboard::KeyInput, winit::event::MouseButton};
-use nalgebra::{Point2, Vector2};
+use nalgebra::{Point2, UnitVector2, Vector2};
+
+use crate::level::light_grid::AngleRange;
 
 pub(crate) mod player;
 
@@ -58,6 +60,10 @@ pub trait Entity: 'static + Debug {
     fn draw(&mut self, ctx: &mut Context, canvas: &mut Canvas);
 
     fn position(&self) -> Point2<f64>;
+
+    fn view_range(&self) -> Option<AngleRange> {
+        None
+    }
 
     fn duplicate(&self) -> Box<dyn Entity>;
 

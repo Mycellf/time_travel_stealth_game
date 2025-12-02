@@ -4,14 +4,21 @@ use ggez::{
     input::keyboard::KeyInput,
     winit::platform::modifier_supplement::KeyEventExtModifierSupplement,
 };
-use nalgebra::{Point2, Vector2, point};
+use nalgebra::{Point2, UnitVector2, Vector2, point};
 
-use crate::{input::DirectionalInput, level::entity::Entity};
+use crate::{
+    input::DirectionalInput,
+    level::{entity::Entity, light_grid::AngleRange},
+};
 
 #[derive(Clone, Debug)]
 pub struct Player {
     pub position: Point2<f64>,
     pub size: Vector2<f64>,
+
+    pub mouse_position: Point2<f64>,
+    pub view_direction: UnitVector2<f64>,
+    pub view_width: f64,
 
     pub motion_input: DirectionalInput,
     pub speed: f64,
@@ -19,6 +26,12 @@ pub struct Player {
 
 impl Entity for Player {
     fn update(&mut self, ctx: &mut Context) {
+        if let Some(new_direction) =
+            UnitVector2::try_new(self.mouse_position - self.position, f64::EPSILON)
+        {
+            self.view_direction = new_direction;
+        }
+
         self.position +=
             self.motion_input.normalized_output() * self.speed * ctx.time.delta().as_secs_f64();
     }
@@ -52,6 +65,13 @@ impl Entity for Player {
         self.position
     }
 
+    fn view_range(&self) -> Option<AngleRange> {
+        Some(AngleRange::from_direction_and_width(
+            self.view_direction,
+            self.view_width,
+        ))
+    }
+
     fn duplicate(&self) -> Box<dyn Entity> {
         Box::new(self.clone())
     }
@@ -68,5 +88,9 @@ impl Entity for Player {
     fn key_up(&mut self, input: KeyInput) {
         self.motion_input
             .key_up(input.event.key_without_modifiers());
+    }
+
+    fn mouse_moved(&mut self, position: Point2<f64>, _delta: Vector2<f64>) {
+        self.mouse_position = position;
     }
 }

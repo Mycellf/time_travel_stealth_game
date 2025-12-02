@@ -12,7 +12,7 @@ use ggez::{
         platform::modifier_supplement::KeyEventExtModifierSupplement,
     },
 };
-use nalgebra::{Point2, Vector2, point, vector};
+use nalgebra::{Point2, UnitVector2, Vector2, point, vector};
 
 use crate::{
     input::DirectionalInput,
@@ -77,6 +77,8 @@ pub(crate) struct State {
 
 impl State {
     fn new(ctx: &mut Context) -> GameResult<Self> {
+        use std::f64::consts::PI;
+
         Ok(State {
             fullscreen: true,
             window_size: vector![800.0, 600.0],
@@ -86,6 +88,10 @@ impl State {
                 vec![Box::new(Player {
                     position: point![0.0, 0.0],
                     size: vector![6.0, 6.0],
+
+                    mouse_position: point![0.0, 0.0],
+                    view_direction: UnitVector2::new_normalize(vector![1.0, 0.0]),
+                    view_width: PI * 1.0 / 2.0,
 
                     speed: 40.0,
                     motion_input: DirectionalInput::new(
@@ -101,8 +107,10 @@ impl State {
 }
 
 impl State {
+    pub const SCREEN_HEIGHT: f32 = 100.0;
+
     fn screen_rect(&self) -> Rect {
-        rectangle_of_centered_camera(self.window_size, point![0.0, 0.0], 100.0)
+        rectangle_of_centered_camera(self.window_size, point![0.0, 0.0], Self::SCREEN_HEIGHT)
     }
 
     fn screen_to_world(&self, point: Point2<f32>) -> Point2<f32> {
@@ -110,6 +118,10 @@ impl State {
         let screen = Rect::new(0.0, 0.0, self.window_size.x, self.window_size.y);
 
         transform_between_rectangles(screen, world, point)
+    }
+
+    fn screen_to_world_scale_factor(&self) -> f32 {
+        Self::SCREEN_HEIGHT / self.window_size.y
     }
 }
 
@@ -195,8 +207,10 @@ impl EventHandler for State {
         dx: f32,
         dy: f32,
     ) -> GameResult {
-        self.level
-            .mouse_moved(point![x as f64, y as f64], vector![dx as f64, dy as f64]);
+        self.level.mouse_moved(
+            self.screen_to_world(point![x, y]).map(|x| x as f64),
+            (vector![dx, dy] * self.screen_to_world_scale_factor()).map(|x| x as f64),
+        );
 
         Ok(())
     }
