@@ -8,7 +8,7 @@ use std::{
 use earcut::Earcut;
 use ggez::{
     Context, GameResult,
-    graphics::{Canvas, DrawParam, Image, ImageFormat, Mesh, MeshData, Transform, Vertex},
+    graphics::{Canvas, Color, DrawParam, Image, ImageFormat, Mesh, MeshData, Transform, Vertex},
 };
 use nalgebra::{Point2, Scalar, UnitComplex, UnitVector2, Vector2, point, vector};
 
@@ -71,10 +71,12 @@ impl LightGrid {
         }
     }
 
-    pub fn draw(&mut self, ctx: &mut Context, canvas: &mut Canvas) -> GameResult {
+    pub fn draw(&mut self, ctx: &mut Context, canvas: &mut Canvas, color: Color) -> GameResult {
         if self.grid.bounds().area() == 0 {
             return Ok(());
         }
+
+        let color = color.to_rgba().into();
 
         // TODO: This should definitely be cached somewhere.
         let image = Image::from_pixels(
@@ -84,7 +86,7 @@ impl LightGrid {
                 .as_slice()
                 .iter()
                 .map(|pixel| match pixel {
-                    Some(_) => [255; 4],
+                    Some(_) => color,
                     None => [0; 4],
                 })
                 .flatten()
@@ -235,10 +237,13 @@ impl LightGrid {
             );
 
             if (finish - area.origin).magnitude_squared()
-                < offset_to_corner.magnitude_squared() - 1e-6
+                < offset_to_corner.magnitude_squared() - 1e-3
             {
                 continue;
             }
+
+            let ray_continues = !(corner.direction.is_concave()
+                || corner.direction.contains_offset_strict(-offset_to_corner));
 
             if !corner.direction.should_skip(-offset_to_corner) {
                 unorganized_rays.push(Ray::new(
@@ -251,34 +256,28 @@ impl LightGrid {
                         } else {
                             RayPartition::Left
                         }
+                    } else if ray_continues {
+                        if corner.direction.is_offset_to_left(-offset_to_corner) {
+                            RayPartition::Left
+                        } else {
+                            RayPartition::Right
+                        }
                     } else {
                         RayPartition::None
                     },
                 ));
             }
 
-            if corner.direction.is_concave()
-                || corner.direction.contains_offset_strict(-offset_to_corner)
-            {
-                continue;
+            if ray_continues {
+                unorganized_rays.push(Ray::new(
+                    finish - area.origin,
+                    if corner.direction.is_offset_to_left(-offset_to_corner) {
+                        RayPartition::Right
+                    } else {
+                        RayPartition::Left
+                    },
+                ));
             }
-
-            // let (finish, _, _) = raycast(
-            //     collision_function,
-            //     corner.location - direction_to_corner.into_inner() * 0.5,
-            //     direction_to_corner,
-            //     Self::MAXIMUM_RAY_RANGE,
-            //     state,
-            // );
-
-            unorganized_rays.push(Ray::new(
-                finish - area.origin,
-                if corner.direction.is_offset_to_left(-offset_to_corner) {
-                    RayPartition::Right
-                } else {
-                    RayPartition::Left
-                },
-            ));
         }
 
         let reference = match area.range {
