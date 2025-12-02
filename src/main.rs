@@ -1,6 +1,5 @@
 use std::{env, path::PathBuf};
 
-use earcut::Earcut;
 use ggez::{
     Context, ContextBuilder, GameResult,
     conf::{Backend, Conf, FullscreenType, WindowMode, WindowSetup},
@@ -15,8 +14,14 @@ use ggez::{
 };
 use nalgebra::{Point2, Vector2, point, vector};
 
+use crate::{
+    input::DirectionalInput,
+    level::{Level, entity::player::Player},
+};
+
 pub(crate) mod collections;
 pub(crate) mod input;
+pub(crate) mod level;
 
 fn main() -> GameResult {
     let mut builder =
@@ -67,16 +72,30 @@ pub(crate) struct State {
     fullscreen: bool,
     window_size: Vector2<f32>,
 
-    earcut: Earcut<f32>,
+    level: Level,
 }
 
 impl State {
-    fn new(_ctx: &mut Context) -> GameResult<Self> {
+    fn new(ctx: &mut Context) -> GameResult<Self> {
         Ok(State {
             fullscreen: true,
             window_size: vector![800.0, 600.0],
 
-            earcut: Earcut::default(),
+            level: Level::new(
+                ctx,
+                vec![Box::new(Player {
+                    position: point![0.0, 0.0],
+                    size: vector![6.0, 6.0],
+
+                    speed: 40.0,
+                    motion_input: DirectionalInput::new(
+                        Key::Character("d".into()),
+                        Key::Character("w".into()),
+                        Key::Character("a".into()),
+                        Key::Character("s".into()),
+                    ),
+                })],
+            ),
         })
     }
 }
@@ -95,7 +114,9 @@ impl State {
 }
 
 impl EventHandler for State {
-    fn update(&mut self, _ctx: &mut Context) -> GameResult {
+    fn update(&mut self, ctx: &mut Context) -> GameResult {
+        self.level.update(ctx);
+
         Ok(())
     }
 
@@ -105,39 +126,39 @@ impl EventHandler for State {
 
         canvas.set_screen_coordinates(self.screen_rect());
 
+        self.level.draw(ctx, &mut canvas);
+
         canvas.finish(ctx)?;
 
         Ok(())
     }
 
     fn key_down_event(&mut self, ctx: &mut Context, input: KeyInput, repeated: bool) -> GameResult {
-        if repeated {
-            return Ok(());
-        }
+        self.level.key_down(input.clone(), repeated);
 
-        match input.event.key_without_modifiers() {
-            Key::Named(NamedKey::Escape) => {
-                ctx.request_quit();
-            }
-            Key::Named(NamedKey::F11) => {
-                self.fullscreen ^= true;
+        if !repeated {
+            match input.event.key_without_modifiers() {
+                Key::Named(NamedKey::Escape) => {
+                    ctx.request_quit();
+                }
+                Key::Named(NamedKey::F11) => {
+                    self.fullscreen ^= true;
 
-                ctx.gfx.set_fullscreen(if self.fullscreen {
-                    FullscreenType::Desktop
-                } else {
-                    FullscreenType::Windowed
-                })?;
+                    ctx.gfx.set_fullscreen(if self.fullscreen {
+                        FullscreenType::Desktop
+                    } else {
+                        FullscreenType::Windowed
+                    })?;
+                }
+                _ => (),
             }
-            _ => (),
         }
 
         Ok(())
     }
 
     fn key_up_event(&mut self, _ctx: &mut Context, input: KeyInput) -> GameResult {
-        match input.event.logical_key {
-            _ => (),
-        }
+        self.level.key_up(input);
 
         Ok(())
     }
@@ -146,12 +167,10 @@ impl EventHandler for State {
         &mut self,
         _ctx: &mut Context,
         button: MouseButton,
-        _x: f32,
-        _y: f32,
+        x: f32,
+        y: f32,
     ) -> GameResult {
-        match button {
-            _ => (),
-        }
+        self.level.mouse_down(button, point![x as f64, y as f64]);
 
         Ok(())
     }
@@ -160,12 +179,24 @@ impl EventHandler for State {
         &mut self,
         _ctx: &mut Context,
         button: MouseButton,
-        _x: f32,
-        _y: f32,
+        x: f32,
+        y: f32,
     ) -> GameResult {
-        match button {
-            _ => (),
-        }
+        self.level.mouse_up(button, point![x as f64, y as f64]);
+
+        Ok(())
+    }
+
+    fn mouse_motion_event(
+        &mut self,
+        _ctx: &mut Context,
+        x: f32,
+        y: f32,
+        dx: f32,
+        dy: f32,
+    ) -> GameResult {
+        self.level
+            .mouse_moved(point![x as f64, y as f64], vector![dx as f64, dy as f64]);
 
         Ok(())
     }

@@ -1,0 +1,107 @@
+use std::mem;
+
+use ggez::{Context, graphics::Canvas, input::keyboard::KeyInput, winit::event::MouseButton};
+use nalgebra::{Point2, Vector2};
+use slotmap::{SlotMap, new_key_type};
+
+use crate::level::{
+    entity::{Entity, EntityTracker},
+    light_grid::LightGrid,
+};
+
+pub(crate) mod entity;
+pub(crate) mod light_grid;
+
+pub struct Level {
+    pub initial_state: Vec<Box<dyn Entity>>,
+
+    pub entities: SlotMap<EntityKey, EntityTracker>,
+    pub input_readers: Vec<EntityKey>,
+
+    pub light_grid: LightGrid,
+}
+
+new_key_type! {
+    pub struct EntityKey;
+}
+
+impl Level {
+    pub fn new(_ctx: &mut Context, initial_state: Vec<Box<dyn Entity>>) -> Level {
+        let mut result = Level {
+            initial_state,
+
+            entities: SlotMap::default(),
+            input_readers: Vec::new(),
+
+            light_grid: LightGrid::default(),
+        };
+
+        result.load_initial_state();
+
+        result
+    }
+
+    pub fn load_initial_state(&mut self) {
+        self.entities.clear();
+        self.input_readers.clear();
+
+        let initial_state = mem::take(&mut self.initial_state);
+
+        for entity in initial_state.iter() {
+            self.insert_entity(entity.duplicate());
+        }
+
+        self.initial_state = initial_state;
+    }
+
+    pub fn insert_entity(&mut self, entity: Box<dyn Entity>) {
+        let needs_input = entity.should_recieve_inputs();
+        let key = self.entities.insert(EntityTracker::new(entity.duplicate()));
+
+        if needs_input {
+            self.input_readers.push(key);
+        }
+    }
+
+    pub fn update(&mut self, ctx: &mut Context) {
+        for (_, entity) in &mut self.entities {
+            entity.update(ctx);
+        }
+    }
+
+    pub fn draw(&mut self, ctx: &mut Context, canvas: &mut Canvas) {
+        for (_, entity) in &mut self.entities {
+            entity.draw(ctx, canvas);
+        }
+    }
+
+    pub fn key_down(&mut self, input: KeyInput, is_repeat: bool) {
+        for &key in &self.input_readers {
+            self.entities[key].key_down(input.clone(), is_repeat);
+        }
+    }
+
+    pub fn key_up(&mut self, input: KeyInput) {
+        for &key in &self.input_readers {
+            self.entities[key].key_up(input.clone());
+        }
+    }
+
+    pub fn mouse_down(&mut self, input: MouseButton, position: Point2<f64>) {
+        for &key in &self.input_readers {
+            self.entities[key].mouse_down(input, position);
+        }
+    }
+
+    pub fn mouse_up(&mut self, input: MouseButton, position: Point2<f64>) {
+        for &key in &self.input_readers {
+            self.entities[key].mouse_up(input, position);
+        }
+    }
+
+    pub fn mouse_moved(&mut self, position: Point2<f64>, delta: Vector2<f64>) {
+        for &key in &self.input_readers {
+            self.entities[key].mouse_moved(position, delta);
+        }
+    }
+}
