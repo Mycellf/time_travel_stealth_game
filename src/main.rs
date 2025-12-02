@@ -182,7 +182,8 @@ impl EventHandler for State {
         x: f32,
         y: f32,
     ) -> GameResult {
-        self.level.mouse_down(button, point![x as f64, y as f64]);
+        self.level
+            .mouse_down(button, self.screen_to_world(point![x, y]).map(|x| x as f64));
 
         Ok(())
     }
@@ -194,7 +195,8 @@ impl EventHandler for State {
         x: f32,
         y: f32,
     ) -> GameResult {
-        self.level.mouse_up(button, point![x as f64, y as f64]);
+        self.level
+            .mouse_up(button, self.screen_to_world(point![x, y]).map(|x| x as f64));
 
         Ok(())
     }
