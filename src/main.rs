@@ -93,7 +93,7 @@ impl State {
                     view_direction: UnitVector2::new_normalize(vector![1.0, 0.0]),
                     view_width: PI * 1.0 / 2.0,
 
-                    speed: 40.0,
+                    speed: 64.0,
                     motion_input: DirectionalInput::new(
                         Key::Character("d".into()),
                         Key::Character("w".into()),
@@ -107,7 +107,7 @@ impl State {
 }
 
 impl State {
-    pub const SCREEN_HEIGHT: f32 = 100.0;
+    pub const SCREEN_HEIGHT: f32 = 256.0;
 
     fn screen_rect(&self) -> Rect {
         rectangle_of_centered_camera(self.window_size, point![0.0, 0.0], Self::SCREEN_HEIGHT)

@@ -39,7 +39,7 @@ impl IndexMut<TileIndex> for LightGrid {
 }
 
 impl LightGrid {
-    pub const MAXIMUM_RAY_RANGE: f64 = 256.0;
+    pub const MAXIMUM_RAY_RANGE: f64 = 2048.0;
 
     pub fn corners(&mut self) -> &[Corner] {
         if self.updated {
