@@ -155,10 +155,16 @@ impl LightGrid {
 
         let mut unorganized_rays = Vec::new();
 
+        // HACK: Update the corners, then get them without rust thinking we still need a unique
+        // pointer to self.
+        let _ = self.corners();
+
+        let collision_function = |_, index| self[index].is_some();
+
         if let Some(range) = &area.range {
             unorganized_rays.push(Ray::new(
                 raycast(
-                    |_, index| self[index].is_some(),
+                    collision_function,
                     area.origin,
                     range.left,
                     Self::MAXIMUM_RAY_RANGE,
@@ -170,7 +176,7 @@ impl LightGrid {
 
             unorganized_rays.push(Ray::new(
                 raycast(
-                    |_, index| self[index].is_some(),
+                    collision_function,
                     area.origin,
                     range.right,
                     Self::MAXIMUM_RAY_RANGE,
@@ -192,7 +198,7 @@ impl LightGrid {
             ] {
                 unorganized_rays.push(Ray::new(
                     raycast(
-                        |_, index| self[index].is_some(),
+                        collision_function,
                         area.origin,
                         direction,
                         Self::MAXIMUM_RAY_RANGE,
@@ -203,10 +209,6 @@ impl LightGrid {
                 ));
             }
         }
-
-        // HACK: Update the corners, then get them without rust thinking we still need a unique
-        // pointer to self.
-        let _ = self.corners();
 
         for corner in &self.corners {
             let offset_to_corner = corner.location - area.origin;
@@ -225,7 +227,7 @@ impl LightGrid {
             };
 
             let (finish, _, _) = raycast(
-                |_, index| self[index].is_some(),
+                collision_function,
                 area.origin,
                 direction_to_corner,
                 Self::MAXIMUM_RAY_RANGE,
@@ -262,7 +264,7 @@ impl LightGrid {
             }
 
             // let (finish, _, _) = raycast(
-            //     |_, index| self[index].is_some(),
+            //     collision_function,
             //     corner.location - direction_to_corner.into_inner() * 0.5,
             //     direction_to_corner,
             //     Self::MAXIMUM_RAY_RANGE,
