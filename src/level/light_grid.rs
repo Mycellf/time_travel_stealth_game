@@ -722,20 +722,22 @@ pub fn raycast(
     let on_x_edge = on_x_edge;
     let on_y_edge = on_y_edge;
 
-    let mut side_a = state.0
-        || if on_x_edge {
-            function(location, index + vector![-1, 0])
-        } else if on_y_edge {
-            function(location, index + vector![0, -1])
-        } else {
-            false
-        };
+    let mut side_a = if on_x_edge {
+        function(location, index + vector![-1, 0])
+    } else if on_y_edge {
+        function(location, index + vector![0, -1])
+    } else {
+        false
+    };
 
-    let mut side_b = state.1 || function(location, index);
+    let mut side_b = function(location, index);
 
-    if side_a && side_b {
-        return (location, true, (side_a, side_b));
+    if side_a || side_b {
+        return (location, true, (side_a || state.0, side_b || state.1));
     }
+
+    side_a |= state.0;
+    side_b |= state.1;
 
     let dir_sign_x = if direction.x > 0.0 { 1 } else { -1 };
     let dir_sign_y = if direction.y > 0.0 { 1 } else { -1 };
