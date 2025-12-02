@@ -277,10 +277,11 @@ impl LightGrid {
             None => UnitVector2::new_normalize(unorganized_rays[0].offset),
         };
 
-        unorganized_rays.sort_unstable_by(|&lhs, &rhs| compare_ray_angles(lhs, rhs, reference));
+        unorganized_rays
+            .sort_unstable_by(|&lhs, &rhs| compare_ray_angles(lhs, rhs, reference, 0.0));
 
         for chunk in unorganized_rays
-            .chunk_by(|&lhs, &rhs| compare_ray_angles(lhs, rhs, reference) == Ordering::Equal)
+            .chunk_by(|&lhs, &rhs| compare_ray_angles(lhs, rhs, reference, 1e-6) == Ordering::Equal)
         {
             if chunk.len() <= 1 {
                 area.rays.push(chunk[0].offset);
@@ -326,11 +327,11 @@ impl LightGrid {
 }
 
 /// Compares the counter clockwise angle from reference to lhs to that of rhs
-fn compare_ray_angles(lhs: Ray, rhs: Ray, reference: UnitVector2<f64>) -> Ordering {
+fn compare_ray_angles(lhs: Ray, rhs: Ray, reference: UnitVector2<f64>, epsilon: f64) -> Ordering {
     let lhs_cos_angle = counter_clockwise_cos_angle(lhs, reference);
     let rhs_cos_angle = counter_clockwise_cos_angle(rhs, reference);
 
-    if (lhs_cos_angle - rhs_cos_angle).abs() <= 1e-6 {
+    if (lhs_cos_angle - rhs_cos_angle).abs() <= epsilon {
         Ordering::Equal
     } else {
         lhs_cos_angle.total_cmp(&rhs_cos_angle)

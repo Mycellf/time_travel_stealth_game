@@ -5,9 +5,7 @@ use ggez::{
     Context, ContextBuilder, GameResult,
     conf::{Backend, Conf, FullscreenType, WindowMode, WindowSetup},
     event::{self, EventHandler},
-    graphics::{
-        Canvas, Color, DrawMode, DrawParam, FillOptions, Mesh, MeshData, Rect, Sampler, Vertex,
-    },
+    graphics::{Canvas, Color, DrawParam, Mesh, MeshData, Rect, Sampler, Vertex},
     input::keyboard::KeyInput,
     winit::{
         event::MouseButton,
@@ -115,7 +113,7 @@ impl State {
 
 impl State {
     fn screen_rect(&self) -> Rect {
-        rectangle_of_centered_camera(self.window_size, point![0.0, 0.0], 10.0)
+        rectangle_of_centered_camera(self.window_size, point![0.0, 0.0], 100.0)
     }
 
     fn screen_to_world(&self, point: Point2<f32>) -> Point2<f32> {
