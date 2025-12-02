@@ -7,12 +7,12 @@ use ggez::{
     input::keyboard::KeyInput,
     winit::event::MouseButton,
 };
-use nalgebra::{Point2, UnitVector2, Vector2, point, vector};
+use nalgebra::{Point2, Vector2};
 use slotmap::{SlotMap, new_key_type};
 
 use crate::level::{
     entity::{Entity, EntityTracker},
-    light_grid::{AngleRange, LightGrid, MaterialKind, Pixel},
+    light_grid::{LightGrid, MaterialKind, Pixel},
 };
 
 pub(crate) mod entity;
