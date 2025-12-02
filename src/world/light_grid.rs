@@ -290,23 +290,16 @@ impl LightGrid {
                 continue;
             }
 
-            let shortest = chunk
-                .iter()
-                .min_by(|lhs, rhs| {
-                    lhs.offset
-                        .magnitude_squared()
-                        .total_cmp(&rhs.offset.magnitude_squared())
-                })
-                .unwrap();
+            let mut shortest = chunk[0];
+            let mut longest = chunk[0];
 
-            let longest = chunk
-                .iter()
-                .max_by(|lhs, rhs| {
-                    lhs.offset
-                        .magnitude_squared()
-                        .total_cmp(&rhs.offset.magnitude_squared())
-                })
-                .unwrap();
+            for &ray in chunk.iter().skip(1) {
+                if ray.magnitude < shortest.magnitude {
+                    shortest = ray;
+                } else if ray.magnitude > longest.magnitude {
+                    longest = ray;
+                }
+            }
 
             if (shortest.magnitude - longest.magnitude).abs() <= 1e-6 {
                 area.rays.push(shortest.offset);
