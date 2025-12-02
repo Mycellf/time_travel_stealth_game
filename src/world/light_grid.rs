@@ -178,6 +178,25 @@ impl LightGrid {
                 .0 - area.origin,
                 RayPartition::LeftEdge,
             ));
+        } else {
+            for direction in [
+                UnitVector2::new_normalize(vector![1.0, 1.0]),
+                UnitVector2::new_normalize(vector![1.0, -1.0]),
+                UnitVector2::new_normalize(vector![-1.0, 1.0]),
+                UnitVector2::new_normalize(vector![-1.0, -1.0]),
+            ] {
+                unorganized_rays.push(Ray::new(
+                    raycast(
+                        |_, index| self[index].is_some(),
+                        area.origin,
+                        direction,
+                        Self::MAXIMUM_RAY_RANGE,
+                        Default::default(),
+                    )
+                    .0 - area.origin,
+                    RayPartition::None,
+                ));
+            }
         }
 
         // HACK: Update the corners, then get them without rust thinking we still need a unique
@@ -255,7 +274,7 @@ impl LightGrid {
 
         let reference = match area.range {
             Some(range) => range.left,
-            None => UnitVector2::new_normalize(vector![1.0, 0.0]),
+            None => UnitVector2::new_normalize(unorganized_rays[0].offset),
         };
 
         unorganized_rays.sort_unstable_by(|&lhs, &rhs| compare_ray_angles(lhs, rhs, reference));
@@ -286,6 +305,11 @@ impl LightGrid {
                         .total_cmp(&rhs.offset.magnitude_squared())
                 })
                 .unwrap();
+
+            if (shortest.magnitude - longest.magnitude).abs() <= 1e-6 {
+                area.rays.push(shortest.offset);
+                continue;
+            }
 
             let (left, right) = match shortest.partition.cmp(&longest.partition) {
                 Ordering::Less => (longest, shortest),
