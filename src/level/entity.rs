@@ -1,6 +1,6 @@
 use std::fmt::Debug;
 
-use ggez::{Context, graphics::Canvas, input::keyboard::KeyInput, winit::event::MouseButton};
+use macroquad::input::{KeyCode, MouseButton};
 use nalgebra::{Point2, Vector2};
 
 use crate::level::light_grid::AngleRange;
@@ -17,19 +17,19 @@ impl EntityTracker {
         EntityTracker { inner: inner }
     }
 
-    pub fn update(&mut self, ctx: &mut Context) {
-        self.inner.update(ctx);
+    pub fn update(&mut self) {
+        self.inner.update();
     }
 
-    pub fn draw(&mut self, ctx: &mut Context, canvas: &mut Canvas) {
-        self.inner.draw(ctx, canvas);
+    pub fn draw(&mut self) {
+        self.inner.draw();
     }
 
-    pub fn key_down(&mut self, input: KeyInput, is_repeat: bool) {
-        self.inner.key_down(input, is_repeat);
+    pub fn key_down(&mut self, input: KeyCode) {
+        self.inner.key_down(input);
     }
 
-    pub fn key_up(&mut self, input: KeyInput) {
+    pub fn key_up(&mut self, input: KeyCode) {
         self.inner.key_up(input);
     }
 
@@ -55,9 +55,9 @@ impl Clone for EntityTracker {
 }
 
 pub trait Entity: 'static + Debug {
-    fn update(&mut self, ctx: &mut Context);
+    fn update(&mut self);
 
-    fn draw(&mut self, ctx: &mut Context, canvas: &mut Canvas);
+    fn draw(&mut self);
 
     fn position(&self) -> Point2<f64>;
 
@@ -69,9 +69,9 @@ pub trait Entity: 'static + Debug {
 
     fn should_recieve_inputs(&self) -> bool;
 
-    fn key_down(&mut self, _input: KeyInput, _is_repeat: bool) {}
+    fn key_down(&mut self, _input: KeyCode) {}
 
-    fn key_up(&mut self, _input: KeyInput) {}
+    fn key_up(&mut self, _input: KeyCode) {}
 
     fn mouse_down(&mut self, _input: MouseButton, _position: Point2<f64>) {}
 

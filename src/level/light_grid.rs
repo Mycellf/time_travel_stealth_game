@@ -6,9 +6,12 @@ use std::{
 };
 
 use earcut::Earcut;
-use ggez::{
-    Context, GameResult,
-    graphics::{Canvas, Color, DrawParam, Image, ImageFormat, Mesh, MeshData, Transform, Vertex},
+use macroquad::{
+    color::{Color, colors},
+    math::{Vec2, Vec3, Vec3Swizzles, Vec4},
+    models::Mesh,
+    texture::{self, FilterMode, Texture2D},
+    ui::Vertex,
 };
 use nalgebra::{Point2, Scalar, UnitComplex, UnitVector2, Vector2, point, vector};
 
@@ -71,23 +74,18 @@ impl LightGrid {
         }
     }
 
-    pub fn draw(
-        &mut self,
-        ctx: &mut Context,
-        canvas: &mut Canvas,
-        solid_color: Color,
-        none_color: Color,
-    ) -> GameResult {
+    pub fn draw(&mut self, solid_color: Color, none_color: Color) {
         if self.grid.bounds().area() == 0 {
-            return Ok(());
+            return;
         }
 
-        let solid_color = <[u8; 4]>::from(solid_color.to_rgba());
-        let none_color = <[u8; 4]>::from(none_color.to_rgba());
+        let solid_color: [u8; 4] = solid_color.into();
+        let none_color: [u8; 4] = none_color.into();
 
         // TODO: This should definitely be cached somewhere.
-        let image = Image::from_pixels(
-            ctx,
+        let texture = Texture2D::from_rgba8(
+            self.grid.bounds().size.x as u16,
+            self.grid.bounds().size.y as u16,
             &self
                 .grid
                 .as_slice()
@@ -101,25 +99,12 @@ impl LightGrid {
                 })
                 .flatten()
                 .collect::<Vec<_>>(),
-            ImageFormat::Rgba8UnormSrgb,
-            self.grid.bounds().size.x as u32,
-            self.grid.bounds().size.y as u32,
         );
+        texture.set_filter(FilterMode::Nearest);
 
         let origin = self.grid.bounds().origin.map(|x| x as f32);
 
-        canvas.draw(
-            &image,
-            DrawParam {
-                transform: Transform::Values {
-                    dest: origin.into(),
-                    rotation: 0.0,
-                    scale: vector![1.0, 1.0].into(),
-                    offset: point![0.0, 0.0].into(),
-                },
-                ..Default::default()
-            },
-        );
+        texture::draw_texture(&texture, origin.x, origin.y, colors::WHITE);
 
         // let rectangle = Mesh::new_rectangle(
         //     ctx,
@@ -150,8 +135,6 @@ impl LightGrid {
         //         },
         //     );
         // }
-
-        Ok(())
     }
 
     pub fn trace_light_from(
@@ -638,30 +621,33 @@ pub struct LightArea {
 }
 
 impl LightArea {
-    pub fn mesh(&self, ctx: &mut Context, earcut: &mut Earcut<f32>) -> Option<Mesh> {
+    pub fn mesh(&self, earcut: &mut Earcut<f32>) -> Option<Mesh> {
         let vertices = self
             .rays
             .iter()
             .map(|offset| (self.origin + offset).map(|x| x as f32))
             .chain(self.range.is_some().then(|| self.origin.map(|x| x as f32)))
             .map(|point| Vertex {
-                position: point.into(),
-                uv: [0.0, 0.0],
-                color: [1.0; 4],
+                position: Vec3::new(point.x, point.y, 0.0),
+                uv: Vec2::ZERO,
+                color: [255; 4],
+                normal: Vec4::ZERO,
             })
             .collect::<Vec<_>>();
 
         if vertices.len() >= 3 {
             let mut indices = Vec::new();
-            earcut.earcut(vertices.iter().map(|x| x.position), &[], &mut indices);
+            earcut.earcut(
+                vertices.iter().map(|x| x.position.xy().into()),
+                &[],
+                &mut indices,
+            );
 
-            Some(Mesh::from_data(
-                ctx,
-                MeshData {
-                    vertices: &vertices,
-                    indices: &indices,
-                },
-            ))
+            Some(Mesh {
+                vertices,
+                indices,
+                texture: None,
+            })
         } else {
             None
         }

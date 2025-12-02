@@ -1,6 +1,6 @@
 use std::f64::consts::SQRT_2;
 
-use ggez::winit::{event::KeyEvent, keyboard::Key};
+use macroquad::input::KeyCode;
 use nalgebra::{Vector2, vector};
 
 #[derive(Clone, Debug)]
@@ -10,19 +10,19 @@ pub struct DirectionalInput {
 }
 
 impl DirectionalInput {
-    pub fn new(right: Key, up: Key, left: Key, down: Key) -> DirectionalInput {
+    pub fn new(right: KeyCode, up: KeyCode, left: KeyCode, down: KeyCode) -> DirectionalInput {
         DirectionalInput {
             x_axis: AxialInput::new(right, left),
             y_axis: AxialInput::new(down, up),
         }
     }
 
-    pub fn key_down(&mut self, key_down: Key) {
+    pub fn key_down(&mut self, key_down: KeyCode) {
         self.x_axis.key_down(key_down.clone());
         self.y_axis.key_down(key_down);
     }
 
-    pub fn key_up(&mut self, key_up: Key) {
+    pub fn key_up(&mut self, key_up: KeyCode) {
         self.x_axis.key_up(key_up.clone());
         self.y_axis.key_up(key_up);
     }
@@ -70,15 +70,15 @@ impl DirectionalInput {
 
 #[derive(Clone, Debug)]
 pub struct AxialInput {
-    pub positive: Key,
+    pub positive: KeyCode,
     pub positive_down: bool,
-    pub negative: Key,
+    pub negative: KeyCode,
     pub negative_down: bool,
     pub output: i8,
 }
 
 impl AxialInput {
-    pub fn new(positive: Key, negative: Key) -> AxialInput {
+    pub fn new(positive: KeyCode, negative: KeyCode) -> AxialInput {
         AxialInput {
             positive,
             positive_down: false,
@@ -88,7 +88,7 @@ impl AxialInput {
         }
     }
 
-    pub fn key_down(&mut self, key_down: Key) {
+    pub fn key_down(&mut self, key_down: KeyCode) {
         if key_down == self.positive {
             self.output = 1;
             self.positive_down = true;
@@ -98,7 +98,7 @@ impl AxialInput {
         }
     }
 
-    pub fn key_up(&mut self, key_up: Key) {
+    pub fn key_up(&mut self, key_up: KeyCode) {
         if key_up == self.positive {
             self.output = if self.negative_down { -1 } else { 0 };
             self.positive_down = false;
@@ -121,25 +121,25 @@ impl AxialInput {
 
 #[derive(Clone, Debug)]
 pub struct ButtonInput {
-    pub key: Key,
+    pub key: KeyCode,
     pub is_down: bool,
 }
 
 impl ButtonInput {
-    pub fn new(key: Key) -> ButtonInput {
+    pub fn new(key: KeyCode) -> ButtonInput {
         ButtonInput {
             key,
             is_down: false,
         }
     }
 
-    pub fn key_down(&mut self, key_down: Key) {
+    pub fn key_down(&mut self, key_down: KeyCode) {
         if self.key == key_down {
             self.is_down = true;
         }
     }
 
-    pub fn key_up(&mut self, key_up: Key) {
+    pub fn key_up(&mut self, key_up: KeyCode) {
         if self.key == key_up {
             self.is_down = false;
         }
@@ -147,13 +147,5 @@ impl ButtonInput {
 
     pub fn clear_keys_down(&mut self) {
         self.is_down = false;
-    }
-}
-
-/// Simply removes the effect of shift or caps lock on letter keys
-pub fn cross_platform_key_without_modifiers(event: KeyEvent) -> Key {
-    match event.logical_key {
-        Key::Character(string) => Key::Character(string.to_lowercase().into()),
-        other => other,
     }
 }

@@ -1,16 +1,9 @@
-use std::{env, path::PathBuf};
-
-use ggez::{
-    Context, ContextBuilder, GameResult,
-    conf::{Backend, Conf, FullscreenType, WindowMode, WindowSetup},
-    event::{self, EventHandler},
-    graphics::{Canvas, Color, Rect, Sampler},
-    input::keyboard::KeyInput,
-    winit::{
-        event::MouseButton,
-        keyboard::{Key, NamedKey},
-        platform::modifier_supplement::KeyEventExtModifierSupplement,
-    },
+use macroquad::{
+    camera::{self, Camera2D},
+    color::Color,
+    input::{KeyCode, MouseButton},
+    math::{Rect, Vec2},
+    window::{self, Conf},
 };
 use nalgebra::{Point2, UnitVector2, Vector2, point, vector};
 
@@ -23,86 +16,93 @@ pub(crate) mod collections;
 pub(crate) mod input;
 pub(crate) mod level;
 
-fn main() -> GameResult {
-    let mut builder =
-        ContextBuilder::new("time_travel_stealth_game", "CODER-J").default_conf(Conf {
-            window_mode: WindowMode {
-                // width: todo!(),
-                // height: todo!(),
-                // maximized: true,
-                fullscreen_type: FullscreenType::Desktop,
-                // borderless: todo!(),
-                // transparent: todo!(),
-                min_width: 300.0,
-                min_height: 300.0,
-                // max_width: todo!(),
-                // max_height: todo!(),
-                // resizable: todo!(),
-                // visible: todo!(),
-                // resize_on_scale_factor_change: todo!(),
-                // logical_size: todo!(),
-                ..Default::default()
-            },
-            window_setup: WindowSetup {
-                title: "Time Travel Stealth Game".to_owned(),
-                // samples: todo!(),
-                // vsync: todo!(),
-                // icon: todo!(),
-                // srgb: todo!(),
-                ..Default::default()
-            },
-            backend: Backend::default(),
-        });
-
-    if let Ok(manifest_dir) = env::var("CARGO_MANIFEST_DIR") {
-        let mut path = PathBuf::from(manifest_dir);
-        path.push("resources");
-        println!("Adding path {path:?}");
-        builder = builder.add_resource_path(path);
+fn config() -> Conf {
+    Conf {
+        window_title: "Time Travel Stealth Game".to_owned(),
+        fullscreen: true,
+        ..Default::default()
     }
+}
 
-    let (mut ctx, event_loop) = builder.build()?;
+#[macroquad::main(config)]
+async fn main() {
+    let mut state = State::new();
 
-    let state = State::new(&mut ctx)?;
+    let mut mouse_position = get_mouse_position();
 
-    event::run(ctx, event_loop, state)
+    loop {
+        let last_mouse_position = mouse_position;
+
+        mouse_position = get_mouse_position();
+        let mouse_delta = mouse_position - last_mouse_position;
+
+        if mouse_delta != vector![0.0, 0.0] {
+            state.mouse_motion_event(mouse_position, mouse_delta);
+        }
+
+        for key in macroquad::input::get_keys_pressed() {
+            state.key_down_event(key);
+        }
+
+        for key in macroquad::input::get_keys_released() {
+            state.key_up_event(key);
+        }
+
+        for input in [
+            MouseButton::Left,
+            MouseButton::Middle,
+            MouseButton::Right,
+            MouseButton::Unknown,
+        ] {
+            if macroquad::input::is_mouse_button_pressed(input) {
+                state.mouse_button_down_event(input, mouse_position);
+            }
+        }
+
+        for input in [
+            MouseButton::Left,
+            MouseButton::Middle,
+            MouseButton::Right,
+            MouseButton::Unknown,
+        ] {
+            if macroquad::input::is_mouse_button_released(input) {
+                state.mouse_button_up_event(input, mouse_position);
+            }
+        }
+
+        state.update();
+
+        state.draw();
+
+        window::next_frame().await;
+    }
 }
 
 pub(crate) struct State {
     fullscreen: bool,
-    window_size: Vector2<f32>,
 
     level: Level,
 }
 
 impl State {
-    fn new(ctx: &mut Context) -> GameResult<Self> {
+    fn new() -> Self {
         use std::f64::consts::PI;
 
-        Ok(State {
+        State {
             fullscreen: true,
-            window_size: vector![800.0, 600.0],
 
-            level: Level::new(
-                ctx,
-                vec![Box::new(Player {
-                    position: point![0.0, 0.0],
-                    size: vector![6.0, 6.0],
+            level: Level::new(vec![Box::new(Player {
+                position: point![0.0, 0.0],
+                size: vector![6.0, 6.0],
 
-                    mouse_position: point![0.0, 0.0],
-                    view_direction: UnitVector2::new_normalize(vector![1.0, 0.0]),
-                    view_width: PI * 1.0 / 2.0,
+                mouse_position: point![0.0, 0.0],
+                view_direction: UnitVector2::new_normalize(vector![1.0, 0.0]),
+                view_width: PI * 1.0 / 2.0,
 
-                    speed: 64.0,
-                    motion_input: DirectionalInput::new(
-                        Key::Character("d".into()),
-                        Key::Character("w".into()),
-                        Key::Character("a".into()),
-                        Key::Character("s".into()),
-                    ),
-                })],
-            ),
-        })
+                speed: 64.0,
+                motion_input: DirectionalInput::new(KeyCode::D, KeyCode::W, KeyCode::A, KeyCode::S),
+            })]),
+        }
     }
 }
 
@@ -110,117 +110,73 @@ impl State {
     pub const SCREEN_HEIGHT: f32 = 256.0;
 
     fn screen_rect(&self) -> Rect {
-        rectangle_of_centered_camera(self.window_size, point![0.0, 0.0], Self::SCREEN_HEIGHT)
+        rectangle_of_centered_camera(
+            vector![window::screen_width(), window::screen_height()],
+            point![0.0, 0.0],
+            Self::SCREEN_HEIGHT,
+        )
     }
 
     fn screen_to_world(&self, point: Point2<f32>) -> Point2<f32> {
         let world = self.screen_rect();
-        let screen = Rect::new(0.0, 0.0, self.window_size.x, self.window_size.y);
+        let screen = Rect::new(0.0, 0.0, window::screen_width(), window::screen_height());
 
         transform_between_rectangles(screen, world, point)
     }
 
     fn screen_to_world_scale_factor(&self) -> f32 {
-        Self::SCREEN_HEIGHT / self.window_size.y
-    }
-}
-
-impl EventHandler for State {
-    fn update(&mut self, ctx: &mut Context) -> GameResult {
-        self.level.update(ctx);
-
-        Ok(())
+        Self::SCREEN_HEIGHT / window::screen_height()
     }
 
-    fn draw(&mut self, ctx: &mut Context) -> GameResult {
-        let mut canvas = Canvas::from_frame(ctx, Some(Color::new(0.5, 0.5, 0.5, 1.0)));
-        canvas.set_sampler(Sampler::nearest_clamp());
-
-        canvas.set_screen_coordinates(self.screen_rect());
-
-        self.level.draw(ctx, &mut canvas);
-
-        canvas.finish(ctx)?;
-
-        Ok(())
+    fn update(&mut self) {
+        self.level.update();
     }
 
-    fn key_down_event(&mut self, ctx: &mut Context, input: KeyInput, repeated: bool) -> GameResult {
-        self.level.key_down(input.clone(), repeated);
+    fn draw(&mut self) {
+        window::clear_background(Color::new(0.5, 0.5, 0.5, 1.0));
 
-        if !repeated {
-            match input.event.key_without_modifiers() {
-                Key::Named(NamedKey::Escape) => {
-                    ctx.request_quit();
-                }
-                Key::Named(NamedKey::F11) => {
-                    self.fullscreen ^= true;
+        let mut camera = Camera2D::from_display_rect(self.screen_rect());
+        camera.zoom.y *= -1.0;
+        camera::set_camera(&camera);
 
-                    ctx.gfx.set_fullscreen(if self.fullscreen {
-                        FullscreenType::Desktop
-                    } else {
-                        FullscreenType::Windowed
-                    })?;
-                }
-                _ => (),
+        self.level.draw();
+    }
+
+    fn key_down_event(&mut self, input: KeyCode) {
+        self.level.key_down(input);
+
+        match input {
+            KeyCode::Escape => {
+                window::miniquad::window::quit();
             }
+            KeyCode::F11 => {
+                self.fullscreen ^= true;
+
+                window::set_fullscreen(self.fullscreen);
+            }
+            _ => (),
         }
-
-        Ok(())
     }
 
-    fn key_up_event(&mut self, _ctx: &mut Context, input: KeyInput) -> GameResult {
+    fn key_up_event(&mut self, input: KeyCode) {
         self.level.key_up(input);
-
-        Ok(())
     }
 
-    fn mouse_button_down_event(
-        &mut self,
-        _ctx: &mut Context,
-        button: MouseButton,
-        x: f32,
-        y: f32,
-    ) -> GameResult {
+    fn mouse_button_down_event(&mut self, button: MouseButton, position: Point2<f32>) {
         self.level
-            .mouse_down(button, self.screen_to_world(point![x, y]).map(|x| x as f64));
-
-        Ok(())
+            .mouse_down(button, self.screen_to_world(position).map(|x| x as f64));
     }
 
-    fn mouse_button_up_event(
-        &mut self,
-        _ctx: &mut Context,
-        button: MouseButton,
-        x: f32,
-        y: f32,
-    ) -> GameResult {
+    fn mouse_button_up_event(&mut self, button: MouseButton, position: Point2<f32>) {
         self.level
-            .mouse_up(button, self.screen_to_world(point![x, y]).map(|x| x as f64));
-
-        Ok(())
+            .mouse_up(button, self.screen_to_world(position).map(|x| x as f64));
     }
 
-    fn mouse_motion_event(
-        &mut self,
-        _ctx: &mut Context,
-        x: f32,
-        y: f32,
-        dx: f32,
-        dy: f32,
-    ) -> GameResult {
+    fn mouse_motion_event(&mut self, position: Point2<f32>, delta: Vector2<f32>) {
         self.level.mouse_moved(
-            self.screen_to_world(point![x, y]).map(|x| x as f64),
-            (vector![dx, dy] * self.screen_to_world_scale_factor()).map(|x| x as f64),
+            self.screen_to_world(position).map(|x| x as f64),
+            (delta * self.screen_to_world_scale_factor()).map(|x| x as f64),
         );
-
-        Ok(())
-    }
-
-    fn resize_event(&mut self, _ctx: &mut Context, width: f32, height: f32) -> GameResult {
-        self.window_size = vector![width, height];
-
-        Ok(())
     }
 }
 
@@ -250,4 +206,8 @@ fn transform_between_rectangles(
         + (point - source_origin)
             .component_div(&source_size)
             .component_mul(&destination_size)
+}
+
+fn get_mouse_position() -> Point2<f32> {
+    Point2::from(Vec2::from(macroquad::input::mouse_position()))
 }

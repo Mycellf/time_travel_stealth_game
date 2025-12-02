@@ -1,11 +1,10 @@
 use std::mem;
 
 use earcut::Earcut;
-use ggez::{
-    Context,
-    graphics::{Canvas, Color, DrawParam},
-    input::keyboard::KeyInput,
-    winit::event::MouseButton,
+use macroquad::{
+    color::{Color, colors},
+    input::{KeyCode, MouseButton},
+    models,
 };
 use nalgebra::{Point2, Vector2};
 use slotmap::{SlotMap, new_key_type};
@@ -33,7 +32,7 @@ new_key_type! {
 }
 
 impl Level {
-    pub fn new(_ctx: &mut Context, initial_state: Vec<Box<dyn Entity>>) -> Level {
+    pub fn new(initial_state: Vec<Box<dyn Entity>>) -> Level {
         let mut result = Level {
             initial_state,
 
@@ -71,48 +70,41 @@ impl Level {
         }
     }
 
-    pub fn update(&mut self, ctx: &mut Context) {
+    pub fn update(&mut self) {
         for (_, entity) in &mut self.entities {
-            entity.update(ctx);
+            entity.update();
         }
     }
 
-    pub fn draw(&mut self, ctx: &mut Context, canvas: &mut Canvas) {
+    pub fn draw(&mut self) {
         self.light_grid
-            .draw(ctx, canvas, Color::new(0.5, 0.5, 0.5, 1.0), Color::BLACK)
-            .unwrap();
+            .draw(Color::new(0.5, 0.5, 0.5, 1.0), colors::BLACK);
 
         for (_, entity) in &self.entities {
             if let Some(view_range) = entity.inner.view_range() {
                 let position = entity.inner.position();
 
                 let area = self.light_grid.trace_light_from(position, Some(view_range));
-                if let Some(mesh) = area.mesh(ctx, &mut Earcut::new()) {
-                    canvas.draw(
-                        &mesh,
-                        DrawParam {
-                            color: Color::WHITE,
-                            ..Default::default()
-                        },
-                    );
+                if let Some(mesh) = area.mesh(&mut Earcut::new()) {
+                    models::draw_mesh(&mesh);
                 }
             }
         }
 
         for (_, entity) in &mut self.entities {
-            entity.draw(ctx, canvas);
+            entity.draw();
         }
     }
 
-    pub fn key_down(&mut self, input: KeyInput, is_repeat: bool) {
+    pub fn key_down(&mut self, input: KeyCode) {
         for &key in &self.input_readers {
-            self.entities[key].key_down(input.clone(), is_repeat);
+            self.entities[key].key_down(input);
         }
     }
 
-    pub fn key_up(&mut self, input: KeyInput) {
+    pub fn key_up(&mut self, input: KeyCode) {
         for &key in &self.input_readers {
-            self.entities[key].key_up(input.clone());
+            self.entities[key].key_up(input);
         }
     }
 

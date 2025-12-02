@@ -1,12 +1,8 @@
-use ggez::{
-    Context,
-    graphics::{Canvas, Color, DrawMode, DrawParam, Mesh, Rect, Transform},
-    input::keyboard::KeyInput,
-};
-use nalgebra::{Point2, UnitVector2, Vector2, point};
+use macroquad::{color::Color, input::KeyCode, shapes, time};
+use nalgebra::{Point2, UnitVector2, Vector2};
 
 use crate::{
-    input::{self, DirectionalInput},
+    input::DirectionalInput,
     level::{entity::Entity, light_grid::AngleRange},
 };
 
@@ -24,7 +20,7 @@ pub struct Player {
 }
 
 impl Entity for Player {
-    fn update(&mut self, ctx: &mut Context) {
+    fn update(&mut self) {
         if let Some(new_direction) =
             UnitVector2::try_new(self.mouse_position - self.position, f64::EPSILON)
         {
@@ -32,31 +28,18 @@ impl Entity for Player {
         }
 
         self.position +=
-            self.motion_input.normalized_output() * self.speed * ctx.time.delta().as_secs_f64();
+            self.motion_input.normalized_output() * self.speed * time::get_frame_time() as f64
     }
 
-    fn draw(&mut self, ctx: &mut Context, canvas: &mut Canvas) {
-        let mesh = Mesh::new_rectangle(
-            ctx,
-            DrawMode::fill(),
-            Rect::new(-0.5, -0.5, 1.0, 1.0),
-            Color::WHITE,
-        )
-        .unwrap();
+    fn draw(&mut self) {
+        let corner = self.position - self.size / 2.0;
 
-        canvas.draw(
-            &mesh,
-            DrawParam {
-                color: Color::RED,
-                transform: Transform::Values {
-                    dest: self.position.map(|x| x as f32).into(),
-                    rotation: 0.0,
-                    scale: self.size.map(|x| x as f32).into(),
-                    offset: point![0.0, 0.0].into(),
-                },
-                z: 0,
-                ..Default::default()
-            },
+        shapes::draw_rectangle(
+            corner.x as f32,
+            corner.y as f32,
+            self.size.x as f32,
+            self.size.y as f32,
+            Color::new(1.0, 0.0, 0.0, 1.0),
         );
     }
 
@@ -79,14 +62,12 @@ impl Entity for Player {
         true
     }
 
-    fn key_down(&mut self, input: KeyInput, _is_repeat: bool) {
-        self.motion_input
-            .key_down(input::cross_platform_key_without_modifiers(input.event));
+    fn key_down(&mut self, input: KeyCode) {
+        self.motion_input.key_down(input);
     }
 
-    fn key_up(&mut self, input: KeyInput) {
-        self.motion_input
-            .key_up(input::cross_platform_key_without_modifiers(input.event));
+    fn key_up(&mut self, input: KeyCode) {
+        self.motion_input.key_up(input);
     }
 
     fn mouse_moved(&mut self, position: Point2<f64>, _delta: Vector2<f64>) {

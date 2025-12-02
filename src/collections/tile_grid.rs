@@ -4,7 +4,7 @@ use std::{
     ops::{Index, IndexMut},
 };
 
-use ggez::graphics::Rect;
+use macroquad::math::Rect;
 use nalgebra::{Point2, Vector2, point, vector};
 
 pub type TileIndex = Point2<isize>;
