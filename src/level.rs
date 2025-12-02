@@ -7,12 +7,12 @@ use ggez::{
     input::keyboard::KeyInput,
     winit::event::MouseButton,
 };
-use nalgebra::{Point2, Vector2, point};
+use nalgebra::{Point2, UnitVector2, Vector2, point, vector};
 use slotmap::{SlotMap, new_key_type};
 
 use crate::level::{
     entity::{Entity, EntityTracker},
-    light_grid::{LightGrid, MaterialKind, Pixel},
+    light_grid::{AngleRange, LightGrid, MaterialKind, Pixel},
 };
 
 pub(crate) mod entity;
@@ -78,17 +78,25 @@ impl Level {
     }
 
     pub fn draw(&mut self, ctx: &mut Context, canvas: &mut Canvas) {
-        self.light_grid.draw(ctx, canvas).unwrap();
+        self.light_grid
+            .draw(ctx, canvas, Color::new(0.5, 0.5, 0.5, 1.0))
+            .unwrap();
 
-        let area = self.light_grid.trace_light_from(point![0.0, 0.0], None);
-        if let Some(mesh) = area.mesh(ctx, &mut Earcut::new()) {
-            canvas.draw(
-                &mesh,
-                DrawParam {
-                    color: Color::new(0.5, 0.5, 0.5, 1.0),
-                    ..Default::default()
-                },
-            );
+        for (_, entity) in &self.entities {
+            if let Some(view_range) = entity.inner.view_range() {
+                let position = entity.inner.position();
+
+                let area = self.light_grid.trace_light_from(position, Some(view_range));
+                if let Some(mesh) = area.mesh(ctx, &mut Earcut::new()) {
+                    canvas.draw(
+                        &mesh,
+                        DrawParam {
+                            color: Color::WHITE,
+                            ..Default::default()
+                        },
+                    );
+                }
+            }
         }
 
         for (_, entity) in &mut self.entities {
