@@ -1,12 +1,18 @@
 use std::mem;
 
-use ggez::{Context, graphics::Canvas, input::keyboard::KeyInput, winit::event::MouseButton};
-use nalgebra::{Point2, Vector2};
+use earcut::Earcut;
+use ggez::{
+    Context,
+    graphics::{Canvas, Color, DrawParam},
+    input::keyboard::KeyInput,
+    winit::event::MouseButton,
+};
+use nalgebra::{Point2, Vector2, point};
 use slotmap::{SlotMap, new_key_type};
 
 use crate::level::{
     entity::{Entity, EntityTracker},
-    light_grid::LightGrid,
+    light_grid::{LightGrid, MaterialKind, Pixel},
 };
 
 pub(crate) mod entity;
@@ -19,6 +25,7 @@ pub struct Level {
     pub input_readers: Vec<EntityKey>,
 
     pub light_grid: LightGrid,
+    pub brush: Option<Pixel>,
 }
 
 new_key_type! {
@@ -34,6 +41,7 @@ impl Level {
             input_readers: Vec::new(),
 
             light_grid: LightGrid::default(),
+            brush: None,
         };
 
         result.load_initial_state();
@@ -70,6 +78,19 @@ impl Level {
     }
 
     pub fn draw(&mut self, ctx: &mut Context, canvas: &mut Canvas) {
+        self.light_grid.draw(ctx, canvas).unwrap();
+
+        let area = self.light_grid.trace_light_from(point![0.0, 0.0], None);
+        if let Some(mesh) = area.mesh(ctx, &mut Earcut::new()) {
+            canvas.draw(
+                &mesh,
+                DrawParam {
+                    color: Color::new(0.5, 0.5, 0.5, 1.0),
+                    ..Default::default()
+                },
+            );
+        }
+
         for (_, entity) in &mut self.entities {
             entity.draw(ctx, canvas);
         }
@@ -91,17 +112,49 @@ impl Level {
         for &key in &self.input_readers {
             self.entities[key].mouse_down(input, position);
         }
+
+        match input {
+            MouseButton::Left => {
+                let pixel = &mut self.light_grid[position.map(|x| x.floor() as isize)];
+
+                let brush = if pixel.is_some() {
+                    None
+                } else {
+                    Some(MaterialKind::Solid)
+                };
+
+                self.brush = Some(brush);
+
+                *pixel = brush;
+            }
+            _ => (),
+        }
     }
 
     pub fn mouse_up(&mut self, input: MouseButton, position: Point2<f64>) {
         for &key in &self.input_readers {
             self.entities[key].mouse_up(input, position);
         }
+
+        match input {
+            MouseButton::Left => {
+                self.brush = None;
+            }
+            _ => (),
+        }
     }
 
     pub fn mouse_moved(&mut self, position: Point2<f64>, delta: Vector2<f64>) {
         for &key in &self.input_readers {
             self.entities[key].mouse_moved(position, delta);
+        }
+
+        if let Some(brush) = self.brush {
+            let index = position.map(|x| x.floor() as isize);
+
+            if self.light_grid[index] != brush {
+                self.light_grid[index] = brush;
+            }
         }
     }
 }

@@ -84,7 +84,7 @@ impl LightGrid {
                 .as_slice()
                 .iter()
                 .map(|pixel| match pixel {
-                    Some(_) => [0, 0, 0, 255],
+                    Some(_) => [255; 4],
                     None => [0; 4],
                 })
                 .flatten()
