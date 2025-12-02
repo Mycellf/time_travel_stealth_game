@@ -1,6 +1,6 @@
 use std::f64::consts::SQRT_2;
 
-use ggez::winit::keyboard::Key;
+use ggez::winit::{event::KeyEvent, keyboard::Key};
 use nalgebra::{Vector2, vector};
 
 #[derive(Clone, Debug)]
@@ -147,5 +147,13 @@ impl ButtonInput {
 
     pub fn clear_keys_down(&mut self) {
         self.is_down = false;
+    }
+}
+
+/// Simply removes the effect of shift or caps lock on letter keys
+pub fn cross_platform_key_without_modifiers(event: KeyEvent) -> Key {
+    match event.logical_key {
+        Key::Character(string) => Key::Character(string.to_lowercase().into()),
+        other => other,
     }
 }

@@ -2,12 +2,11 @@ use ggez::{
     Context,
     graphics::{Canvas, Color, DrawMode, DrawParam, Mesh, Rect, Transform},
     input::keyboard::KeyInput,
-    winit::platform::modifier_supplement::KeyEventExtModifierSupplement,
 };
 use nalgebra::{Point2, UnitVector2, Vector2, point};
 
 use crate::{
-    input::DirectionalInput,
+    input::{self, DirectionalInput},
     level::{entity::Entity, light_grid::AngleRange},
 };
 
@@ -82,12 +81,12 @@ impl Entity for Player {
 
     fn key_down(&mut self, input: KeyInput, _is_repeat: bool) {
         self.motion_input
-            .key_down(input.event.key_without_modifiers());
+            .key_down(input::cross_platform_key_without_modifiers(input.event));
     }
 
     fn key_up(&mut self, input: KeyInput) {
         self.motion_input
-            .key_up(input.event.key_without_modifiers());
+            .key_up(input::cross_platform_key_without_modifiers(input.event));
     }
 
     fn mouse_moved(&mut self, position: Point2<f64>, _delta: Vector2<f64>) {
