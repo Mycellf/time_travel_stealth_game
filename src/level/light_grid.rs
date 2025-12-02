@@ -39,7 +39,7 @@ impl IndexMut<TileIndex> for LightGrid {
 }
 
 impl LightGrid {
-    pub const MAXIMUM_RAY_RANGE: f64 = 1024.0;
+    pub const MAXIMUM_RAY_RANGE: f64 = 256.0;
 
     pub fn corners(&mut self) -> &[Corner] {
         if self.updated {
@@ -220,21 +220,23 @@ impl LightGrid {
                 continue;
             };
 
-            let (finish, collided, state) = raycast(
+            let (finish, _, _) = raycast(
                 |_, index| self[index].is_some(),
                 area.origin,
                 direction_to_corner,
-                offset_to_corner.magnitude(),
+                Self::MAXIMUM_RAY_RANGE,
                 Default::default(),
             );
 
-            if collided {
+            if (finish - area.origin).magnitude_squared()
+                < offset_to_corner.magnitude_squared() - 1e-6
+            {
                 continue;
             }
 
             if !corner.direction.should_skip(-offset_to_corner) {
                 unorganized_rays.push(Ray::new(
-                    finish - area.origin,
+                    corner.location - area.origin,
                     if corner.direction.is_on_edge(-offset_to_corner) {
                         if corner.direction.is_convex()
                             ^ corner.direction.is_on_left_edge(-offset_to_corner)
@@ -255,13 +257,13 @@ impl LightGrid {
                 continue;
             }
 
-            let (finish, _, _) = raycast(
-                |_, index| self[index].is_some(),
-                corner.location,
-                direction_to_corner,
-                Self::MAXIMUM_RAY_RANGE,
-                state,
-            );
+            // let (finish, _, _) = raycast(
+            //     |_, index| self[index].is_some(),
+            //     corner.location - direction_to_corner.into_inner() * 0.5,
+            //     direction_to_corner,
+            //     Self::MAXIMUM_RAY_RANGE,
+            //     state,
+            // );
 
             unorganized_rays.push(Ray::new(
                 finish - area.origin,
@@ -712,23 +714,23 @@ pub fn raycast(
         on_y_edge = false;
     }
 
-    let a = state.0
+    let on_x_edge = on_x_edge;
+    let on_y_edge = on_y_edge;
+
+    let mut side_a = state.0
         || if on_x_edge {
             function(location, index + vector![-1, 0])
         } else if on_y_edge {
             function(location, index + vector![0, -1])
         } else {
-            true
+            false
         };
 
-    let b = state.1 || function(location, index);
+    let mut side_b = state.1 || function(location, index);
 
-    if a && b {
-        return (location, true, (a, b));
+    if side_a && side_b {
+        return (location, true, (side_a, side_b));
     }
-
-    let mut last_a = a;
-    let mut last_b = b;
 
     let dir_sign_x = if direction.x > 0.0 { 1 } else { -1 };
     let dir_sign_y = if direction.y > 0.0 { 1 } else { -1 };
@@ -767,34 +769,41 @@ pub fn raycast(
             return (
                 start + direction.into_inner() * max_distance,
                 false,
-                (last_a, last_b),
+                (side_a, side_b),
             );
         }
 
-        if time_x == time_y
-            && (function(location, index + vector![dir_sign_x, 0])
-                || function(location, index + vector![0, dir_sign_y]))
-        {
-            return (location, true, (last_a, last_b));
-        }
-
         index = index_of_location(location, direction.into_inner());
-        if !last_a {
-            last_a = if on_x_edge {
-                function(location, index + vector![-1, 0])
-            } else if on_y_edge {
-                function(location, index + vector![0, -1])
-            } else {
-                true
-            };
+        if on_x_edge || on_y_edge {
+            if !side_a {
+                if on_x_edge {
+                    side_a = function(location, index + vector![-1, 0]);
+                } else {
+                    side_a = function(location, index + vector![0, -1]);
+                }
+            }
+
+            if !side_b {
+                side_b = function(location, index);
+            }
+        } else {
+            if function(location, index) {
+                return (location, true, (side_a, side_b));
+            }
+
+            if time_x == time_y {
+                if !side_a {
+                    side_a = function(location, index - vector![dir_sign_x, 0]);
+                }
+
+                if !side_b {
+                    side_b = function(location, index - vector![0, dir_sign_y]);
+                }
+            }
         }
 
-        if !last_b {
-            last_b = function(location, index);
-        }
-
-        if last_a && last_b {
-            return (location, true, (last_a, last_b));
+        if side_a && side_b {
+            return (location, true, (side_a, side_b));
         }
     }
 }

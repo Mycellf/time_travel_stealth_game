@@ -1,7 +1,7 @@
 use std::fmt::Debug;
 
 use ggez::{Context, graphics::Canvas, input::keyboard::KeyInput, winit::event::MouseButton};
-use nalgebra::{Point2, UnitVector2, Vector2};
+use nalgebra::{Point2, Vector2};
 
 use crate::level::light_grid::AngleRange;
 
