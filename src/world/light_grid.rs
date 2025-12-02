@@ -5,9 +5,10 @@ use std::{
     ops::{Index, IndexMut},
 };
 
+use earcut::Earcut;
 use ggez::{
     Context, GameResult,
-    graphics::{Canvas, DrawParam, Image, ImageFormat, Transform},
+    graphics::{Canvas, DrawParam, Image, ImageFormat, Mesh, MeshData, Transform, Vertex},
 };
 use nalgebra::{Point2, Scalar, UnitComplex, UnitVector2, Vector2, point, vector};
 
@@ -594,6 +595,37 @@ pub struct LightArea {
     pub origin: Point2<f64>,
     pub rays: Vec<Vector2<f64>>,
     pub range: Option<AngleRange>,
+}
+
+impl LightArea {
+    pub fn mesh(&self, ctx: &mut Context, earcut: &mut Earcut<f32>) -> Option<Mesh> {
+        let vertices = self
+            .rays
+            .iter()
+            .map(|offset| (self.origin + offset).map(|x| x as f32))
+            .chain(self.range.is_some().then(|| self.origin.map(|x| x as f32)))
+            .map(|point| Vertex {
+                position: point.into(),
+                uv: [0.0, 0.0],
+                color: [1.0; 4],
+            })
+            .collect::<Vec<_>>();
+
+        if vertices.len() >= 3 {
+            let mut indices = Vec::new();
+            earcut.earcut(vertices.iter().map(|x| x.position), &[], &mut indices);
+
+            Some(Mesh::from_data(
+                ctx,
+                MeshData {
+                    vertices: &vertices,
+                    indices: &indices,
+                },
+            ))
+        } else {
+            None
+        }
+    }
 }
 
 #[derive(Clone, Copy, Debug)]

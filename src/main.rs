@@ -5,7 +5,7 @@ use ggez::{
     Context, ContextBuilder, GameResult,
     conf::{Backend, Conf, FullscreenType, WindowMode, WindowSetup},
     event::{self, EventHandler},
-    graphics::{Canvas, Color, DrawParam, Mesh, MeshData, Rect, Sampler, Vertex},
+    graphics::{Canvas, Color, Rect, Sampler},
     input::keyboard::KeyInput,
     winit::{
         event::MouseButton,
@@ -13,9 +13,7 @@ use ggez::{
         platform::modifier_supplement::KeyEventExtModifierSupplement,
     },
 };
-use nalgebra::{Point2, UnitVector2, Vector2, point, vector};
-
-use crate::world::light_grid::{AngleRange, LightArea, LightGrid, MaterialKind, Pixel};
+use nalgebra::{Point2, Vector2, point, vector};
 
 pub(crate) mod collections;
 pub(crate) mod world;
@@ -69,20 +67,6 @@ pub(crate) struct State {
     fullscreen: bool,
     window_size: Vector2<f32>,
 
-    raycast_start: Point2<f64>,
-    raycast_direction: Option<UnitVector2<f64>>,
-
-    light_area: LightArea,
-
-    update_raycast: bool,
-
-    round_mouse_position: bool,
-    draw_brush: Option<Pixel>,
-    follow_mouse: bool,
-    face_mouse: bool,
-
-    light_grid: LightGrid,
-
     earcut: Earcut<f32>,
 }
 
@@ -91,20 +75,6 @@ impl State {
         Ok(State {
             fullscreen: true,
             window_size: vector![800.0, 600.0],
-
-            raycast_start: point![0.0, 0.0],
-            raycast_direction: None,
-
-            light_area: LightArea::default(),
-
-            update_raycast: true,
-
-            round_mouse_position: false,
-            draw_brush: None,
-            follow_mouse: false,
-            face_mouse: false,
-
-            light_grid: LightGrid::default(),
 
             earcut: Earcut::default(),
         })
@@ -125,104 +95,15 @@ impl State {
 }
 
 impl EventHandler for State {
-    fn update(&mut self, ctx: &mut Context) -> GameResult {
-        let mut mouse_position = self.screen_to_world(ctx.mouse.position().into());
-
-        if self.round_mouse_position {
-            mouse_position.apply(|x| *x = (*x * 2.0).round() / 2.0);
-        }
-
-        if let Some(draw_brush) = self.draw_brush {
-            let index = mouse_position.map(|x| x.floor() as isize);
-
-            if self.light_grid[index] != draw_brush {
-                self.light_grid[index] = draw_brush;
-
-                self.update_raycast = true;
-            }
-        }
-
-        if self.follow_mouse {
-            self.raycast_start = mouse_position.map(|x| x as f64);
-
-            self.update_raycast = true;
-        }
-
-        if self.face_mouse {
-            let direction = mouse_position.map(|x| x as f64) - self.raycast_start;
-
-            if let Some(normalized_direction) = UnitVector2::try_new(direction, f64::EPSILON) {
-                self.raycast_direction = Some(normalized_direction);
-            }
-
-            self.update_raycast = true;
-        }
-
-        if self.update_raycast {
-            use std::f64::consts::PI;
-
-            self.light_area = self.light_grid.trace_light_from(
-                self.raycast_start,
-                self.raycast_direction
-                    .map(|direction| AngleRange::from_direction_and_width(direction, PI / 2.0)),
-            );
-
-            self.update_raycast = false;
-        }
-
+    fn update(&mut self, _ctx: &mut Context) -> GameResult {
         Ok(())
     }
 
     fn draw(&mut self, ctx: &mut Context) -> GameResult {
-        let mut canvas = Canvas::from_frame(ctx, Some(Color::WHITE));
+        let mut canvas = Canvas::from_frame(ctx, Some(Color::BLACK));
         canvas.set_sampler(Sampler::nearest_clamp());
 
         canvas.set_screen_coordinates(self.screen_rect());
-
-        self.light_grid.draw(ctx, &mut canvas)?;
-
-        let vertices = self
-            .light_area
-            .rays
-            .iter()
-            .map(|offset| (self.light_area.origin + offset).map(|x| x as f32))
-            .chain(
-                self.light_area
-                    .range
-                    .is_some()
-                    .then(|| self.light_area.origin.map(|x| x as f32)),
-            )
-            .map(|point| Vertex {
-                position: point.into(),
-                uv: [0.0, 0.0],
-                color: [1.0; 4],
-            })
-            .collect::<Vec<_>>();
-
-        if vertices.len() >= 3 {
-            let mut indices = Vec::new();
-            self.earcut
-                .earcut(vertices.iter().map(|x| x.position), &[], &mut indices);
-
-            let mesh = Mesh::from_data(
-                ctx,
-                MeshData {
-                    vertices: &vertices,
-                    indices: &indices,
-                },
-            );
-
-            canvas.draw(
-                &mesh,
-                DrawParam {
-                    color: Color {
-                        a: 0.75,
-                        ..Color::GREEN
-                    },
-                    ..Default::default()
-                },
-            );
-        }
 
         canvas.finish(ctx)?;
 
@@ -247,14 +128,6 @@ impl EventHandler for State {
                     FullscreenType::Windowed
                 })?;
             }
-            Key::Named(NamedKey::Shift) => {
-                self.round_mouse_position = true;
-            }
-            Key::Character(char) if char == "r" => {
-                self.raycast_direction = None;
-
-                self.update_raycast = true;
-            }
             _ => (),
         }
 
@@ -263,9 +136,6 @@ impl EventHandler for State {
 
     fn key_up_event(&mut self, _ctx: &mut Context, input: KeyInput) -> GameResult {
         match input.event.logical_key {
-            Key::Named(NamedKey::Shift) => {
-                self.round_mouse_position = false;
-            }
             _ => (),
         }
 
@@ -276,47 +146,10 @@ impl EventHandler for State {
         &mut self,
         _ctx: &mut Context,
         button: MouseButton,
-        x: f32,
-        y: f32,
+        _x: f32,
+        _y: f32,
     ) -> GameResult {
-        let mut mouse_position = self.screen_to_world(point![x, y]);
-
-        if self.round_mouse_position {
-            mouse_position.apply(|x| *x = (*x * 2.0).round() / 2.0);
-        }
-
         match button {
-            MouseButton::Left => {
-                let index = mouse_position.map(|x| x.floor() as isize);
-                let pixel = &mut self.light_grid[index];
-
-                match pixel {
-                    Some(_) => *pixel = None,
-                    None => *pixel = Some(MaterialKind::Solid),
-                }
-
-                self.draw_brush = Some(*pixel);
-
-                self.update_raycast = true;
-            }
-            MouseButton::Right => {
-                self.raycast_start = mouse_position.map(|x| x as f64);
-
-                self.update_raycast = true;
-
-                self.follow_mouse = true;
-            }
-            MouseButton::Middle => {
-                let direction = mouse_position.map(|x| x as f64) - self.raycast_start;
-
-                if let Some(normalized_direction) = UnitVector2::try_new(direction, f64::EPSILON) {
-                    self.raycast_direction = Some(normalized_direction);
-                }
-
-                self.update_raycast = true;
-
-                self.face_mouse = true;
-            }
             _ => (),
         }
 
@@ -331,15 +164,6 @@ impl EventHandler for State {
         _y: f32,
     ) -> GameResult {
         match button {
-            MouseButton::Left => {
-                self.draw_brush = None;
-            }
-            MouseButton::Right => {
-                self.follow_mouse = false;
-            }
-            MouseButton::Middle => {
-                self.face_mouse = false;
-            }
             _ => (),
         }
 
