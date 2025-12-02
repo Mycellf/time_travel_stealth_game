@@ -180,11 +180,15 @@ impl LightGrid {
                 RayPartition::LeftEdge,
             ));
         } else {
+            // HACK: The lighting system breaks when one of these rays hits a corner, so use an
+            // irrational number for their direction.
+            use std::f64::consts::PI;
+
             for direction in [
-                UnitVector2::new_normalize(vector![1.0, 1.0]),
-                UnitVector2::new_normalize(vector![1.0, -1.0]),
-                UnitVector2::new_normalize(vector![-1.0, 1.0]),
-                UnitVector2::new_normalize(vector![-1.0, -1.0]),
+                UnitVector2::new_normalize(vector![1.0, PI]),
+                UnitVector2::new_normalize(vector![-PI, 1.0]),
+                UnitVector2::new_normalize(vector![-1.0, -PI]),
+                UnitVector2::new_normalize(vector![PI, -1.0]),
             ] {
                 unorganized_rays.push(Ray::new(
                     raycast(
