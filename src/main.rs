@@ -133,7 +133,10 @@ impl State {
     }
 
     fn draw(&mut self) {
-        window::clear_background(Color::new(0.5, 0.5, 0.5, 1.0));
+        // HACK: For some reason this has a slightly different result compared to passing it directly.
+        let color: [u8; 4] = Color::new(0.5, 0.5, 0.5, 1.0).into();
+
+        window::clear_background(color.into());
 
         let mut camera = Camera2D::from_display_rect(self.screen_rect());
         camera.zoom.y *= -1.0;
