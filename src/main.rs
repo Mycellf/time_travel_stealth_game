@@ -133,7 +133,7 @@ impl EventHandler for State {
     }
 
     fn draw(&mut self, ctx: &mut Context) -> GameResult {
-        let mut canvas = Canvas::from_frame(ctx, Some(Color::BLACK));
+        let mut canvas = Canvas::from_frame(ctx, Some(Color::new(0.5, 0.5, 0.5, 1.0)));
         canvas.set_sampler(Sampler::nearest_clamp());
 
         canvas.set_screen_coordinates(self.screen_rect());

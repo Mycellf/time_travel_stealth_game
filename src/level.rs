@@ -12,7 +12,7 @@ use slotmap::{SlotMap, new_key_type};
 
 use crate::level::{
     entity::{Entity, EntityTracker},
-    light_grid::{LightGrid, MaterialKind, Pixel},
+    light_grid::{LightGrid, Pixel},
 };
 
 pub(crate) mod entity;
@@ -79,7 +79,7 @@ impl Level {
 
     pub fn draw(&mut self, ctx: &mut Context, canvas: &mut Canvas) {
         self.light_grid
-            .draw(ctx, canvas, Color::new(0.5, 0.5, 0.5, 1.0))
+            .draw(ctx, canvas, Color::new(0.5, 0.5, 0.5, 1.0), Color::BLACK)
             .unwrap();
 
         for (_, entity) in &self.entities {
@@ -125,10 +125,10 @@ impl Level {
             MouseButton::Left => {
                 let pixel = &mut self.light_grid[position.map(|x| x.floor() as isize)];
 
-                let brush = if pixel.is_some() {
-                    None
+                let brush = if pixel.blocks_light() {
+                    Pixel::None
                 } else {
-                    Some(MaterialKind::Solid)
+                    Pixel::Solid
                 };
 
                 self.brush = Some(brush);

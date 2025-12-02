@@ -12,9 +12,7 @@ use ggez::{
 };
 use nalgebra::{Point2, Scalar, UnitComplex, UnitVector2, Vector2, point, vector};
 
-use crate::collections::tile_grid::{TileGrid, TileIndex};
-
-pub type Pixel = Option<MaterialKind>;
+use crate::collections::tile_grid::{Empty, TileGrid, TileIndex};
 
 #[derive(Clone, Default, Debug)]
 pub struct LightGrid {
@@ -58,7 +56,9 @@ impl LightGrid {
         for x in bounds.left()..bounds.right() + 2 {
             for y in bounds.top()..bounds.bottom() + 2 {
                 let neighborhood = array::from_fn(|v| {
-                    array::from_fn(|u| self.grid[point![x + u as isize - 1, y + v as isize - 1]])
+                    array::from_fn(|u| {
+                        self.grid[point![x + u as isize - 1, y + v as isize - 1]].blocks_light()
+                    })
                 });
 
                 for &direction in CornerDirection::from_neighborhood(neighborhood) {
@@ -71,12 +71,19 @@ impl LightGrid {
         }
     }
 
-    pub fn draw(&mut self, ctx: &mut Context, canvas: &mut Canvas, color: Color) -> GameResult {
+    pub fn draw(
+        &mut self,
+        ctx: &mut Context,
+        canvas: &mut Canvas,
+        solid_color: Color,
+        none_color: Color,
+    ) -> GameResult {
         if self.grid.bounds().area() == 0 {
             return Ok(());
         }
 
-        let color = color.to_rgba().into();
+        let solid_color = <[u8; 4]>::from(solid_color.to_rgba());
+        let none_color = <[u8; 4]>::from(none_color.to_rgba());
 
         // TODO: This should definitely be cached somewhere.
         let image = Image::from_pixels(
@@ -85,9 +92,12 @@ impl LightGrid {
                 .grid
                 .as_slice()
                 .iter()
-                .map(|pixel| match pixel {
-                    Some(_) => color,
-                    None => [0; 4],
+                .map(|pixel| {
+                    if pixel.is_none() {
+                        none_color
+                    } else {
+                        solid_color
+                    }
                 })
                 .flatten()
                 .collect::<Vec<_>>(),
@@ -161,7 +171,7 @@ impl LightGrid {
         // pointer to self.
         let _ = self.corners();
 
-        let collision_function = |_, index| self[index].is_some();
+        let collision_function = |_, index| self[index].blocks_light();
 
         if let Some(range) = &area.range {
             unorganized_rays.push(Ray::new(
@@ -386,33 +396,33 @@ impl CornerDirection {
         }
     }
 
-    pub fn from_neighborhood(neighborhood: [[Pixel; 2]; 2]) -> &'static [Self] {
+    pub fn from_neighborhood(neighborhood: [[bool; 2]; 2]) -> &'static [Self] {
         match neighborhood {
-            [[None, None], [None, None]]
-            | [[Some(_), Some(_)], [None, None]]
-            | [[None, None], [Some(_), Some(_)]]
-            | [[None, Some(_)], [None, Some(_)]]
-            | [[Some(_), None], [Some(_), None]]
-            | [[Some(_), Some(_)], [Some(_), Some(_)]] => &[],
+            [[false, false], [false, false]]
+            | [[true, true], [false, false]]
+            | [[false, false], [true, true]]
+            | [[false, true], [false, true]]
+            | [[true, false], [true, false]]
+            | [[true, true], [true, true]] => &[],
 
-            [[Some(_), None], [None, None]] => &[CornerDirection::ConvexSouthEast],
-            [[None, Some(_)], [None, None]] => &[CornerDirection::ConvexSouthWest],
-            [[None, None], [Some(_), None]] => &[CornerDirection::ConvexNorthEast],
-            [[None, None], [None, Some(_)]] => &[CornerDirection::ConvexNorthWest],
+            [[true, false], [false, false]] => &[CornerDirection::ConvexSouthEast],
+            [[false, true], [false, false]] => &[CornerDirection::ConvexSouthWest],
+            [[false, false], [true, false]] => &[CornerDirection::ConvexNorthEast],
+            [[false, false], [false, true]] => &[CornerDirection::ConvexNorthWest],
 
-            [[Some(_), None], [None, Some(_)]] => &[
+            [[true, false], [false, true]] => &[
                 CornerDirection::ConcaveNorthEast,
                 CornerDirection::ConcaveSouthWest,
             ],
-            [[None, Some(_)], [Some(_), None]] => &[
+            [[false, true], [true, false]] => &[
                 CornerDirection::ConcaveNorthWest,
                 CornerDirection::ConcaveSouthEast,
             ],
 
-            [[Some(_), None], [Some(_), Some(_)]] => &[CornerDirection::ConcaveNorthEast],
-            [[None, Some(_)], [Some(_), Some(_)]] => &[CornerDirection::ConcaveNorthWest],
-            [[Some(_), Some(_)], [Some(_), None]] => &[CornerDirection::ConcaveSouthEast],
-            [[Some(_), Some(_)], [None, Some(_)]] => &[CornerDirection::ConcaveSouthWest],
+            [[true, false], [true, true]] => &[CornerDirection::ConcaveNorthEast],
+            [[false, true], [true, true]] => &[CornerDirection::ConcaveNorthWest],
+            [[true, true], [true, false]] => &[CornerDirection::ConcaveSouthEast],
+            [[true, true], [false, true]] => &[CornerDirection::ConcaveSouthWest],
         }
     }
 
@@ -584,10 +594,40 @@ impl CornerDirection {
     }
 }
 
-#[derive(Clone, Copy, PartialEq, Eq, Debug)]
-pub enum MaterialKind {
+#[derive(Clone, Copy, PartialEq, Eq, Default, Debug)]
+pub enum Pixel {
+    None,
+    #[default]
     Solid,
     Mirror,
+}
+
+impl Empty for Pixel {
+    fn empty() -> &'static Self {
+        &Self::Solid
+    }
+
+    fn is_empty(&self) -> bool {
+        self == Self::empty()
+    }
+}
+
+impl Pixel {
+    /// Returns `true` if the material kind is [`None`].
+    ///
+    /// [`None`]: MaterialKind::None
+    #[must_use]
+    pub fn is_none(&self) -> bool {
+        matches!(self, Self::None)
+    }
+
+    /// Returns `false` if the material kind is [`None`].
+    ///
+    /// [`None`]: MaterialKind::None
+    #[must_use]
+    pub fn blocks_light(&self) -> bool {
+        !self.is_none()
+    }
 }
 
 #[derive(Clone, Default, Debug)]
