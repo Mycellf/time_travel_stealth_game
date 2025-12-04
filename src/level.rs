@@ -2,7 +2,7 @@ use std::mem;
 
 use earcut::Earcut;
 use macroquad::{
-    color::{Color, colors},
+    color::colors,
     input::{KeyCode, MouseButton},
     models,
 };
@@ -77,8 +77,7 @@ impl Level {
     }
 
     pub fn draw(&mut self) {
-        self.light_grid
-            .draw(Color::new(0.5, 0.5, 0.5, 1.0), colors::BLACK);
+        self.light_grid.draw(colors::BLANK, colors::GRAY);
 
         for (_, entity) in &self.entities {
             if let Some(view_range) = entity.inner.view_range() {
