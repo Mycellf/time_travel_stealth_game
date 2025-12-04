@@ -27,6 +27,7 @@ pub struct Level {
     pub brush: Option<Pixel>,
     pub precise_fill: bool,
     pub full_vision: bool,
+    pub draw_corners: bool,
 }
 
 new_key_type! {
@@ -52,6 +53,7 @@ impl Level {
             brush: None,
             precise_fill: false,
             full_vision: true,
+            draw_corners: true,
         };
 
         result.load_initial_state();
@@ -98,7 +100,7 @@ impl Level {
 
                 self.light_grid
                     .trace_light_from(position, Some(view_range))
-                    .draw(colors::WHITE, colors::DARKGRAY);
+                    .draw(colors::WHITE, colors::DARKGRAY, self.draw_corners);
             }
         }
 
@@ -111,6 +113,9 @@ impl Level {
         match input {
             KeyCode::V => {
                 self.full_vision ^= true;
+            }
+            KeyCode::C => {
+                self.draw_corners ^= true;
             }
             KeyCode::LeftShift => {
                 self.precise_fill = true;

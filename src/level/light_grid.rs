@@ -700,7 +700,7 @@ pub struct LightArea {
 }
 
 impl LightArea {
-    pub const PENETRATION: f32 = 4.0;
+    pub const PENETRATION: f32 = super::TILE_SIZE as f32 / 2.0;
 
     pub fn mesh(&self, color: Color) -> Option<Mesh> {
         let color = color.into();
@@ -736,11 +736,18 @@ impl LightArea {
         }
     }
 
-    pub fn draw(&self, direct_color: Color, wall_color: Color) {
-        if let Some(mesh) = self.mesh(direct_color) {
+    pub fn draw(&self, direct_color: Color, wall_color: Color, draw_corners: bool) {
+        self.draw_direct_lighting(direct_color);
+        self.draw_wall_lighting(wall_color, draw_corners);
+    }
+
+    pub fn draw_direct_lighting(&self, color: Color) {
+        if let Some(mesh) = self.mesh(color) {
             models::draw_mesh(&mesh);
         }
+    }
 
+    pub fn draw_wall_lighting(&self, color: Color, draw_corners: bool) {
         for window in self.rays.windows(2) {
             let &[
                 StoredRay {
@@ -787,20 +794,22 @@ impl LightArea {
                 Point2::from(Vector2::from_fn(|i, _| position_1[i].max(position_2[i])));
             let size = position_max - position_min;
 
-            shapes::draw_rectangle(position_min.x, position_min.y, size.x, size.y, wall_color);
+            shapes::draw_rectangle(position_min.x, position_min.y, size.x, size.y, color);
         }
 
-        for &StoredRay { offset, collision } in &self.rays {
-            if let Some(RayCollisionNormal::Corner(direction, true)) = collision {
-                if direction.is_concave() {
-                    let position = (self.origin + offset).map(|x| x as f32);
-                    shapes::draw_rectangle(
-                        position.x - Self::PENETRATION * direction.is_east() as i8 as f32,
-                        position.y - Self::PENETRATION * direction.is_south() as i8 as f32,
-                        Self::PENETRATION,
-                        Self::PENETRATION,
-                        wall_color,
-                    );
+        if draw_corners {
+            for &StoredRay { offset, collision } in &self.rays {
+                if let Some(RayCollisionNormal::Corner(direction, true)) = collision {
+                    if direction.is_concave() {
+                        let position = (self.origin + offset).map(|x| x as f32);
+                        shapes::draw_rectangle(
+                            position.x - Self::PENETRATION * direction.is_east() as i8 as f32,
+                            position.y - Self::PENETRATION * direction.is_south() as i8 as f32,
+                            Self::PENETRATION,
+                            Self::PENETRATION,
+                            color,
+                        );
+                    }
                 }
             }
         }
