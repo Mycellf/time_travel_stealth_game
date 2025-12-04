@@ -97,7 +97,7 @@ impl State {
 
                 mouse_position: point![0.0, 0.0],
                 view_direction: UnitVector2::new_normalize(vector![1.0, 0.0]),
-                view_width: PI * 1.0 / 2.0,
+                view_width: 120.0 * PI / 180.0,
 
                 speed: 64.0,
                 motion_input: DirectionalInput::new(KeyCode::D, KeyCode::W, KeyCode::A, KeyCode::S),
