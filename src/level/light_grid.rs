@@ -884,6 +884,9 @@ pub fn raycast(
 
         index = index_of_location(location, direction.into_inner());
 
+        let side_a_before = side_a;
+        let side_b_before = side_b;
+
         let mut side_a_now = false;
         let mut side_b_now = false;
         if on_x_edge || on_y_edge {
@@ -915,7 +918,7 @@ pub fn raycast(
                         if side_a_now == side_b_now {
                             break 'direction Some(RayCollisionNormal::Corner(
                                 CornerDirection::new(side_a_now, dir_sign_y < 0, dir_sign_x > 0),
-                                true,
+                                !side_a_now || !(side_a_before || side_b_before),
                             ));
                         }
 
