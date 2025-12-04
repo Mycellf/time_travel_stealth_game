@@ -751,13 +751,13 @@ pub fn raycast(
         on_y_edge = true;
     }
 
-    if ((location.x + 0.5).rem_euclid(1.0) - 0.5).abs() <= EPSILON {
+    if (location.x.round() - location.x).abs() <= EPSILON {
         location.x = location.x.round();
     } else {
         on_x_edge = false;
     }
 
-    if ((location.y + 0.5).rem_euclid(1.0) - 0.5).abs() <= EPSILON {
+    if (location.y.round() - location.y).abs() <= EPSILON {
         location.y = location.y.round();
     } else {
         on_y_edge = false;
@@ -783,8 +783,8 @@ pub fn raycast(
     side_a |= state.0;
     side_b |= state.1;
 
-    let dir_sign_x = if direction.x > 0.0 { 1 } else { -1 };
-    let dir_sign_y = if direction.y > 0.0 { 1 } else { -1 };
+    let dir_sign_x = direction.x.signum() as isize;
+    let dir_sign_y = direction.y.signum() as isize;
 
     let max_distance_squared = (max_distance - EPSILON).powi(2);
 
