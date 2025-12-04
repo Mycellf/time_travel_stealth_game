@@ -167,28 +167,30 @@ impl LightGrid {
         let collision_function = |_, index| self[index].blocks_light();
 
         if let Some(range) = &area.range {
-            unorganized_rays.push(Ray::new(
-                raycast(
-                    collision_function,
-                    area.origin,
-                    range.left,
-                    Self::MAXIMUM_RAY_RANGE,
-                )
-                .0 - area.origin,
-                RayPartition::RightEdge,
-                None,
-            ));
+            let (finish, direction) = raycast(
+                collision_function,
+                area.origin,
+                range.left,
+                Self::MAXIMUM_RAY_RANGE,
+            );
 
             unorganized_rays.push(Ray::new(
-                raycast(
-                    collision_function,
-                    area.origin,
-                    range.right,
-                    Self::MAXIMUM_RAY_RANGE,
-                )
-                .0 - area.origin,
+                finish - area.origin,
+                RayPartition::RightEdge,
+                direction,
+            ));
+
+            let (finish, direction) = raycast(
+                collision_function,
+                area.origin,
+                range.right,
+                Self::MAXIMUM_RAY_RANGE,
+            );
+
+            unorganized_rays.push(Ray::new(
+                finish - area.origin,
                 RayPartition::LeftEdge,
-                None,
+                direction,
             ));
         } else {
             // HACK: The lighting system breaks when one of these rays hits a corner, so use an
@@ -201,16 +203,17 @@ impl LightGrid {
                 UnitVector2::new_normalize(vector![-1.0, -PI]),
                 UnitVector2::new_normalize(vector![PI, -1.0]),
             ] {
+                let (finish, direction) = raycast(
+                    collision_function,
+                    area.origin,
+                    direction,
+                    Self::MAXIMUM_RAY_RANGE,
+                );
+
                 unorganized_rays.push(Ray::new(
-                    raycast(
-                        collision_function,
-                        area.origin,
-                        direction,
-                        Self::MAXIMUM_RAY_RANGE,
-                    )
-                    .0 - area.origin,
+                    finish - area.origin,
                     RayPartition::None,
-                    None,
+                    direction,
                 ));
             }
         }
@@ -231,7 +234,7 @@ impl LightGrid {
                 continue;
             };
 
-            let (finish, _) = raycast(
+            let (finish, direction) = raycast(
                 collision_function,
                 area.origin,
                 direction_to_corner,
@@ -267,7 +270,11 @@ impl LightGrid {
                     } else {
                         RayPartition::None
                     },
-                    None,
+                    if ray_continues {
+                        Some(RayCollisionNormal::Corner(corner.direction, true))
+                    } else {
+                        direction
+                    },
                 ));
             }
 
@@ -279,7 +286,7 @@ impl LightGrid {
                     } else {
                         RayPartition::Left
                     },
-                    None,
+                    direction,
                 ));
             }
         }
@@ -296,7 +303,7 @@ impl LightGrid {
             .chunk_by(|&lhs, &rhs| compare_ray_angles(lhs, rhs, reference, 1e-6) == Ordering::Equal)
         {
             if chunk.len() <= 1 {
-                area.rays.push(chunk[0].offset);
+                area.rays.push(chunk[0].into());
 
                 continue;
             }
@@ -313,7 +320,7 @@ impl LightGrid {
             }
 
             if (shortest.magnitude - longest.magnitude).abs() <= 1e-6 {
-                area.rays.push(shortest.offset);
+                area.rays.push(shortest.into());
                 continue;
             }
 
@@ -323,8 +330,8 @@ impl LightGrid {
                 Ordering::Greater => (shortest, longest),
             };
 
-            area.rays.push(left.offset);
-            area.rays.push(right.offset);
+            area.rays.push(left.into());
+            area.rays.push(right.into());
         }
 
         area
@@ -363,9 +370,9 @@ pub struct Corner {
 }
 
 #[derive(Clone, Copy, Debug)]
-pub enum RayCollisionDirection {
+pub enum RayCollisionNormal {
     Wall(WallDirection),
-    Corner(CornerDirection),
+    Corner(CornerDirection, bool),
 }
 
 #[derive(Clone, Copy, Debug)]
@@ -671,7 +678,7 @@ impl Pixel {
 #[derive(Clone, Default, Debug)]
 pub struct LightArea {
     pub origin: Point2<f64>,
-    pub rays: Vec<Vector2<f64>>,
+    pub rays: Vec<StoredRay>,
     pub range: Option<AngleRange>,
 }
 
@@ -680,7 +687,7 @@ impl LightArea {
         let vertices = self
             .rays
             .iter()
-            .map(|offset| (self.origin + offset).map(|x| x as f32))
+            .map(|ray| (self.origin + ray.offset).map(|x| x as f32))
             .chain(self.range.is_some().then(|| self.origin.map(|x| x as f32)))
             .map(|point| Vertex {
                 position: Vec3::new(point.x, point.y, 0.0),
@@ -714,14 +721,14 @@ pub struct Ray {
     pub offset: Vector2<f64>,
     pub magnitude: f64,
     pub partition: RayPartition,
-    pub collision: Option<RayCollisionDirection>,
+    pub collision: Option<RayCollisionNormal>,
 }
 
 impl Ray {
     pub fn new(
         offset: Vector2<f64>,
         partition: RayPartition,
-        collision: Option<RayCollisionDirection>,
+        collision: Option<RayCollisionNormal>,
     ) -> Self {
         Ray {
             offset,
@@ -729,6 +736,22 @@ impl Ray {
             partition,
             collision,
         }
+    }
+}
+
+#[derive(Clone, Copy, Debug)]
+pub struct StoredRay {
+    pub offset: Vector2<f64>,
+    pub collision: Option<RayCollisionNormal>,
+}
+
+impl From<Ray> for StoredRay {
+    fn from(
+        Ray {
+            offset, collision, ..
+        }: Ray,
+    ) -> Self {
+        StoredRay { offset, collision }
     }
 }
 
@@ -776,7 +799,7 @@ pub fn raycast(
     start: Point2<f64>,
     mut direction: UnitVector2<f64>,
     max_distance: f64,
-) -> (Point2<f64>, bool) {
+) -> (Point2<f64>, Option<RayCollisionNormal>) {
     const EPSILON: f64 = 1e-6;
 
     let mut location = start;
@@ -819,7 +842,7 @@ pub fn raycast(
     let mut side_b = function(location, index);
 
     if side_a || side_b {
-        return (location, true);
+        return (location, None);
     }
 
     let dir_sign_x = direction.x.signum() as isize;
@@ -856,11 +879,15 @@ pub fn raycast(
         }
 
         if (start - location).magnitude_squared() >= max_distance_squared {
-            return (start + direction.into_inner() * max_distance, false);
+            return (start + direction.into_inner() * max_distance, None);
         }
 
         index = index_of_location(location, direction.into_inner());
+
+        let mut side_a_now = false;
+        let mut side_b_now = false;
         if on_x_edge || on_y_edge {
+            // This branch shouldn't set side_<a/b>_now
             if !side_a {
                 if on_x_edge {
                     side_a = function(location, index + vector![-1, 0]);
@@ -873,23 +900,81 @@ pub fn raycast(
                 side_b = function(location, index);
             }
         } else {
-            if function(location, index) {
-                return (location, true);
+            if time_x == time_y {
+                side_a_now = function(location, index - vector![dir_sign_x, 0]);
+                side_a |= side_a_now;
+
+                side_b_now = function(location, index - vector![0, dir_sign_y]);
+                side_b |= side_b_now;
             }
 
-            if time_x == time_y {
-                if !side_a {
-                    side_a = function(location, index - vector![dir_sign_x, 0]);
-                }
+            if function(location, index) {
+                return (location, 'direction: {
+                    let mut x_direction = time_x < time_y;
+                    if time_x == time_y {
+                        if side_a_now == side_b_now {
+                            break 'direction Some(RayCollisionNormal::Corner(
+                                CornerDirection::new(side_a_now, dir_sign_y < 0, dir_sign_x > 0),
+                                true,
+                            ));
+                        }
 
-                if !side_b {
-                    side_b = function(location, index - vector![0, dir_sign_y]);
-                }
+                        // If there is also a wall up or down, this is an x-axis wall, else there
+                        // is a wall to the left or right and it is a y-axis wall
+                        x_direction = side_b_now;
+                    }
+
+                    if x_direction {
+                        Some(RayCollisionNormal::Wall(if dir_sign_x > 0 {
+                            WallDirection::West
+                        } else {
+                            WallDirection::East
+                        }))
+                    } else {
+                        Some(RayCollisionNormal::Wall(if dir_sign_y > 0 {
+                            WallDirection::North
+                        } else {
+                            WallDirection::South
+                        }))
+                    }
+                });
             }
         }
 
         if side_a && side_b {
-            return (location, true);
+            return (location, {
+                if on_y_edge {
+                    Some(RayCollisionNormal::Wall(if dir_sign_x > 0 {
+                        WallDirection::West
+                    } else {
+                        WallDirection::East
+                    }))
+                } else if on_x_edge {
+                    Some(RayCollisionNormal::Wall(if dir_sign_y > 0 {
+                        WallDirection::North
+                    } else {
+                        WallDirection::South
+                    }))
+                } else if side_a_now && side_b_now {
+                    Some(RayCollisionNormal::Corner(
+                        CornerDirection::new(true, dir_sign_y < 0, dir_sign_x > 0),
+                        false,
+                    ))
+                } else {
+                    let (south, west) = match (dir_sign_x, dir_sign_y) {
+                        (1, 1) => (!side_a_now, !side_a_now),
+                        (1, -1) => (!side_a_now, side_a_now),
+                        (-1, 1) => (side_a_now, !side_a_now),
+                        (-1, -1) => (side_a_now, side_a_now),
+                        _ => unreachable!(),
+                    };
+
+                    Some(RayCollisionNormal::Corner(
+                        CornerDirection::new(false, south, west),
+                        true,
+                    ))
+                }
+            });
         }
     }
 }
