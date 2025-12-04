@@ -1,17 +1,15 @@
 use std::mem;
 
-use earcut::Earcut;
 use macroquad::{
     color::colors,
     input::{KeyCode, MouseButton},
-    models, shapes,
 };
 use nalgebra::{Point2, Vector2, point};
 use slotmap::{SlotMap, new_key_type};
 
 use crate::level::{
     entity::{Entity, EntityTracker},
-    light_grid::{CornerDirection, LightGrid, Pixel, RayCollisionNormal, StoredRay, WallDirection},
+    light_grid::{LightGrid, Pixel},
 };
 
 pub(crate) mod entity;
@@ -98,33 +96,9 @@ impl Level {
             if let Some(view_range) = entity.inner.view_range() {
                 let position = entity.inner.position();
 
-                let area = self.light_grid.trace_light_from(position, Some(view_range));
-                if let Some(mesh) = area.mesh(&mut Earcut::new()) {
-                    models::draw_mesh(&mesh);
-                }
-
-                for &StoredRay { offset, collision } in &area.rays {
-                    if collision.is_none() {
-                        continue;
-                    }
-
-                    let position = (area.origin + offset).map(|x| x as f32);
-
-                    let (out, color): (Vector2<f32>, _) = match collision.unwrap() {
-                        RayCollisionNormal::Wall(wall_direction) => {
-                            (wall_direction.out(), colors::RED)
-                        }
-                        RayCollisionNormal::Corner(corner_direction, inclusive) => (
-                            corner_direction.out(),
-                            if inclusive { colors::RED } else { colors::BLUE },
-                        ),
-                    };
-
-                    let start = position;
-                    let end = position + out;
-
-                    shapes::draw_line(start.x, start.y, end.x, end.y, 0.5, color);
-                }
+                self.light_grid
+                    .trace_light_from(position, Some(view_range))
+                    .draw(colors::WHITE, colors::DARKGRAY);
             }
         }
 

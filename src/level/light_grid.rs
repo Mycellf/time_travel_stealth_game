@@ -9,7 +9,8 @@ use earcut::Earcut;
 use macroquad::{
     color::{Color, colors},
     math::{Vec2, Vec3, Vec3Swizzles, Vec4},
-    models::Mesh,
+    models::{self, Mesh},
+    shapes,
     texture::{self, FilterMode, Texture2D},
     ui::Vertex,
 };
@@ -375,6 +376,22 @@ pub enum RayCollisionNormal {
     Corner(CornerDirection, bool),
 }
 
+impl RayCollisionNormal {
+    pub fn out<T: From<i8> + Scalar>(self) -> Vector2<T> {
+        match self {
+            RayCollisionNormal::Wall(wall_direction) => wall_direction.out(),
+            RayCollisionNormal::Corner(corner_direction, _) => corner_direction.out(),
+        }
+    }
+
+    pub fn out_angle(self) -> f32 {
+        match self {
+            RayCollisionNormal::Wall(wall_direction) => wall_direction.out_angle(),
+            RayCollisionNormal::Corner(corner_direction, _) => corner_direction.out_angle(),
+        }
+    }
+}
+
 #[derive(Clone, Copy, Debug)]
 pub enum WallDirection {
     East = 0b00,
@@ -683,7 +700,11 @@ pub struct LightArea {
 }
 
 impl LightArea {
-    pub fn mesh(&self, earcut: &mut Earcut<f32>) -> Option<Mesh> {
+    pub const PENETRATION: f32 = 4.0;
+
+    pub fn mesh(&self, color: Color) -> Option<Mesh> {
+        let color = color.into();
+
         let vertices = self
             .rays
             .iter()
@@ -692,14 +713,14 @@ impl LightArea {
             .map(|point| Vertex {
                 position: Vec3::new(point.x, point.y, 0.0),
                 uv: Vec2::ZERO,
-                color: [255; 4],
+                color,
                 normal: Vec4::ZERO,
             })
             .collect::<Vec<_>>();
 
         if vertices.len() >= 3 {
             let mut indices = Vec::new();
-            earcut.earcut(
+            Earcut::new().earcut(
                 vertices.iter().map(|x| x.position.xy().into()),
                 &[],
                 &mut indices,
@@ -712,6 +733,76 @@ impl LightArea {
             })
         } else {
             None
+        }
+    }
+
+    pub fn draw(&self, direct_color: Color, wall_color: Color) {
+        if let Some(mesh) = self.mesh(direct_color) {
+            models::draw_mesh(&mesh);
+        }
+
+        for window in self.rays.windows(2) {
+            let &[
+                StoredRay {
+                    offset: left_offset,
+                    collision: Some(left_collision),
+                },
+                StoredRay {
+                    offset: right_offset,
+                    collision: Some(right_collision),
+                },
+            ] = window
+            else {
+                continue;
+            };
+
+            let left_out = left_collision.out::<i8>();
+            let right_out = right_collision.out::<i8>();
+
+            let x_aligned =
+                left_out.x == right_out.x && (left_offset.x - right_offset.x).abs() <= 1e-6;
+            let y_aligned =
+                left_out.y == right_out.y && (left_offset.y - right_offset.y).abs() <= 1e-6;
+
+            let left_position = (self.origin + left_offset).map(|x| x as f32);
+            let right_position = (self.origin + right_offset).map(|x| x as f32);
+
+            if !(x_aligned || y_aligned) {
+                continue;
+            }
+
+            let (position_1, position_2) = if x_aligned {
+                let direction = -left_collision.out::<f32>().x * Self::PENETRATION;
+
+                (left_position + vector![direction, 0.0], right_position)
+            } else {
+                let direction = -left_collision.out::<f32>().y * Self::PENETRATION;
+
+                (left_position + vector![0.0, direction], right_position)
+            };
+
+            let position_min =
+                Point2::from(Vector2::from_fn(|i, _| position_1[i].min(position_2[i])));
+            let position_max =
+                Point2::from(Vector2::from_fn(|i, _| position_1[i].max(position_2[i])));
+            let size = position_max - position_min;
+
+            shapes::draw_rectangle(position_min.x, position_min.y, size.x, size.y, wall_color);
+        }
+
+        for &StoredRay { offset, collision } in &self.rays {
+            if let Some(RayCollisionNormal::Corner(direction, true)) = collision {
+                if direction.is_concave() {
+                    let position = (self.origin + offset).map(|x| x as f32);
+                    shapes::draw_rectangle(
+                        position.x - Self::PENETRATION * direction.is_east() as i8 as f32,
+                        position.y - Self::PENETRATION * direction.is_south() as i8 as f32,
+                        Self::PENETRATION,
+                        Self::PENETRATION,
+                        wall_color,
+                    );
+                }
+            }
         }
     }
 }
