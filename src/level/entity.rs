@@ -3,7 +3,7 @@ use std::fmt::Debug;
 use macroquad::input::{KeyCode, MouseButton};
 use nalgebra::{Point2, Vector2};
 
-use crate::level::light_grid::AngleRange;
+use crate::level::light_grid::{AngleRange, LightGrid};
 
 pub(crate) mod player;
 
@@ -17,8 +17,8 @@ impl EntityTracker {
         EntityTracker { inner: inner }
     }
 
-    pub fn update(&mut self) {
-        self.inner.update();
+    pub fn update(&mut self, light_grid: &mut LightGrid) {
+        self.inner.update(light_grid);
     }
 
     pub fn draw(&mut self) {
@@ -55,7 +55,7 @@ impl Clone for EntityTracker {
 }
 
 pub trait Entity: 'static + Debug {
-    fn update(&mut self);
+    fn update(&mut self, light_grid: &mut LightGrid);
 
     fn draw(&mut self);
 

@@ -621,6 +621,14 @@ impl Pixel {
     pub fn blocks_light(&self) -> bool {
         !self.is_none()
     }
+
+    /// Returns `false` if the material kind is [`None`].
+    ///
+    /// [`None`]: MaterialKind::None
+    #[must_use]
+    pub fn blocks_motion(&self) -> bool {
+        !self.is_none()
+    }
 }
 
 #[derive(Clone, Default, Debug)]

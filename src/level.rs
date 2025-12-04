@@ -85,7 +85,7 @@ impl Level {
 
     pub fn update(&mut self) {
         for (_, entity) in &mut self.entities {
-            entity.update();
+            entity.update(&mut self.light_grid);
         }
     }
 

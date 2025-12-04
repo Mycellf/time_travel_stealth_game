@@ -1,9 +1,13 @@
-use macroquad::{color::Color, input::KeyCode, shapes, time};
-use nalgebra::{Point2, UnitVector2, Vector2};
+use macroquad::{color::Color, input::KeyCode, math::Rect, shapes, time};
+use nalgebra::{Point2, UnitVector2, Vector2, point};
 
 use crate::{
+    collections::tile_grid::TileRect,
     input::DirectionalInput,
-    level::{entity::Entity, light_grid::AngleRange},
+    level::{
+        entity::Entity,
+        light_grid::{AngleRange, LightGrid},
+    },
 };
 
 #[derive(Clone, Debug)]
@@ -19,16 +23,32 @@ pub struct Player {
     pub speed: f64,
 }
 
+impl Player {
+    pub fn collision_rect(&self) -> Rect {
+        let corner = self.position - self.size / 2.0;
+
+        Rect::new(
+            corner.x as f32,
+            corner.y as f32,
+            self.size.x as f32,
+            self.size.y as f32,
+        )
+    }
+}
+
 impl Entity for Player {
-    fn update(&mut self) {
+    fn update(&mut self, light_grid: &mut LightGrid) {
         if let Some(new_direction) =
             UnitVector2::try_new(self.mouse_position - self.position, f64::EPSILON)
         {
             self.view_direction = new_direction;
         }
 
-        self.position +=
-            self.motion_input.normalized_output() * self.speed * time::get_frame_time() as f64
+        let motion =
+            self.motion_input.normalized_output() * self.speed * time::get_frame_time() as f64;
+
+        self.move_along_x_axis(light_grid, motion.x);
+        self.move_along_y_axis(light_grid, motion.y);
     }
 
     fn draw(&mut self) {
@@ -73,4 +93,57 @@ impl Entity for Player {
     fn mouse_moved(&mut self, position: Point2<f64>, _delta: Vector2<f64>) {
         self.mouse_position = position;
     }
+}
+
+macro_rules! move_along_axis {
+    ($axis:expr, $name:ident) => {
+        fn $name(&mut self, light_grid: &mut LightGrid, displacement: f64) {
+            if displacement.abs() <= f64::EPSILON {
+                return;
+            }
+
+            let old_position = self.position[$axis];
+            self.position[$axis] += displacement;
+
+            let bounds = TileRect::from_rect_inclusive(self.collision_rect());
+
+            let mut collision = None;
+
+            for x in bounds.left()..bounds.right() + 1 {
+                for y in bounds.top()..bounds.bottom() + 1 {
+                    if light_grid[point![x, y]].blocks_motion() {
+                        let axis = [x, y][$axis];
+
+                        if let Some(collision) = &mut collision {
+                            if (*collision < axis) ^ (displacement < 0.0) {
+                                *collision = axis;
+                            }
+                        } else {
+                            collision = Some(axis);
+                        }
+                    }
+                }
+            }
+
+            if let Some(mut collision) = collision {
+                if displacement < 0.0 {
+                    collision += 1;
+                }
+
+                self.position[$axis] = collision as f64;
+                self.position[$axis] -= self.size[$axis] * displacement.signum() / 2.0;
+
+                if (self.position[$axis] < old_position) ^ (displacement < 0.0)
+                    || (self.position[$axis] - old_position).abs() > displacement.abs()
+                {
+                    self.position[$axis] = old_position;
+                }
+            }
+        }
+    };
+}
+
+impl Player {
+    move_along_axis!(0, move_along_x_axis);
+    move_along_axis!(1, move_along_y_axis);
 }
