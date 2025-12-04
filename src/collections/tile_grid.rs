@@ -370,7 +370,7 @@ impl TileRect {
 
         TileRect {
             origin: min_corner,
-            size: (max_corner - min_corner).map(|x| (x + 1).max(0) as usize),
+            size: (max_corner - min_corner).map(|x| x.max(0) as usize),
         }
     }
 
