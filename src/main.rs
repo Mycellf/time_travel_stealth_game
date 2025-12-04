@@ -48,23 +48,20 @@ async fn main() {
             state.key_up_event(key);
         }
 
-        for input in [
+        const MOUSE_BUTTONS: [MouseButton; 4] = [
             MouseButton::Left,
             MouseButton::Middle,
             MouseButton::Right,
             MouseButton::Unknown,
-        ] {
+        ];
+
+        for input in MOUSE_BUTTONS {
             if macroquad::input::is_mouse_button_pressed(input) {
                 state.mouse_button_down_event(input, mouse_position);
             }
         }
 
-        for input in [
-            MouseButton::Left,
-            MouseButton::Middle,
-            MouseButton::Right,
-            MouseButton::Unknown,
-        ] {
+        for input in MOUSE_BUTTONS {
             if macroquad::input::is_mouse_button_released(input) {
                 state.mouse_button_up_event(input, mouse_position);
             }
