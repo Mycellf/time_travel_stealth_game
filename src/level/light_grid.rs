@@ -173,10 +173,10 @@ impl LightGrid {
                     area.origin,
                     range.left,
                     Self::MAXIMUM_RAY_RANGE,
-                    Default::default(),
                 )
                 .0 - area.origin,
                 RayPartition::RightEdge,
+                None,
             ));
 
             unorganized_rays.push(Ray::new(
@@ -185,10 +185,10 @@ impl LightGrid {
                     area.origin,
                     range.right,
                     Self::MAXIMUM_RAY_RANGE,
-                    Default::default(),
                 )
                 .0 - area.origin,
                 RayPartition::LeftEdge,
+                None,
             ));
         } else {
             // HACK: The lighting system breaks when one of these rays hits a corner, so use an
@@ -207,10 +207,10 @@ impl LightGrid {
                         area.origin,
                         direction,
                         Self::MAXIMUM_RAY_RANGE,
-                        Default::default(),
                     )
                     .0 - area.origin,
                     RayPartition::None,
+                    None,
                 ));
             }
         }
@@ -231,12 +231,11 @@ impl LightGrid {
                 continue;
             };
 
-            let (finish, _, _) = raycast(
+            let (finish, _) = raycast(
                 collision_function,
                 area.origin,
                 direction_to_corner,
                 Self::MAXIMUM_RAY_RANGE,
-                Default::default(),
             );
 
             if (finish - area.origin).magnitude_squared()
@@ -268,6 +267,7 @@ impl LightGrid {
                     } else {
                         RayPartition::None
                     },
+                    None,
                 ));
             }
 
@@ -279,6 +279,7 @@ impl LightGrid {
                     } else {
                         RayPartition::Left
                     },
+                    None,
                 ));
             }
         }
@@ -359,6 +360,43 @@ fn cos_angle(lhs: Ray, rhs: UnitVector2<f64>) -> f64 {
 pub struct Corner {
     pub location: Point2<f64>,
     pub direction: CornerDirection,
+}
+
+#[derive(Clone, Copy, Debug)]
+pub enum RayCollisionDirection {
+    Wall(WallDirection),
+    Corner(CornerDirection),
+}
+
+#[derive(Clone, Copy, Debug)]
+pub enum WallDirection {
+    East = 0b00,
+    North = 0b01,
+    West = 0b10,
+    South = 0b11,
+}
+
+impl WallDirection {
+    pub fn out<T: From<i8> + Scalar>(self) -> Vector2<T> {
+        match self {
+            WallDirection::East => vector![1, 0],
+            WallDirection::North => vector![0, -1],
+            WallDirection::West => vector![-1, 0],
+            WallDirection::South => vector![0, 1],
+        }
+        .map(T::from)
+    }
+
+    pub fn out_angle(self) -> f32 {
+        use std::f32::consts::PI;
+
+        match self {
+            WallDirection::East => 0.0,
+            WallDirection::North => PI / 2.0,
+            WallDirection::West => PI,
+            WallDirection::South => PI * 3.0 / 2.0,
+        }
+    }
 }
 
 #[derive(Clone, Copy, Debug)]
@@ -592,7 +630,6 @@ pub enum Pixel {
     None,
     #[default]
     Solid,
-    Mirror,
 }
 
 impl Empty for Pixel {
@@ -677,14 +714,20 @@ pub struct Ray {
     pub offset: Vector2<f64>,
     pub magnitude: f64,
     pub partition: RayPartition,
+    pub collision: Option<RayCollisionDirection>,
 }
 
 impl Ray {
-    pub fn new(offset: Vector2<f64>, partition: RayPartition) -> Self {
+    pub fn new(
+        offset: Vector2<f64>,
+        partition: RayPartition,
+        collision: Option<RayCollisionDirection>,
+    ) -> Self {
         Ray {
             offset,
             magnitude: offset.magnitude(),
             partition,
+            collision,
         }
     }
 }
@@ -733,8 +776,7 @@ pub fn raycast(
     start: Point2<f64>,
     mut direction: UnitVector2<f64>,
     max_distance: f64,
-    state: (bool, bool),
-) -> (Point2<f64>, bool, (bool, bool)) {
+) -> (Point2<f64>, bool) {
     const EPSILON: f64 = 1e-6;
 
     let mut location = start;
@@ -777,11 +819,8 @@ pub fn raycast(
     let mut side_b = function(location, index);
 
     if side_a || side_b {
-        return (location, true, (side_a || state.0, side_b || state.1));
+        return (location, true);
     }
-
-    side_a |= state.0;
-    side_b |= state.1;
 
     let dir_sign_x = direction.x.signum() as isize;
     let dir_sign_y = direction.y.signum() as isize;
@@ -817,11 +856,7 @@ pub fn raycast(
         }
 
         if (start - location).magnitude_squared() >= max_distance_squared {
-            return (
-                start + direction.into_inner() * max_distance,
-                false,
-                (side_a, side_b),
-            );
+            return (start + direction.into_inner() * max_distance, false);
         }
 
         index = index_of_location(location, direction.into_inner());
@@ -839,7 +874,7 @@ pub fn raycast(
             }
         } else {
             if function(location, index) {
-                return (location, true, (side_a, side_b));
+                return (location, true);
             }
 
             if time_x == time_y {
@@ -854,7 +889,7 @@ pub fn raycast(
         }
 
         if side_a && side_b {
-            return (location, true, (side_a, side_b));
+            return (location, true);
         }
     }
 }
