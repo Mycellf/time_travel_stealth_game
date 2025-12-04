@@ -6,7 +6,7 @@ use macroquad::{
     input::{KeyCode, MouseButton},
     models,
 };
-use nalgebra::{Point2, Vector2};
+use nalgebra::{Point2, Vector2, point};
 use slotmap::{SlotMap, new_key_type};
 
 use crate::level::{
@@ -17,6 +17,8 @@ use crate::level::{
 pub(crate) mod entity;
 pub(crate) mod light_grid;
 
+pub const TILE_SIZE: isize = 8;
+
 pub struct Level {
     pub initial_state: Vec<Box<dyn Entity>>,
 
@@ -25,6 +27,8 @@ pub struct Level {
 
     pub light_grid: LightGrid,
     pub brush: Option<Pixel>,
+    pub precise_fill: bool,
+    pub full_vision: bool,
 }
 
 new_key_type! {
@@ -33,14 +37,23 @@ new_key_type! {
 
 impl Level {
     pub fn new(initial_state: Vec<Box<dyn Entity>>) -> Level {
+        let mut light_grid = LightGrid::default();
+
+        light_grid.fill_tile(point![0, 0], Pixel::None);
+        light_grid.fill_tile(point![-1, 0], Pixel::None);
+        light_grid.fill_tile(point![0, -1], Pixel::None);
+        light_grid.fill_tile(point![-1, -1], Pixel::None);
+
         let mut result = Level {
             initial_state,
 
             entities: SlotMap::default(),
             input_readers: Vec::new(),
 
-            light_grid: LightGrid::default(),
+            light_grid,
             brush: None,
+            precise_fill: false,
+            full_vision: true,
         };
 
         result.load_initial_state();
@@ -77,7 +90,9 @@ impl Level {
     }
 
     pub fn draw(&mut self) {
-        self.light_grid.draw(colors::BLANK, colors::GRAY);
+        if self.full_vision {
+            self.light_grid.draw(colors::BLANK, colors::GRAY);
+        }
 
         for (_, entity) in &self.entities {
             if let Some(view_range) = entity.inner.view_range() {
@@ -96,12 +111,29 @@ impl Level {
     }
 
     pub fn key_down(&mut self, input: KeyCode) {
+        match input {
+            KeyCode::V => {
+                self.full_vision ^= true;
+            }
+            KeyCode::LeftShift => {
+                self.precise_fill = true;
+            }
+            _ => (),
+        }
+
         for &key in &self.input_readers {
             self.entities[key].key_down(input);
         }
     }
 
     pub fn key_up(&mut self, input: KeyCode) {
+        match input {
+            KeyCode::LeftShift => {
+                self.precise_fill = false;
+            }
+            _ => (),
+        }
+
         for &key in &self.input_readers {
             self.entities[key].key_up(input);
         }
@@ -114,7 +146,8 @@ impl Level {
 
         match input {
             MouseButton::Left => {
-                let pixel = &mut self.light_grid[position.map(|x| x.floor() as isize)];
+                let index = position.map(|x| x.floor() as isize);
+                let pixel = &mut self.light_grid[index];
 
                 let brush = if pixel.blocks_light() {
                     Pixel::None
@@ -124,7 +157,12 @@ impl Level {
 
                 self.brush = Some(brush);
 
-                *pixel = brush;
+                if self.precise_fill {
+                    *pixel = brush;
+                } else {
+                    self.light_grid
+                        .fill_tile(index.map(|x| x.div_euclid(TILE_SIZE)), brush);
+                }
             }
             _ => (),
         }
@@ -152,7 +190,12 @@ impl Level {
             let index = position.map(|x| x.floor() as isize);
 
             if self.light_grid[index] != brush {
-                self.light_grid[index] = brush;
+                if self.precise_fill {
+                    self.light_grid[index] = brush;
+                } else {
+                    self.light_grid
+                        .fill_tile(index.map(|x| x.div_euclid(TILE_SIZE)), brush);
+                }
             }
         }
     }

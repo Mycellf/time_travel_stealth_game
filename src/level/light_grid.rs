@@ -42,6 +42,16 @@ impl IndexMut<TileIndex> for LightGrid {
 impl LightGrid {
     pub const MAXIMUM_RAY_RANGE: f64 = 2048.0;
 
+    pub fn fill_tile(&mut self, index: TileIndex, pixel: Pixel) {
+        let corner = index * super::TILE_SIZE;
+
+        for x in corner.x..corner.x + super::TILE_SIZE {
+            for y in corner.y..corner.y + super::TILE_SIZE {
+                self[point![x, y]] = pixel;
+            }
+        }
+    }
+
     pub fn corners(&mut self) -> &[Corner] {
         if self.updated {
             self.updated = false;
