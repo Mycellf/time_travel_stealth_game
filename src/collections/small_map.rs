@@ -100,22 +100,23 @@ where
 macro_rules! new_small_key_type {
     ( $(#[$outer:meta])* $vis:vis struct $name:ident($inner:ty); $($rest:tt)* ) => {
         $(#[$outer])*
-        #[derive(Copy, Clone, Default,
+        #[derive(Copy, Clone,
                  Eq, PartialEq, Ord, PartialOrd,
                  Hash, Debug)]
         #[repr(transparent)]
-        $vis struct $name($inner);
+        $vis struct $name(std::num::NonZero<$inner>);
 
         // Make it a bit harder to accidentally misuse the macro
         const _: () = assert!(<$inner>::BITS <= u32::BITS);
 
         impl $crate::collections::small_map::Key for $name {
             fn try_from_usize(value: usize) -> Option<Self> {
-                Some(Self(value.try_into().ok()?))
+                // If adding 1 overflows, it will result in 0, which will return an error
+                Some(Self(std::num::NonZero::new(<$inner>::try_from(value).ok()?.wrapping_add(1))?))
             }
 
             fn into_usize(self) -> usize {
-                self.0 as usize
+                (self.0.get() - 1) as usize
             }
         }
 
