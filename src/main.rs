@@ -24,6 +24,8 @@ fn config() -> Conf {
     }
 }
 
+pub const TEXTURE_ATLAS: &[u8] = include_bytes!("../resources/texture_atlas.png");
+
 #[macroquad::main(config)]
 async fn main() {
     let mut state = State::new();
@@ -106,25 +108,6 @@ impl State {
 impl State {
     pub const SCREEN_HEIGHT: f32 = 256.0;
 
-    fn screen_rect(&self) -> Rect {
-        rectangle_of_centered_camera(
-            vector![window::screen_width(), window::screen_height()],
-            point![0.0, 0.0],
-            Self::SCREEN_HEIGHT,
-        )
-    }
-
-    fn screen_to_world(&self, point: Point2<f32>) -> Point2<f32> {
-        let world = self.screen_rect();
-        let screen = Rect::new(0.0, 0.0, window::screen_width(), window::screen_height());
-
-        transform_between_rectangles(screen, world, point)
-    }
-
-    fn screen_to_world_scale_factor(&self) -> f32 {
-        Self::SCREEN_HEIGHT / window::screen_height()
-    }
-
     fn update(&mut self) {
         self.level.update();
     }
@@ -132,7 +115,7 @@ impl State {
     fn draw(&mut self) {
         window::clear_background(colors::BLACK);
 
-        let mut camera = Camera2D::from_display_rect(self.screen_rect());
+        let mut camera = Camera2D::from_display_rect(screen_rect());
         camera.zoom.y *= -1.0;
         camera::set_camera(&camera);
 
@@ -161,23 +144,23 @@ impl State {
 
     fn mouse_button_down_event(&mut self, button: MouseButton, position: Point2<f32>) {
         self.level
-            .mouse_down(button, self.screen_to_world(position).map(|x| x as f64));
+            .mouse_down(button, screen_to_world(position).map(|x| x as f64));
     }
 
     fn mouse_button_up_event(&mut self, button: MouseButton, position: Point2<f32>) {
         self.level
-            .mouse_up(button, self.screen_to_world(position).map(|x| x as f64));
+            .mouse_up(button, screen_to_world(position).map(|x| x as f64));
     }
 
     fn mouse_motion_event(&mut self, position: Point2<f32>, delta: Vector2<f32>) {
         self.level.mouse_moved(
-            self.screen_to_world(position).map(|x| x as f64),
-            (delta * self.screen_to_world_scale_factor()).map(|x| x as f64),
+            screen_to_world(position).map(|x| x as f64),
+            (delta * screen_to_world_scale_factor()).map(|x| x as f64),
         );
     }
 }
 
-fn rectangle_of_centered_camera(
+pub fn rectangle_of_centered_camera(
     screen_size: Vector2<f32>,
     center: Point2<f32>,
     height: f32,
@@ -188,7 +171,7 @@ fn rectangle_of_centered_camera(
     Rect::new(corner.x, corner.y, size.x, size.y)
 }
 
-fn transform_between_rectangles(
+pub fn transform_between_rectangles(
     source: Rect,
     destination: Rect,
     point: Point2<f32>,
@@ -207,4 +190,28 @@ fn transform_between_rectangles(
 
 fn get_mouse_position() -> Point2<f32> {
     Point2::from(Vec2::from(macroquad::input::mouse_position()))
+}
+
+pub fn screen_rect() -> Rect {
+    rectangle_of_centered_camera(
+        vector![window::screen_width(), window::screen_height()],
+        point![0.0, 0.0],
+        State::SCREEN_HEIGHT,
+    )
+}
+
+pub fn screen_to_world(point: Point2<f32>) -> Point2<f32> {
+    let world = screen_rect();
+    let screen = Rect::new(0.0, 0.0, window::screen_width(), window::screen_height());
+
+    transform_between_rectangles(screen, world, point)
+}
+
+pub fn screen_to_world_scale_factor() -> f32 {
+    State::SCREEN_HEIGHT / window::screen_height()
+}
+
+pub fn screen_pixel_size() -> Vector2<u32> {
+    (window::screen_dpi_scale() * vector![window::screen_width(), window::screen_height()])
+        .map(|x| x as u32)
 }
