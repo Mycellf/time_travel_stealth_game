@@ -197,6 +197,12 @@ impl Level {
             }
         }
 
+        for (_, entity) in &mut self.entities {
+            if !entity.inner.always_visible() {
+                entity.draw();
+            }
+        }
+
         if !self.full_vision {
             camera::push_camera_state();
             camera::set_camera(&self.mask_texture);
@@ -211,7 +217,9 @@ impl Level {
         }
 
         for (_, entity) in &mut self.entities {
-            entity.draw();
+            if entity.inner.always_visible() {
+                entity.draw();
+            }
         }
     }
 

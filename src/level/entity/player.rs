@@ -78,6 +78,10 @@ impl Entity for Player {
         Box::new(self.clone())
     }
 
+    fn always_visible(&self) -> bool {
+        true
+    }
+
     fn should_recieve_inputs(&self) -> bool {
         true
     }

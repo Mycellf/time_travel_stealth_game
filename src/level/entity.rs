@@ -67,6 +67,8 @@ pub trait Entity: 'static + Debug {
 
     fn duplicate(&self) -> Box<dyn Entity>;
 
+    fn always_visible(&self) -> bool;
+
     fn should_recieve_inputs(&self) -> bool;
 
     fn key_down(&mut self, _input: KeyCode) {}
