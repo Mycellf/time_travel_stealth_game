@@ -5,7 +5,6 @@ use macroquad::{
     color::colors,
     input::{KeyCode, MouseButton},
     material,
-    math::Rect,
     miniquad::{BlendFactor, BlendState, Equation},
     prelude::{Material, MaterialParams, PipelineParams, ShaderSource},
     texture::{self, DrawTextureParams, FilterMode, Image, Texture2D},
@@ -14,13 +13,18 @@ use macroquad::{
 use nalgebra::{Point2, Vector2, point};
 use slotmap::{SlotMap, new_key_type};
 
-use crate::level::{
-    entity::{Entity, EntityTracker},
-    light_grid::{LightGrid, Pixel},
+use crate::{
+    collections::tile_grid::{TileGrid, TileIndex},
+    level::{
+        entity::{Entity, EntityTracker},
+        light_grid::{LightGrid, Pixel},
+        tile::{Tile, TileKind, TileKindKey},
+    },
 };
 
 pub(crate) mod entity;
 pub(crate) mod light_grid;
+pub(crate) mod tile;
 
 pub const TILE_SIZE: isize = 8;
 
@@ -34,8 +38,12 @@ pub struct Level {
     pub mask_texture: Camera2D,
     pub mask_material: Material,
 
+    pub tile_grid: TileGrid<Option<Tile>>,
     pub light_grid: LightGrid,
-    pub brush: Option<Pixel>,
+
+    pub brushes: Vec<TileKindKey>,
+    pub brush: usize,
+    pub drawing: bool,
     pub precise_fill: bool,
     pub full_vision: bool,
     pub draw_corners: bool,
@@ -47,13 +55,6 @@ new_key_type! {
 
 impl Level {
     pub fn new(initial_state: Vec<Box<dyn Entity>>) -> Level {
-        let mut light_grid = LightGrid::default();
-
-        light_grid.fill_tile(point![0, 0], Pixel::None);
-        light_grid.fill_tile(point![-1, 0], Pixel::None);
-        light_grid.fill_tile(point![0, -1], Pixel::None);
-        light_grid.fill_tile(point![-1, -1], Pixel::None);
-
         let texture_atlas = Texture2D::from_image(
             &Image::from_file_with_format(crate::TEXTURE_ATLAS, None).unwrap(),
         );
@@ -92,8 +93,21 @@ impl Level {
             )
             .unwrap(),
 
-            light_grid,
-            brush: None,
+            tile_grid: TileGrid::default(),
+            light_grid: LightGrid::default(),
+
+            brushes: vec![
+                tile::add_tile_kind(TileKind {
+                    pixel_kind: Pixel::Solid,
+                    texture_location: point![0, 0],
+                }),
+                tile::add_tile_kind(TileKind {
+                    pixel_kind: Pixel::None,
+                    texture_location: point![0, 1],
+                }),
+            ],
+            brush: usize::MAX,
+            drawing: false,
             precise_fill: false,
             full_vision: true,
             draw_corners: true,
@@ -102,6 +116,18 @@ impl Level {
         result.load_initial_state();
 
         result
+    }
+
+    pub fn set_tile(&mut self, index: TileIndex, tile: Option<Tile>) {
+        if self.tile_grid[index] != tile {
+            self.tile_grid[index] = tile;
+
+            if let Some(tile) = tile {
+                self.light_grid.fill_tile(index, tile.get_kind().pixel_kind);
+            } else {
+                self.light_grid.fill_tile(index, Pixel::default());
+            }
+        }
     }
 
     pub fn load_initial_state(&mut self) {
@@ -135,10 +161,6 @@ impl Level {
     pub fn draw(&mut self) {
         self.update_mask_texture();
 
-        if self.full_vision {
-            self.light_grid.draw(colors::BLANK, colors::GRAY);
-        }
-
         let view_areas = self
             .entities
             .iter()
@@ -152,40 +174,30 @@ impl Level {
             .flatten()
             .collect::<Vec<_>>();
 
-        for x in -2..2 {
-            for y in -2..2 {
-                if (-1..1).contains(&x) && (-1..1).contains(&y) {
+        let bounds = self.tile_grid.bounds();
+
+        let tile_kinds = tile::TILE_KINDS.lock().unwrap();
+
+        for x in bounds.left()..bounds.right() + 1 {
+            for y in bounds.top()..bounds.bottom() + 1 {
+                let Some(tile) = self.tile_grid[point![x, y]] else {
                     continue;
-                }
+                };
+
                 texture::draw_texture_ex(
                     &self.texture_atlas,
                     x as f32 * TILE_SIZE as f32,
                     y as f32 * TILE_SIZE as f32,
                     colors::WHITE,
                     DrawTextureParams {
-                        source: Some(Rect::new(0.0, 0.0, TILE_SIZE as f32, TILE_SIZE as f32)),
+                        source: Some(tile_kinds[tile.kind].texture_rect()),
                         ..Default::default()
                     },
                 );
             }
         }
 
-        for x in -1..1 {
-            for y in -1..1 {
-                texture::draw_texture_ex(
-                    &self.texture_atlas,
-                    x as f32 * TILE_SIZE as f32,
-                    y as f32 * TILE_SIZE as f32,
-                    colors::WHITE,
-                    DrawTextureParams {
-                        source: Some(Rect::new(0.0, 8.0, TILE_SIZE as f32, TILE_SIZE as f32)),
-                        ..Default::default()
-                    },
-                );
-            }
-        }
-
-        {
+        if !self.full_vision {
             camera::push_camera_state();
             camera::set_camera(&self.mask_texture);
             window::clear_background(colors::WHITE);
@@ -244,6 +256,9 @@ impl Level {
             KeyCode::LeftShift => {
                 self.precise_fill = true;
             }
+            KeyCode::Key0 => self.brush = usize::MAX,
+            KeyCode::Key1 => self.brush = 0,
+            KeyCode::Key2 => self.brush = 1,
             _ => (),
         }
 
@@ -272,23 +287,13 @@ impl Level {
 
         match input {
             MouseButton::Left => {
-                let index = position.map(|x| x.floor() as isize);
-                let pixel = &mut self.light_grid[index];
+                let index = position.map(|x| (x.floor() as isize).div_euclid(TILE_SIZE));
+                self.set_tile(
+                    index,
+                    self.brushes.get(self.brush).map(|&kind| Tile { kind }),
+                );
 
-                let brush = if pixel.blocks_light() {
-                    Pixel::None
-                } else {
-                    Pixel::Solid
-                };
-
-                self.brush = Some(brush);
-
-                if self.precise_fill {
-                    *pixel = brush;
-                } else {
-                    self.light_grid
-                        .fill_tile(index.map(|x| x.div_euclid(TILE_SIZE)), brush);
-                }
+                self.drawing = true;
             }
             _ => (),
         }
@@ -301,7 +306,7 @@ impl Level {
 
         match input {
             MouseButton::Left => {
-                self.brush = None;
+                self.drawing = false;
             }
             _ => (),
         }
@@ -312,17 +317,12 @@ impl Level {
             self.entities[key].mouse_moved(position, delta);
         }
 
-        if let Some(brush) = self.brush {
-            let index = position.map(|x| x.floor() as isize);
-
-            if self.light_grid[index] != brush {
-                if self.precise_fill {
-                    self.light_grid[index] = brush;
-                } else {
-                    self.light_grid
-                        .fill_tile(index.map(|x| x.div_euclid(TILE_SIZE)), brush);
-                }
-            }
+        if self.drawing {
+            let index = position.map(|x| (x.floor() as isize).div_euclid(TILE_SIZE));
+            self.set_tile(
+                index,
+                self.brushes.get(self.brush).map(|&kind| Tile { kind }),
+            );
         }
     }
 }
