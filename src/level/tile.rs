@@ -2,10 +2,11 @@ use std::sync::{LazyLock, Mutex};
 
 use macroquad::math::Rect;
 use nalgebra::Point2;
+use serde::{Deserialize, Serialize};
 
 use crate::{collections::small_map::SmallMap, level::light_grid::Pixel, new_small_key_type};
 
-#[derive(Clone, Copy, PartialEq, Eq, Debug)]
+#[derive(Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Debug)]
 pub struct Tile {
     pub kind: TileKindKey,
 }
@@ -27,7 +28,7 @@ pub fn add_tile_kind(tile_kind: TileKind) -> TileKindKey {
     TILE_KINDS.lock().unwrap().insert(tile_kind)
 }
 
-#[derive(Clone, Copy, Debug)]
+#[derive(Clone, Copy, Serialize, Deserialize, Debug)]
 pub struct TileKind {
     pub pixel_kind: Pixel,
     pub texture_location: Point2<usize>,

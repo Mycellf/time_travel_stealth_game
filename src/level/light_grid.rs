@@ -15,6 +15,7 @@ use macroquad::{
     ui::Vertex,
 };
 use nalgebra::{Point2, Scalar, UnitComplex, UnitVector2, Vector2, point, vector};
+use serde::{Deserialize, Serialize};
 
 use crate::collections::tile_grid::{Empty, TileGrid, TileIndex};
 
@@ -649,7 +650,7 @@ impl CornerDirection {
     }
 }
 
-#[derive(Clone, Copy, PartialEq, Eq, Default, Debug)]
+#[derive(Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Default, Debug)]
 pub enum Pixel {
     None,
     #[default]

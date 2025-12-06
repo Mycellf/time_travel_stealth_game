@@ -3,7 +3,9 @@ use std::{
     ops::{Index, IndexMut},
 };
 
-#[derive(Clone, Debug)]
+use serde::{Deserialize, Serialize};
+
+#[derive(Clone, Serialize, Deserialize, Debug)]
 pub struct SmallMap<K, V> {
     data: Vec<Option<V>>,
     first_free: usize,
@@ -100,7 +102,7 @@ where
 macro_rules! new_small_key_type {
     ( $(#[$outer:meta])* $vis:vis struct $name:ident($inner:ty); $($rest:tt)* ) => {
         $(#[$outer])*
-        #[derive(Copy, Clone,
+        #[derive(Copy, Clone, serde::Serialize, serde::Deserialize,
                  Eq, PartialEq, Ord, PartialOrd,
                  Hash, Debug)]
         #[repr(transparent)]

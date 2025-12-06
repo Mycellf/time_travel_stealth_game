@@ -6,11 +6,12 @@ use std::{
 
 use macroquad::math::Rect;
 use nalgebra::{Point2, Vector2, point, vector};
+use serde::{Deserialize, Serialize};
 
 pub type TileIndex = Point2<isize>;
 pub type TileIndexOffset = Vector2<isize>;
 
-#[derive(Clone, Debug)]
+#[derive(Clone, Serialize, Deserialize, Debug)]
 pub struct TileGrid<T: Empty> {
     bounds: TileRect,
     tiles: Box<[T]>,
@@ -333,7 +334,7 @@ impl<T: Empty + PartialEq> PartialEq for TileGrid<T> {
 
 impl<T: Empty + Eq> Eq for TileGrid<T> {}
 
-#[derive(Clone, Copy, Debug)]
+#[derive(Clone, Copy, Serialize, Deserialize, Debug)]
 pub struct TileRect {
     pub origin: TileIndex,
     pub size: Vector2<usize>,
