@@ -184,24 +184,26 @@ impl Level {
 
         let bounds = self.tile_grid.bounds();
 
-        let tile_kinds = tile::TILE_KINDS.lock().unwrap();
+        {
+            let tile_kinds = tile::TILE_KINDS.lock().unwrap();
 
-        for x in bounds.left()..bounds.right() + 1 {
-            for y in bounds.top()..bounds.bottom() + 1 {
-                let Some(tile) = self.tile_grid[point![x, y]] else {
-                    continue;
-                };
+            for x in bounds.left()..bounds.right() + 1 {
+                for y in bounds.top()..bounds.bottom() + 1 {
+                    let Some(tile) = self.tile_grid[point![x, y]] else {
+                        continue;
+                    };
 
-                texture::draw_texture_ex(
-                    &self.texture_atlas,
-                    x as f32 * TILE_SIZE as f32,
-                    y as f32 * TILE_SIZE as f32,
-                    colors::WHITE,
-                    DrawTextureParams {
-                        source: Some(tile_kinds[tile.kind].texture_rect()),
-                        ..Default::default()
-                    },
-                );
+                    texture::draw_texture_ex(
+                        &self.texture_atlas,
+                        x as f32 * TILE_SIZE as f32,
+                        y as f32 * TILE_SIZE as f32,
+                        colors::WHITE,
+                        DrawTextureParams {
+                            source: Some(tile_kinds[tile.kind].texture_rect()),
+                            ..Default::default()
+                        },
+                    );
+                }
             }
         }
 
