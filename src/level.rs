@@ -102,8 +102,16 @@ impl Level {
                     texture_location: point![0, 0],
                 }),
                 tile::add_tile_kind(TileKind {
+                    pixel_kind: Pixel::Solid,
+                    texture_location: point![1, 0],
+                }),
+                tile::add_tile_kind(TileKind {
                     pixel_kind: Pixel::None,
                     texture_location: point![0, 1],
+                }),
+                tile::add_tile_kind(TileKind {
+                    pixel_kind: Pixel::None,
+                    texture_location: point![1, 1],
                 }),
             ],
             brush: usize::MAX,
@@ -267,6 +275,13 @@ impl Level {
             KeyCode::Key0 => self.brush = usize::MAX,
             KeyCode::Key1 => self.brush = 0,
             KeyCode::Key2 => self.brush = 1,
+            KeyCode::Key3 => self.brush = 2,
+            KeyCode::Key4 => self.brush = 3,
+            KeyCode::Key5 => self.brush = 4,
+            KeyCode::Key6 => self.brush = 5,
+            KeyCode::Key7 => self.brush = 6,
+            KeyCode::Key8 => self.brush = 7,
+            KeyCode::Key9 => self.brush = 8,
             _ => (),
         }
 
