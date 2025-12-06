@@ -1,6 +1,9 @@
 use std::fmt::Debug;
 
-use macroquad::input::{KeyCode, MouseButton};
+use macroquad::{
+    color::Color,
+    input::{KeyCode, MouseButton},
+};
 use nalgebra::{Point2, Vector2};
 
 use crate::level::light_grid::{AngleRange, LightGrid};
@@ -63,6 +66,10 @@ pub trait Entity: 'static + Debug {
     fn position(&self) -> Point2<f64>;
 
     fn view_range(&self) -> Option<AngleRange> {
+        None
+    }
+
+    fn view_color(&self) -> Option<Color> {
         None
     }
 

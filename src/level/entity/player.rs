@@ -1,4 +1,9 @@
-use macroquad::{color::Color, input::KeyCode, math::Rect, shapes, time};
+use macroquad::{
+    color::{Color, colors},
+    input::KeyCode,
+    math::Rect,
+    shapes, time,
+};
 use nalgebra::{Point2, UnitVector2, Vector2, point};
 
 use crate::{
@@ -72,6 +77,10 @@ impl Entity for Player {
             self.view_direction,
             self.view_width,
         ))
+    }
+
+    fn view_color(&self) -> Option<Color> {
+        Some(colors::BLANK)
     }
 
     fn duplicate(&self) -> Box<dyn Entity> {

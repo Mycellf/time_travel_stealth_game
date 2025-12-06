@@ -2,10 +2,9 @@ use std::mem;
 
 use macroquad::{
     camera::{self, Camera2D},
-    color::colors,
+    color::{Color, colors},
     input::{KeyCode, MouseButton},
     material,
-    miniquad::{BlendFactor, BlendState, Equation},
     prelude::{Material, MaterialParams, PipelineParams, ShaderSource},
     texture::{self, DrawTextureParams, FilterMode, Image, Texture2D},
     window,
@@ -81,11 +80,7 @@ impl Level {
                 },
                 MaterialParams {
                     pipeline_params: PipelineParams {
-                        color_blend: Some(BlendState::new(
-                            Equation::ReverseSubtract,
-                            BlendFactor::One,
-                            BlendFactor::One,
-                        )),
+                        color_write: (true, true, true, true),
                         ..Default::default()
                     },
                     ..Default::default()
@@ -174,11 +169,15 @@ impl Level {
             .entities
             .iter()
             .map(|(_, entity)| {
-                entity.inner.view_range().map(|view_range| {
-                    let position = entity.inner.position();
+                let view_range = entity.inner.view_range()?;
+                let view_color = entity.inner.view_color()?;
 
-                    self.light_grid.trace_light_from(position, Some(view_range))
-                })
+                let position = entity.inner.position();
+
+                Some((
+                    self.light_grid.trace_light_from(position, Some(view_range)),
+                    view_color,
+                ))
             })
             .flatten()
             .collect::<Vec<_>>();
@@ -217,11 +216,16 @@ impl Level {
         if !self.full_vision {
             camera::push_camera_state();
             camera::set_camera(&self.mask_texture);
-            window::clear_background(colors::WHITE);
+            window::clear_background(colors::BLACK);
 
-            for area in &view_areas {
-                area.draw(colors::BLACK, colors::BLACK, self.draw_corners);
+            material::gl_use_material(&self.mask_material);
+
+            // TODO: This doesn't always draw the player's view area first.
+            for &(ref area, color) in &view_areas {
+                area.draw(color, color, self.draw_corners);
             }
+
+            material::gl_use_default_material();
 
             self.draw_mask_texture();
             camera::pop_camera_state();
@@ -248,7 +252,6 @@ impl Level {
 
     pub fn draw_mask_texture(&self) {
         camera::set_default_camera();
-        material::gl_use_material(&self.mask_material);
 
         texture::draw_texture_ex(
             &self.mask_texture.render_target.as_ref().unwrap().texture,
@@ -260,8 +263,6 @@ impl Level {
                 ..Default::default()
             },
         );
-
-        material::gl_use_default_material();
     }
 
     pub fn key_down(&mut self, input: KeyCode) {
@@ -355,30 +356,32 @@ impl Level {
 
 pub const DEFAULT_VERTEX_SHADER: &str = r#"
     #version 100
-    precision lowp float;
-
     attribute vec3 position;
     attribute vec2 texcoord;
+    attribute vec4 color0;
+    attribute vec4 normal;
 
-    varying vec2 uv;
+    varying lowp vec2 uv;
+    varying lowp vec4 color;
 
     uniform mat4 Model;
     uniform mat4 Projection;
 
     void main() {
         gl_Position = Projection * Model * vec4(position, 1);
+        color = color0 / 255.0;
         uv = texcoord;
     }
 "#;
+
 pub const DEFAULT_FRAGMENT_SHADER: &str = r#"
     #version 100
-    precision lowp float;
-
-    varying vec2 uv;
+    varying lowp vec4 color;
+    varying lowp vec2 uv;
 
     uniform sampler2D Texture;
 
     void main() {
-        gl_FragColor = texture2D(Texture, uv);
+        gl_FragColor = color * texture2D(Texture, uv) ;
     }
 "#;

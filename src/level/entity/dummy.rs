@@ -57,6 +57,10 @@ impl Entity for Dummy {
         ))
     }
 
+    fn view_color(&self) -> Option<Color> {
+        Some(Color::new(1.0, 0.0, 0.0, 0.05))
+    }
+
     fn duplicate(&self) -> Box<dyn Entity> {
         Box::new(self.clone())
     }
