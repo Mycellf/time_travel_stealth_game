@@ -58,7 +58,7 @@ impl Entity for Dummy {
     }
 
     fn view_color(&self) -> Option<Color> {
-        Some(Color::new(1.0, 0.0, 0.0, 0.05))
+        Some(Color::new(1.0, 0.25, 0.25, 0.1))
     }
 
     fn duplicate(&self) -> Box<dyn Entity> {

@@ -141,7 +141,7 @@ pub struct Iter<'a, K: Key, V> {
 }
 
 impl<K: Key, V> SmallMap<K, V> {
-    pub fn iter(&self) -> Iter<K, V> {
+    pub fn iter(&self) -> Iter<'_, K, V> {
         Iter {
             inner: &self.data,
             _phantom: PhantomData,
@@ -178,7 +178,7 @@ pub struct IterMut<'a, K: Key, V> {
 }
 
 impl<K: Key, V> SmallMap<K, V> {
-    pub fn iter_mut(&mut self) -> IterMut<K, V> {
+    pub fn iter_mut(&mut self) -> IterMut<'_, K, V> {
         IterMut {
             inner: &mut self.data,
             _phantom: PhantomData,
@@ -215,7 +215,7 @@ pub struct Keys<'a, K: Key, V> {
 }
 
 impl<K: Key, V> SmallMap<K, V> {
-    pub fn keys(&self) -> Keys<K, V> {
+    pub fn keys(&self) -> Keys<'_, K, V> {
         Keys {
             inner: &self.data,
             _phantom: PhantomData,

@@ -2,7 +2,7 @@ use std::mem;
 
 use macroquad::{
     camera::{self, Camera2D},
-    color::{Color, colors},
+    color::colors,
     input::{KeyCode, MouseButton},
     material,
     prelude::{Material, MaterialParams, PipelineParams, ShaderSource},
