@@ -5,6 +5,7 @@ use nalgebra::{Point2, Vector2};
 
 use crate::level::light_grid::{AngleRange, LightGrid};
 
+pub(crate) mod dummy;
 pub(crate) mod player;
 
 #[derive(Debug)]

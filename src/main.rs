@@ -9,7 +9,10 @@ use nalgebra::{Point2, UnitVector2, Vector2, point, vector};
 
 use crate::{
     input::DirectionalInput,
-    level::{Level, entity::player::Player},
+    level::{
+        Level,
+        entity::{dummy::Dummy, player::Player},
+    },
 };
 
 pub(crate) mod collections;
@@ -90,17 +93,31 @@ impl State {
         State {
             fullscreen: true,
 
-            level: Level::new(vec![Box::new(Player {
-                position: point![0.0, 0.0],
-                size: vector![6.0, 6.0],
+            level: Level::new(vec![
+                Box::new(Player {
+                    position: point![0.0, 0.0],
+                    size: vector![6.0, 6.0],
 
-                mouse_position: point![0.0, 0.0],
-                view_direction: UnitVector2::new_normalize(vector![1.0, 0.0]),
-                view_width: 120.0 * PI / 180.0,
+                    mouse_position: point![0.0, 0.0],
+                    view_direction: UnitVector2::new_normalize(vector![1.0, 0.0]),
+                    view_width: 120.0 * PI / 180.0,
 
-                speed: 64.0,
-                motion_input: DirectionalInput::new(KeyCode::D, KeyCode::W, KeyCode::A, KeyCode::S),
-            })]),
+                    speed: 64.0,
+                    motion_input: DirectionalInput::new(
+                        KeyCode::D,
+                        KeyCode::W,
+                        KeyCode::A,
+                        KeyCode::S,
+                    ),
+                }),
+                Box::new(Dummy {
+                    position: point![0.0, 0.0],
+                    size: vector![6.0, 6.0],
+
+                    view_direction: UnitVector2::new_normalize(vector![1.0, 0.0]),
+                    view_width: 120.0 * PI / 180.0,
+                }),
+            ]),
         }
     }
 }
