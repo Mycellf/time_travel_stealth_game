@@ -220,15 +220,24 @@ impl Level {
 
             material::gl_use_material(&self.mask_material);
 
-            // TODO: This doesn't always draw the player's view area first.
             for &(ref area, color) in &view_areas {
-                area.draw(color, color, self.draw_corners);
+                if color == colors::BLANK {
+                    area.draw_all(colors::BLANK, colors::BLANK, self.draw_corners);
+                } else {
+                    area.draw_direct_lighting(colors::BLANK);
+                }
             }
 
             material::gl_use_default_material();
 
             self.draw_mask_texture();
             camera::pop_camera_state();
+
+            for &(ref area, color) in &view_areas {
+                if color != colors::BLANK {
+                    area.draw_direct_lighting(color);
+                }
+            }
         }
 
         for (_, entity) in &mut self.entities {

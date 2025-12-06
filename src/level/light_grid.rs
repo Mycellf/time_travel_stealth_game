@@ -737,7 +737,7 @@ impl LightArea {
         }
     }
 
-    pub fn draw(&self, direct_color: Color, wall_color: Color, draw_corners: bool) {
+    pub fn draw_all(&self, direct_color: Color, wall_color: Color, draw_corners: bool) {
         self.draw_direct_lighting(direct_color);
         self.draw_wall_lighting(wall_color, draw_corners);
     }
