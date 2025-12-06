@@ -37,6 +37,14 @@ impl<K, V> SmallMap<K, V>
 where
     K: Key,
 {
+    pub fn len(&self) -> usize {
+        self.len
+    }
+
+    pub fn is_empty(&self) -> bool {
+        self.len == 0
+    }
+
     pub fn insert(&mut self, value: V) -> K {
         while self.first_free >= self.data.len() {
             self.data.push(None);
@@ -94,6 +102,137 @@ where
 {
     fn index_mut(&mut self, index: K) -> &mut Self::Output {
         self.get_mut(index).unwrap()
+    }
+}
+
+pub struct IntoIter<K: Key, V> {
+    inner: Vec<Option<V>>,
+    _phantom: PhantomData<K>,
+}
+
+impl<K: Key, V> IntoIterator for SmallMap<K, V> {
+    type Item = V;
+
+    type IntoIter = IntoIter<K, V>;
+
+    fn into_iter(self) -> Self::IntoIter {
+        IntoIter {
+            inner: self.data,
+            _phantom: PhantomData,
+        }
+    }
+}
+
+impl<K: Key, V> Iterator for IntoIter<K, V> {
+    type Item = V;
+
+    fn next(&mut self) -> Option<Self::Item> {
+        loop {
+            if let Some(element) = self.inner.pop()? {
+                return Some(element);
+            }
+        }
+    }
+}
+
+pub struct Iter<'a, K: Key, V> {
+    inner: &'a [Option<V>],
+    _phantom: PhantomData<K>,
+}
+
+impl<K: Key, V> SmallMap<K, V> {
+    pub fn iter(&self) -> Iter<K, V> {
+        Iter {
+            inner: &self.data,
+            _phantom: PhantomData,
+        }
+    }
+}
+
+impl<'a, K: Key, V> IntoIterator for &'a SmallMap<K, V> {
+    type Item = (K, &'a V);
+
+    type IntoIter = Iter<'a, K, V>;
+
+    fn into_iter(self) -> Self::IntoIter {
+        self.iter()
+    }
+}
+
+impl<'a, K: Key, V> Iterator for Iter<'a, K, V> {
+    type Item = (K, &'a V);
+
+    fn next(&mut self) -> Option<Self::Item> {
+        loop {
+            if let Some(element) = self.inner.split_off_last()? {
+                let key = K::try_from_usize(self.inner.len()).unwrap();
+                return Some((key, element));
+            }
+        }
+    }
+}
+
+pub struct IterMut<'a, K: Key, V> {
+    inner: &'a mut [Option<V>],
+    _phantom: PhantomData<K>,
+}
+
+impl<K: Key, V> SmallMap<K, V> {
+    pub fn iter_mut(&mut self) -> IterMut<K, V> {
+        IterMut {
+            inner: &mut self.data,
+            _phantom: PhantomData,
+        }
+    }
+}
+
+impl<'a, K: Key, V> IntoIterator for &'a mut SmallMap<K, V> {
+    type Item = (K, &'a mut V);
+
+    type IntoIter = IterMut<'a, K, V>;
+
+    fn into_iter(self) -> Self::IntoIter {
+        self.iter_mut()
+    }
+}
+
+impl<'a, K: Key, V> Iterator for IterMut<'a, K, V> {
+    type Item = (K, &'a mut V);
+
+    fn next(&mut self) -> Option<Self::Item> {
+        loop {
+            if let Some(element) = self.inner.split_off_last_mut()? {
+                let key = K::try_from_usize(self.inner.len()).unwrap();
+                return Some((key, element));
+            }
+        }
+    }
+}
+
+pub struct Keys<'a, K: Key, V> {
+    inner: &'a [Option<V>],
+    _phantom: PhantomData<K>,
+}
+
+impl<K: Key, V> SmallMap<K, V> {
+    pub fn keys(&self) -> Keys<K, V> {
+        Keys {
+            inner: &self.data,
+            _phantom: PhantomData,
+        }
+    }
+}
+
+impl<'a, K: Key, V> Iterator for Keys<'a, K, V> {
+    type Item = K;
+
+    fn next(&mut self) -> Option<Self::Item> {
+        loop {
+            if let Some(_) = self.inner.split_off_last()? {
+                let key = K::try_from_usize(self.inner.len()).unwrap();
+                return Some(key);
+            }
+        }
     }
 }
 
