@@ -4,7 +4,7 @@ use nalgebra::{Point2, UnitVector2, Vector2, point};
 use crate::{
     collections::tile_grid::TileRect,
     level::{
-        entity::Entity,
+        entity::{Entity, ViewKind},
         light_grid::{AngleRange, LightGrid},
     },
 };
@@ -57,8 +57,8 @@ impl Entity for Dummy {
         ))
     }
 
-    fn view_color(&self) -> Option<Color> {
-        Some(Color::new(1.0, 0.25, 0.25, 0.1))
+    fn view_kind(&self) -> Option<ViewKind> {
+        Some(ViewKind::Past)
     }
 
     fn duplicate(&self) -> Box<dyn Entity> {

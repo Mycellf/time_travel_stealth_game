@@ -2,7 +2,7 @@ use std::mem;
 
 use macroquad::{
     camera::{self, Camera2D},
-    color::colors,
+    color::{Color, colors},
     input::{KeyCode, MouseButton},
     material,
     prelude::{Material, MaterialParams, PipelineParams, ShaderSource},
@@ -15,7 +15,7 @@ use slotmap::{SlotMap, new_key_type};
 use crate::{
     collections::tile_grid::{TileGrid, TileIndex},
     level::{
-        entity::{Entity, EntityTracker},
+        entity::{Entity, EntityTracker, ViewKind},
         light_grid::{LightGrid, Pixel},
         tile::{TILE_KINDS, Tile, TileKind, TileKindKey},
     },
@@ -170,13 +170,13 @@ impl Level {
             .iter()
             .map(|(_, entity)| {
                 let view_range = entity.inner.view_range()?;
-                let view_color = entity.inner.view_color()?;
+                let view_kind = entity.inner.view_kind()?;
 
                 let position = entity.inner.position();
 
                 Some((
                     self.light_grid.trace_light_from(position, Some(view_range)),
-                    view_color,
+                    view_kind,
                 ))
             })
             .flatten()
@@ -220,11 +220,24 @@ impl Level {
 
             material::gl_use_material(&self.mask_material);
 
-            for &(ref area, color) in &view_areas {
-                if color == colors::BLANK {
-                    area.draw_all(colors::BLANK, colors::BLANK, self.draw_corners);
-                } else {
-                    area.draw_direct_lighting(colors::BLANK);
+            for &(ref area, kind) in &view_areas {
+                match kind {
+                    ViewKind::Present => {
+                        area.draw_all(colors::BLANK, colors::BLANK);
+                    }
+                    ViewKind::Past => (),
+                }
+            }
+
+            for &(ref area, kind) in &view_areas {
+                match kind {
+                    ViewKind::Past => {
+                        area.draw_all(
+                            Color::new(1.0, 0.0, 0.0, 0.2),
+                            Color::new(1.0, 0.0, 0.0, 0.2),
+                        );
+                    }
+                    ViewKind::Present => (),
                 }
             }
 
@@ -232,12 +245,6 @@ impl Level {
 
             self.draw_mask_texture();
             camera::pop_camera_state();
-
-            for &(ref area, color) in &view_areas {
-                if color != colors::BLANK {
-                    area.draw_direct_lighting(color);
-                }
-            }
         }
 
         for (_, entity) in &mut self.entities {

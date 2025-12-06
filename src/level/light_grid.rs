@@ -737,9 +737,9 @@ impl LightArea {
         }
     }
 
-    pub fn draw_all(&self, direct_color: Color, wall_color: Color, draw_corners: bool) {
+    pub fn draw_all(&self, direct_color: Color, wall_color: Color) {
         self.draw_direct_lighting(direct_color);
-        self.draw_wall_lighting(wall_color, draw_corners);
+        self.draw_wall_lighting(wall_color);
     }
 
     pub fn draw_direct_lighting(&self, color: Color) {
@@ -748,7 +748,7 @@ impl LightArea {
         }
     }
 
-    pub fn draw_wall_lighting(&self, color: Color, draw_corners: bool) {
+    pub fn draw_wall_lighting(&self, color: Color) {
         for window in self.rays.windows(2) {
             let &[
                 StoredRay {
@@ -798,19 +798,17 @@ impl LightArea {
             shapes::draw_rectangle(position_min.x, position_min.y, size.x, size.y, color);
         }
 
-        if draw_corners {
-            for &StoredRay { offset, collision } in &self.rays {
-                if let Some(RayCollisionNormal::Corner(direction, true)) = collision {
-                    if direction.is_concave() {
-                        let position = (self.origin + offset).map(|x| x as f32);
-                        shapes::draw_rectangle(
-                            position.x - Self::PENETRATION * direction.is_east() as i8 as f32,
-                            position.y - Self::PENETRATION * direction.is_south() as i8 as f32,
-                            Self::PENETRATION,
-                            Self::PENETRATION,
-                            color,
-                        );
-                    }
+        for &StoredRay { offset, collision } in &self.rays {
+            if let Some(RayCollisionNormal::Corner(direction, true)) = collision {
+                if direction.is_concave() {
+                    let position = (self.origin + offset).map(|x| x as f32);
+                    shapes::draw_rectangle(
+                        position.x - Self::PENETRATION * direction.is_east() as i8 as f32,
+                        position.y - Self::PENETRATION * direction.is_south() as i8 as f32,
+                        Self::PENETRATION,
+                        Self::PENETRATION,
+                        color,
+                    );
                 }
             }
         }

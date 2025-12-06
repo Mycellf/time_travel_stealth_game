@@ -1,9 +1,6 @@
 use std::fmt::Debug;
 
-use macroquad::{
-    color::Color,
-    input::{KeyCode, MouseButton},
-};
+use macroquad::input::{KeyCode, MouseButton};
 use nalgebra::{Point2, Vector2};
 
 use crate::level::light_grid::{AngleRange, LightGrid};
@@ -69,7 +66,7 @@ pub trait Entity: 'static + Debug {
         None
     }
 
-    fn view_color(&self) -> Option<Color> {
+    fn view_kind(&self) -> Option<ViewKind> {
         None
     }
 
@@ -88,4 +85,10 @@ pub trait Entity: 'static + Debug {
     fn mouse_up(&mut self, _input: MouseButton, _position: Point2<f64>) {}
 
     fn mouse_moved(&mut self, _position: Point2<f64>, _delta: Vector2<f64>) {}
+}
+
+#[derive(Clone, Copy, Debug)]
+pub enum ViewKind {
+    Present,
+    Past,
 }

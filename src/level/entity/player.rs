@@ -10,7 +10,7 @@ use crate::{
     collections::tile_grid::TileRect,
     input::DirectionalInput,
     level::{
-        entity::Entity,
+        entity::{Entity, ViewKind},
         light_grid::{AngleRange, LightGrid},
     },
 };
@@ -79,8 +79,8 @@ impl Entity for Player {
         ))
     }
 
-    fn view_color(&self) -> Option<Color> {
-        Some(colors::BLANK)
+    fn view_kind(&self) -> Option<ViewKind> {
+        Some(ViewKind::Present)
     }
 
     fn duplicate(&self) -> Box<dyn Entity> {
