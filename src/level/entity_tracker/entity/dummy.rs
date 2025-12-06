@@ -4,7 +4,7 @@ use nalgebra::{Point2, UnitVector2, Vector2, point};
 use crate::{
     collections::tile_grid::TileRect,
     level::{
-        entity::{Entity, ViewKind},
+        entity_tracker::entity::{Entity, ViewKind},
         light_grid::{AngleRange, LightGrid},
     },
 };

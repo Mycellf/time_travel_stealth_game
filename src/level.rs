@@ -15,13 +15,16 @@ use slotmap::{SlotMap, new_key_type};
 use crate::{
     collections::tile_grid::{TileGrid, TileIndex},
     level::{
-        entity::{Entity, EntityTracker, ViewKind},
+        entity_tracker::{
+            EntityTracker,
+            entity::{Entity, ViewKind},
+        },
         light_grid::{LightGrid, Pixel},
         tile::{TILE_KINDS, Tile, TileKind, TileKindKey},
     },
 };
 
-pub(crate) mod entity;
+pub(crate) mod entity_tracker;
 pub(crate) mod light_grid;
 pub(crate) mod tile;
 

@@ -1,12 +1,9 @@
-use std::fmt::Debug;
-
 use macroquad::input::{KeyCode, MouseButton};
 use nalgebra::{Point2, Vector2};
 
-use crate::level::light_grid::{AngleRange, LightGrid};
+use crate::level::{entity_tracker::entity::Entity, light_grid::LightGrid};
 
-pub(crate) mod dummy;
-pub(crate) mod player;
+pub(crate) mod entity;
 
 #[derive(Debug)]
 pub struct EntityTracker {
@@ -53,42 +50,4 @@ impl Clone for EntityTracker {
             inner: self.inner.duplicate(),
         }
     }
-}
-
-pub trait Entity: 'static + Debug {
-    fn update(&mut self, light_grid: &mut LightGrid);
-
-    fn draw(&mut self);
-
-    fn position(&self) -> Point2<f64>;
-
-    fn view_range(&self) -> Option<AngleRange> {
-        None
-    }
-
-    fn view_kind(&self) -> Option<ViewKind> {
-        None
-    }
-
-    fn duplicate(&self) -> Box<dyn Entity>;
-
-    fn always_visible(&self) -> bool;
-
-    fn should_recieve_inputs(&self) -> bool;
-
-    fn key_down(&mut self, _input: KeyCode) {}
-
-    fn key_up(&mut self, _input: KeyCode) {}
-
-    fn mouse_down(&mut self, _input: MouseButton, _position: Point2<f64>) {}
-
-    fn mouse_up(&mut self, _input: MouseButton, _position: Point2<f64>) {}
-
-    fn mouse_moved(&mut self, _position: Point2<f64>, _delta: Vector2<f64>) {}
-}
-
-#[derive(Clone, Copy, Debug)]
-pub enum ViewKind {
-    Present,
-    Past,
 }

@@ -1,16 +1,11 @@
-use macroquad::{
-    color::{Color, colors},
-    input::KeyCode,
-    math::Rect,
-    shapes, time,
-};
+use macroquad::{color::Color, input::KeyCode, math::Rect, shapes, time};
 use nalgebra::{Point2, UnitVector2, Vector2, point};
 
 use crate::{
     collections::tile_grid::TileRect,
     input::DirectionalInput,
     level::{
-        entity::{Entity, ViewKind},
+        entity_tracker::entity::{Entity, ViewKind},
         light_grid::{AngleRange, LightGrid},
     },
 };

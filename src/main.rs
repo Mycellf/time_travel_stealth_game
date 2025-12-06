@@ -11,7 +11,7 @@ use crate::{
     input::DirectionalInput,
     level::{
         Level,
-        entity::{dummy::Dummy, player::Player},
+        entity_tracker::entity::{dummy::Dummy, player::Player},
     },
 };
 
