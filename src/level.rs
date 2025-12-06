@@ -182,11 +182,10 @@ impl Level {
             .flatten()
             .collect::<Vec<_>>();
 
-        let bounds = self.tile_grid.bounds();
-
         {
             let tile_kinds = tile::TILE_KINDS.lock().unwrap();
 
+            let bounds = self.tile_grid.bounds();
             for x in bounds.left()..bounds.right() + 1 {
                 for y in bounds.top()..bounds.bottom() + 1 {
                     let Some(tile) = self.tile_grid[point![x, y]] else {
