@@ -18,7 +18,7 @@ use crate::{
     level::{
         entity::{Entity, EntityTracker},
         light_grid::{LightGrid, Pixel},
-        tile::{Tile, TileKind, TileKindKey},
+        tile::{TILE_KINDS, Tile, TileKind, TileKindKey},
     },
 };
 
@@ -96,24 +96,29 @@ impl Level {
             tile_grid: TileGrid::default(),
             light_grid: LightGrid::default(),
 
-            brushes: vec![
-                tile::add_tile_kind(TileKind {
-                    pixel_kind: Pixel::Solid,
-                    texture_location: point![0, 0],
-                }),
-                tile::add_tile_kind(TileKind {
-                    pixel_kind: Pixel::Solid,
-                    texture_location: point![1, 0],
-                }),
-                tile::add_tile_kind(TileKind {
-                    pixel_kind: Pixel::None,
-                    texture_location: point![0, 1],
-                }),
-                tile::add_tile_kind(TileKind {
-                    pixel_kind: Pixel::None,
-                    texture_location: point![1, 1],
-                }),
-            ],
+            brushes: if TILE_KINDS.lock().unwrap().is_empty() {
+                drop(TILE_KINDS.lock().unwrap());
+                vec![
+                    tile::add_tile_kind(TileKind {
+                        pixel_kind: Pixel::Solid,
+                        texture_location: point![0, 0],
+                    }),
+                    tile::add_tile_kind(TileKind {
+                        pixel_kind: Pixel::Solid,
+                        texture_location: point![1, 0],
+                    }),
+                    tile::add_tile_kind(TileKind {
+                        pixel_kind: Pixel::None,
+                        texture_location: point![0, 1],
+                    }),
+                    tile::add_tile_kind(TileKind {
+                        pixel_kind: Pixel::None,
+                        texture_location: point![1, 1],
+                    }),
+                ]
+            } else {
+                TILE_KINDS.lock().unwrap().keys().collect()
+            },
             brush: usize::MAX,
             drawing: false,
             precise_fill: false,
