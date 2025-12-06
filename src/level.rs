@@ -45,7 +45,6 @@ pub struct Level {
     pub drawing: bool,
     pub precise_fill: bool,
     pub full_vision: bool,
-    pub draw_corners: bool,
 }
 
 new_key_type! {
@@ -114,7 +113,6 @@ impl Level {
             drawing: false,
             precise_fill: false,
             full_vision: true,
-            draw_corners: true,
         };
 
         result.load_initial_state();
@@ -284,9 +282,6 @@ impl Level {
         match input {
             KeyCode::V => {
                 self.full_vision ^= true;
-            }
-            KeyCode::C => {
-                self.draw_corners ^= true;
             }
             KeyCode::LeftShift => {
                 self.precise_fill = true;
