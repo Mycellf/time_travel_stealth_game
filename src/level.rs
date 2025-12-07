@@ -162,7 +162,8 @@ impl Level {
 
     pub fn update(&mut self) {
         for key in self.entities.keys().collect::<Vec<_>>() {
-            let (entity, guard) = SlotGuard::new(&mut self.entities, key);
+            // SAFETY: SlotMap doesn't allow accessing the same value with unequal keys.
+            let (entity, guard) = unsafe { SlotGuard::new(&mut self.entities, key) };
 
             entity.update(guard, &mut self.light_grid);
         }

@@ -8,7 +8,9 @@ use slotmap::SlotMap;
 
 pub type GuardedSlotMap<'a, K, V> = SlotGuard<'a, SlotMap<K, V>, K, V>;
 
-/// HACK: This is probably unsound if `K` doesn't implement `Eq` correctly
+/// # Safety
+///
+/// This is unsound if `T` allows accessing the same value with multiple (unequal) `K` values.
 #[derive(Debug)]
 pub struct SlotGuard<'a, T, K, V> {
     collection: &'a mut T,
@@ -17,14 +19,21 @@ pub struct SlotGuard<'a, T, K, V> {
 }
 
 impl<'a, K, V, T> SlotGuard<'a, T, K, V> {
-    pub fn new(collection: &'a mut T, protected_slot: K) -> (&'a mut V, Self)
+    /// # Safety
+    ///
+    /// This is unsound if `T` allows accessing the same value with multiple (unequal) `K` values.
+    pub unsafe fn new(collection: &'a mut T, protected_slot: K) -> (&'a mut V, Self)
     where
-        K: Clone,
+        K: Clone + Eq + Debug,
         T: IndexMut<K, Output = V>,
     {
+        // Basic sanity check for the valididy of Eq.
+        assert_eq!(protected_slot, protected_slot);
+
         let value = &mut collection[protected_slot.clone()];
 
-        // SAFETY: The returned reference should only live as long as Self
+        // SAFETY: The returned reference should only live as long as 'a, and aliasing should be
+        // prevented by the SlotGuard.
         let value = unsafe { &mut *(value as *mut V) };
 
         (
