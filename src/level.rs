@@ -34,7 +34,7 @@ pub(crate) mod tile;
 pub const TILE_SIZE: isize = 8;
 
 pub struct Level {
-    pub initial_state: Vec<Box<dyn Entity>>,
+    pub initial_state: SlotMap<EntityKey, EntityTracker>,
 
     pub entities: SlotMap<EntityKey, EntityTracker>,
     pub input_readers: Vec<EntityKey>,
@@ -70,11 +70,13 @@ impl Level {
         let size = crate::screen_pixel_size();
         mask_texture.render_target = Some(texture::render_target(size.x, size.y));
 
-        let mut result = Level {
-            initial_state,
+        let (entities, input_readers) = Self::entities_from_initial_state(initial_state);
 
-            entities: SlotMap::default(),
-            input_readers: Vec::new(),
+        Level {
+            initial_state: entities.clone(),
+
+            entities,
+            input_readers,
 
             texture_atlas,
             mask_texture,
@@ -119,11 +121,7 @@ impl Level {
             drawing: false,
             precise_fill: false,
             full_vision: false,
-        };
-
-        result.load_initial_state();
-
-        result
+        }
     }
 
     pub fn save(&self) -> Vec<u8> {
@@ -163,25 +161,32 @@ impl Level {
         }
     }
 
-    pub fn load_initial_state(&mut self) {
-        self.entities.clear();
-        self.input_readers.clear();
+    pub fn entities_from_initial_state(
+        initial_state: Vec<Box<dyn Entity>>,
+    ) -> (SlotMap<EntityKey, EntityTracker>, Vec<EntityKey>) {
+        let mut entities = SlotMap::default();
+        let mut input_readers = Vec::new();
 
-        let initial_state = mem::take(&mut self.initial_state);
+        for entity in initial_state {
+            let needs_input = entity.should_recieve_inputs();
+            let key = entities.insert(EntityTracker::new(entity.duplicate()));
 
-        for entity in initial_state.iter() {
-            self.insert_entity(entity.duplicate());
+            if needs_input {
+                input_readers.push(key);
+            }
         }
 
-        self.initial_state = initial_state;
+        (entities, input_readers)
     }
 
-    pub fn insert_entity(&mut self, entity: Box<dyn Entity>) {
-        let needs_input = entity.should_recieve_inputs();
-        let key = self.entities.insert(EntityTracker::new(entity.duplicate()));
+    pub fn load_initial_state(&mut self) {
+        self.entities.clone_from(&self.initial_state);
+        self.input_readers.clear();
 
-        if needs_input {
-            self.input_readers.push(key);
+        for (key, entity) in &self.entities {
+            if entity.inner.should_recieve_inputs() {
+                self.input_readers.push(key);
+            }
         }
     }
 
@@ -190,7 +195,7 @@ impl Level {
             // SAFETY: SlotMap doesn't allow accessing the same value with unequal keys.
             let (entity, guard) = unsafe { SlotGuard::new(&mut self.entities, key) };
 
-            entity.update(guard, &mut self.light_grid);
+            entity.update(guard, &mut self.light_grid, &mut self.initial_state);
         }
     }
 

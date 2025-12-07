@@ -1,5 +1,6 @@
 use macroquad::{color::Color, input::KeyCode, math::Rect, shapes, time};
 use nalgebra::{Point2, UnitVector2, Vector2, point};
+use slotmap::SlotMap;
 
 use crate::{
     collections::{slot_guard::GuardedSlotMap, tile_grid::TileRect},
@@ -25,6 +26,16 @@ pub struct Player {
 
     pub motion_input: DirectionalInput,
     pub speed: f64,
+
+    pub state: PlayerState,
+}
+
+#[derive(Clone, Copy, PartialEq, Eq, Debug)]
+pub enum PlayerState {
+    Active,
+    Reset,
+    Recording,
+    Disabled,
 }
 
 impl Player {
@@ -43,20 +54,40 @@ impl Player {
 impl Entity for Player {
     fn update(
         &mut self,
-        _entities: GuardedSlotMap<EntityKey, EntityTracker>,
+        entities: GuardedSlotMap<EntityKey, EntityTracker>,
         light_grid: &mut LightGrid,
+        initial_state: &mut SlotMap<EntityKey, EntityTracker>,
     ) {
-        if let Some(new_direction) =
-            UnitVector2::try_new(self.mouse_position - self.position, f64::EPSILON)
-        {
-            self.view_direction = new_direction;
+        match self.state {
+            PlayerState::Active => {
+                if let Some(new_direction) =
+                    UnitVector2::try_new(self.mouse_position - self.position, f64::EPSILON)
+                {
+                    self.view_direction = new_direction;
+                }
+
+                let motion = self.motion_input.normalized_output()
+                    * self.speed
+                    * time::get_frame_time() as f64;
+
+                self.move_along_axis::<0>(light_grid, motion.x);
+                self.move_along_axis::<1>(light_grid, motion.y);
+            }
+            PlayerState::Reset => {
+                initial_state[*entities.protected_slot()]
+                    .inner
+                    .as_player_mut()
+                    .unwrap()
+                    .state = PlayerState::Recording;
+
+                self.state = PlayerState::Active;
+                initial_state.insert(EntityTracker::new(Box::new(self.clone())));
+
+                self.state = PlayerState::Disabled;
+            }
+            PlayerState::Recording => (),
+            PlayerState::Disabled => (),
         }
-
-        let motion =
-            self.motion_input.normalized_output() * self.speed * time::get_frame_time() as f64;
-
-        self.move_along_axis::<0>(light_grid, motion.x);
-        self.move_along_axis::<1>(light_grid, motion.y);
     }
 
     fn draw(&mut self) {
@@ -83,7 +114,12 @@ impl Entity for Player {
     }
 
     fn view_kind(&self) -> Option<ViewKind> {
-        Some(ViewKind::Present)
+        match self.state {
+            PlayerState::Active => Some(ViewKind::Present),
+            PlayerState::Reset => None,
+            PlayerState::Recording => Some(ViewKind::Past),
+            PlayerState::Disabled => None,
+        }
     }
 
     fn duplicate(&self) -> Box<dyn Entity> {
@@ -95,11 +131,16 @@ impl Entity for Player {
     }
 
     fn should_recieve_inputs(&self) -> bool {
-        true
+        self.state == PlayerState::Active
     }
 
     fn key_down(&mut self, input: KeyCode) {
         self.motion_input.key_down(input);
+
+        match input {
+            KeyCode::T => self.state = PlayerState::Reset,
+            _ => (),
+        }
     }
 
     fn key_up(&mut self, input: KeyCode) {
@@ -108,6 +149,10 @@ impl Entity for Player {
 
     fn mouse_moved(&mut self, position: Point2<f64>, _delta: Vector2<f64>) {
         self.mouse_position = position;
+    }
+
+    fn as_player_mut(&mut self) -> Option<&mut Player> {
+        Some(self)
     }
 }
 

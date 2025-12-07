@@ -1,5 +1,6 @@
 use macroquad::input::{KeyCode, MouseButton};
 use nalgebra::{Point2, Vector2};
+use slotmap::SlotMap;
 
 use crate::{
     collections::slot_guard::GuardedSlotMap,
@@ -22,8 +23,9 @@ impl EntityTracker {
         &mut self,
         entities: GuardedSlotMap<EntityKey, EntityTracker>,
         light_grid: &mut LightGrid,
+        initial_state: &mut SlotMap<EntityKey, EntityTracker>,
     ) {
-        self.inner.update(entities, light_grid);
+        self.inner.update(entities, light_grid, initial_state);
     }
 
     pub fn draw(&mut self) {
@@ -31,23 +33,33 @@ impl EntityTracker {
     }
 
     pub fn key_down(&mut self, input: KeyCode) {
-        self.inner.key_down(input);
+        if self.inner.should_recieve_inputs() {
+            self.inner.key_down(input);
+        }
     }
 
     pub fn key_up(&mut self, input: KeyCode) {
-        self.inner.key_up(input);
+        if self.inner.should_recieve_inputs() {
+            self.inner.key_up(input);
+        }
     }
 
     pub fn mouse_down(&mut self, input: MouseButton, position: Point2<f64>) {
-        self.inner.mouse_down(input, position);
+        if self.inner.should_recieve_inputs() {
+            self.inner.mouse_down(input, position);
+        }
     }
 
     pub fn mouse_up(&mut self, input: MouseButton, position: Point2<f64>) {
-        self.inner.mouse_up(input, position);
+        if self.inner.should_recieve_inputs() {
+            self.inner.mouse_up(input, position);
+        }
     }
 
     pub fn mouse_moved(&mut self, position: Point2<f64>, delta: Vector2<f64>) {
-        self.inner.mouse_moved(position, delta);
+        if self.inner.should_recieve_inputs() {
+            self.inner.mouse_moved(position, delta);
+        }
     }
 }
 

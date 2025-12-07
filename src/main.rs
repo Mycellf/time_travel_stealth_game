@@ -11,7 +11,10 @@ use nalgebra::{Point2, UnitVector2, Vector2, point, vector};
 
 use crate::{
     input::DirectionalInput,
-    level::{Level, entity_tracker::entity::player::Player},
+    level::{
+        Level,
+        entity_tracker::entity::player::{Player, PlayerState},
+    },
 };
 
 pub(crate) mod collections;
@@ -99,6 +102,8 @@ impl State {
 
             speed: 64.0,
             motion_input: DirectionalInput::new(KeyCode::D, KeyCode::W, KeyCode::A, KeyCode::S),
+
+            state: PlayerState::Active,
         })]);
 
         if let Ok(data) = fs::read("resources/level") {

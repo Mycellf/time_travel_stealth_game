@@ -65,6 +65,10 @@ impl<'a, K, V, T> SlotGuard<'a, T, K, V> {
             .into_iter()
             .filter(|(slot, _)| *slot != self.protected_slot)
     }
+
+    pub fn protected_slot(&self) -> &K {
+        &self.protected_slot
+    }
 }
 
 impl<'a, K, V, T> Index<K> for SlotGuard<'a, T, K, V>

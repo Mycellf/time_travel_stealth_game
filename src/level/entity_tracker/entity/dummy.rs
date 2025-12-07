@@ -1,5 +1,6 @@
 use macroquad::{color::Color, math::Rect, shapes};
 use nalgebra::{Point2, UnitVector2, Vector2, point};
+use slotmap::SlotMap;
 
 use crate::{
     collections::{slot_guard::GuardedSlotMap, tile_grid::TileRect},
@@ -40,6 +41,7 @@ impl Entity for Dummy {
         &mut self,
         _entities: GuardedSlotMap<EntityKey, EntityTracker>,
         _light_grid: &mut LightGrid,
+        initial_state: &mut SlotMap<EntityKey, EntityTracker>,
     ) {
     }
 

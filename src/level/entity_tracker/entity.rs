@@ -2,12 +2,13 @@ use std::fmt::Debug;
 
 use macroquad::input::{KeyCode, MouseButton};
 use nalgebra::{Point2, Vector2};
+use slotmap::SlotMap;
 
 use crate::{
     collections::slot_guard::GuardedSlotMap,
     level::{
         EntityKey,
-        entity_tracker::EntityTracker,
+        entity_tracker::{EntityTracker, entity::player::Player},
         light_grid::{AngleRange, LightGrid},
     },
 };
@@ -20,6 +21,7 @@ pub trait Entity: 'static + Debug {
         &mut self,
         entities: GuardedSlotMap<EntityKey, EntityTracker>,
         light_grid: &mut LightGrid,
+        initial_state: &mut SlotMap<EntityKey, EntityTracker>,
     );
 
     fn draw(&mut self);
@@ -49,6 +51,10 @@ pub trait Entity: 'static + Debug {
     fn mouse_up(&mut self, _input: MouseButton, _position: Point2<f64>) {}
 
     fn mouse_moved(&mut self, _position: Point2<f64>, _delta: Vector2<f64>) {}
+
+    fn as_player_mut(&mut self) -> Option<&mut Player> {
+        None
+    }
 }
 
 #[derive(Clone, Copy, Debug)]
