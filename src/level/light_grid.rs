@@ -703,16 +703,20 @@ pub struct LightArea {
 impl LightArea {
     pub const PENETRATION: f32 = 4.0;
 
+    pub fn points(&self) -> impl Iterator<Item = Point2<f64>> {
+        self.rays
+            .iter()
+            .map(|ray| self.origin + ray.offset)
+            .chain(self.range.is_some().then(|| self.origin))
+    }
+
     pub fn mesh(&self, color: Color) -> Option<Mesh> {
         let color = color.into();
 
         let vertices = self
-            .rays
-            .iter()
-            .map(|ray| (self.origin + ray.offset).map(|x| x as f32))
-            .chain(self.range.is_some().then(|| self.origin.map(|x| x as f32)))
+            .points()
             .map(|point| Vertex {
-                position: Vec3::new(point.x, point.y, 0.0),
+                position: Vec3::new(point.x as f32, point.y as f32, 0.0),
                 uv: Vec2::ZERO,
                 color,
                 normal: Vec4::ZERO,
@@ -813,6 +817,56 @@ impl LightArea {
             }
         }
     }
+
+    pub fn edge_intersects_line(&self, line: [Point2<f64>; 2]) -> bool {
+        self.points()
+            .zip(self.points().skip(1).chain(self.points().next()))
+            .any(|edge| lines_intersect(edge.into(), line))
+    }
+}
+
+/// CREDIT: <https://www.geeksforgeeks.org/dsa/check-if-two-given-line-segments-intersect/>
+fn lines_intersect(lhs: [Point2<f64>; 2], rhs: [Point2<f64>; 2]) -> bool {
+    #[derive(Clone, Copy, PartialEq, Eq, Debug)]
+    enum Orientation {
+        CounterClockwise,
+        Straight,
+        Clockwise,
+    }
+
+    impl Orientation {
+        #[must_use]
+        fn is_straight(&self) -> bool {
+            matches!(self, Self::Straight)
+        }
+    }
+
+    fn orientation(p: Point2<f64>, q: Point2<f64>, r: Point2<f64>) -> Orientation {
+        let orientation = (q.y - p.y) * (r.x - q.x) - (q.x - p.x) * (r.y - q.y);
+
+        match orientation {
+            ..0.0 => Orientation::CounterClockwise,
+            0.0 => Orientation::Straight,
+            0.0.. => Orientation::Clockwise,
+
+            _ => Orientation::Straight,
+        }
+    }
+
+    fn on_segment(p: Point2<f64>, q: Point2<f64>, r: Point2<f64>) -> bool {
+        q.x <= p.x.max(r.x) && q.x >= p.x.min(r.x) && q.y <= p.y.min(r.y) && q.y >= p.y.min(r.y)
+    }
+
+    let o1 = orientation(lhs[0], lhs[1], rhs[0]);
+    let o2 = orientation(lhs[0], lhs[1], rhs[1]);
+    let o3 = orientation(rhs[0], rhs[1], lhs[0]);
+    let o4 = orientation(rhs[0], rhs[1], lhs[1]);
+
+    o1 != o2 && o3 != o4
+        || o1.is_straight() && on_segment(lhs[0], rhs[0], lhs[1])
+        || o2.is_straight() && on_segment(lhs[0], rhs[1], lhs[1])
+        || o3.is_straight() && on_segment(rhs[0], lhs[0], rhs[1])
+        || o4.is_straight() && on_segment(rhs[0], lhs[1], rhs[1])
 }
 
 #[derive(Clone, Copy, Debug)]
