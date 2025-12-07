@@ -13,7 +13,7 @@ pub struct SmallMap<K, V> {
     _phantom: PhantomData<K>,
 }
 
-pub trait Key: Sized {
+pub trait SmallKey: Sized {
     fn try_from_usize(value: usize) -> Option<Self>;
 
     fn into_usize(self) -> usize;
@@ -21,7 +21,7 @@ pub trait Key: Sized {
 
 impl<K, V> Default for SmallMap<K, V>
 where
-    K: Key,
+    K: SmallKey,
 {
     fn default() -> Self {
         Self {
@@ -35,7 +35,7 @@ where
 
 impl<K, V> SmallMap<K, V>
 where
-    K: Key,
+    K: SmallKey,
 {
     pub fn len(&self) -> usize {
         self.len
@@ -87,7 +87,7 @@ where
 
 impl<K, V> Index<K> for SmallMap<K, V>
 where
-    K: Key,
+    K: SmallKey,
 {
     type Output = V;
 
@@ -98,19 +98,19 @@ where
 
 impl<K, V> IndexMut<K> for SmallMap<K, V>
 where
-    K: Key,
+    K: SmallKey,
 {
     fn index_mut(&mut self, index: K) -> &mut Self::Output {
         self.get_mut(index).unwrap()
     }
 }
 
-pub struct IntoIter<K: Key, V> {
+pub struct IntoIter<K: SmallKey, V> {
     inner: Vec<Option<V>>,
     _phantom: PhantomData<K>,
 }
 
-impl<K: Key, V> IntoIterator for SmallMap<K, V> {
+impl<K: SmallKey, V> IntoIterator for SmallMap<K, V> {
     type Item = V;
 
     type IntoIter = IntoIter<K, V>;
@@ -123,7 +123,7 @@ impl<K: Key, V> IntoIterator for SmallMap<K, V> {
     }
 }
 
-impl<K: Key, V> Iterator for IntoIter<K, V> {
+impl<K: SmallKey, V> Iterator for IntoIter<K, V> {
     type Item = V;
 
     fn next(&mut self) -> Option<Self::Item> {
@@ -135,12 +135,12 @@ impl<K: Key, V> Iterator for IntoIter<K, V> {
     }
 }
 
-pub struct Iter<'a, K: Key, V> {
+pub struct Iter<'a, K: SmallKey, V> {
     inner: &'a [Option<V>],
     _phantom: PhantomData<K>,
 }
 
-impl<K: Key, V> SmallMap<K, V> {
+impl<K: SmallKey, V> SmallMap<K, V> {
     pub fn iter(&self) -> Iter<'_, K, V> {
         Iter {
             inner: &self.data,
@@ -149,7 +149,7 @@ impl<K: Key, V> SmallMap<K, V> {
     }
 }
 
-impl<'a, K: Key, V> IntoIterator for &'a SmallMap<K, V> {
+impl<'a, K: SmallKey, V> IntoIterator for &'a SmallMap<K, V> {
     type Item = (K, &'a V);
 
     type IntoIter = Iter<'a, K, V>;
@@ -159,7 +159,7 @@ impl<'a, K: Key, V> IntoIterator for &'a SmallMap<K, V> {
     }
 }
 
-impl<'a, K: Key, V> Iterator for Iter<'a, K, V> {
+impl<'a, K: SmallKey, V> Iterator for Iter<'a, K, V> {
     type Item = (K, &'a V);
 
     fn next(&mut self) -> Option<Self::Item> {
@@ -172,12 +172,12 @@ impl<'a, K: Key, V> Iterator for Iter<'a, K, V> {
     }
 }
 
-pub struct IterMut<'a, K: Key, V> {
+pub struct IterMut<'a, K: SmallKey, V> {
     inner: &'a mut [Option<V>],
     _phantom: PhantomData<K>,
 }
 
-impl<K: Key, V> SmallMap<K, V> {
+impl<K: SmallKey, V> SmallMap<K, V> {
     pub fn iter_mut(&mut self) -> IterMut<'_, K, V> {
         IterMut {
             inner: &mut self.data,
@@ -186,7 +186,7 @@ impl<K: Key, V> SmallMap<K, V> {
     }
 }
 
-impl<'a, K: Key, V> IntoIterator for &'a mut SmallMap<K, V> {
+impl<'a, K: SmallKey, V> IntoIterator for &'a mut SmallMap<K, V> {
     type Item = (K, &'a mut V);
 
     type IntoIter = IterMut<'a, K, V>;
@@ -196,7 +196,7 @@ impl<'a, K: Key, V> IntoIterator for &'a mut SmallMap<K, V> {
     }
 }
 
-impl<'a, K: Key, V> Iterator for IterMut<'a, K, V> {
+impl<'a, K: SmallKey, V> Iterator for IterMut<'a, K, V> {
     type Item = (K, &'a mut V);
 
     fn next(&mut self) -> Option<Self::Item> {
@@ -209,12 +209,12 @@ impl<'a, K: Key, V> Iterator for IterMut<'a, K, V> {
     }
 }
 
-pub struct Keys<'a, K: Key, V> {
+pub struct Keys<'a, K: SmallKey, V> {
     inner: &'a [Option<V>],
     _phantom: PhantomData<K>,
 }
 
-impl<K: Key, V> SmallMap<K, V> {
+impl<K: SmallKey, V> SmallMap<K, V> {
     pub fn keys(&self) -> Keys<'_, K, V> {
         Keys {
             inner: &self.data,
@@ -223,7 +223,7 @@ impl<K: Key, V> SmallMap<K, V> {
     }
 }
 
-impl<'a, K: Key, V> Iterator for Keys<'a, K, V> {
+impl<'a, K: SmallKey, V> Iterator for Keys<'a, K, V> {
     type Item = K;
 
     fn next(&mut self) -> Option<Self::Item> {
@@ -250,7 +250,7 @@ macro_rules! new_small_key_type {
         // Make it a bit harder to accidentally misuse the macro
         const _: () = assert!(<$inner>::BITS <= u32::BITS);
 
-        impl $crate::collections::small_map::Key for $name {
+        impl $crate::collections::small_map::SmallKey for $name {
             fn try_from_usize(value: usize) -> Option<Self> {
                 // If adding 1 overflows, it will result in 0, which will return an error
                 Some(Self(std::num::NonZero::new(<$inner>::try_from(value).ok()?.wrapping_add(1))?))
