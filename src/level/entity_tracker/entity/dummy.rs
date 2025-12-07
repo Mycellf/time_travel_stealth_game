@@ -2,9 +2,13 @@ use macroquad::{color::Color, math::Rect, shapes};
 use nalgebra::{Point2, UnitVector2, Vector2, point};
 
 use crate::{
-    collections::tile_grid::TileRect,
+    collections::{slot_guard::GuardedSlotMap, tile_grid::TileRect},
     level::{
-        entity_tracker::entity::{Entity, ViewKind},
+        EntityKey,
+        entity_tracker::{
+            EntityTracker,
+            entity::{Entity, ViewKind},
+        },
         light_grid::{AngleRange, LightGrid},
     },
 };
@@ -32,7 +36,12 @@ impl Dummy {
 }
 
 impl Entity for Dummy {
-    fn update(&mut self, _light_grid: &mut LightGrid) {}
+    fn update(
+        &mut self,
+        _entities: GuardedSlotMap<EntityKey, EntityTracker>,
+        _light_grid: &mut LightGrid,
+    ) {
+    }
 
     fn draw(&mut self) {
         let corner = self.position - self.size / 2.0;

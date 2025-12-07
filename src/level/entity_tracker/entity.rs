@@ -3,13 +3,24 @@ use std::fmt::Debug;
 use macroquad::input::{KeyCode, MouseButton};
 use nalgebra::{Point2, Vector2};
 
-use crate::level::light_grid::{AngleRange, LightGrid};
+use crate::{
+    collections::slot_guard::GuardedSlotMap,
+    level::{
+        EntityKey,
+        entity_tracker::EntityTracker,
+        light_grid::{AngleRange, LightGrid},
+    },
+};
 
 pub(crate) mod dummy;
 pub(crate) mod player;
 
 pub trait Entity: 'static + Debug {
-    fn update(&mut self, light_grid: &mut LightGrid);
+    fn update(
+        &mut self,
+        entities: GuardedSlotMap<EntityKey, EntityTracker>,
+        light_grid: &mut LightGrid,
+    );
 
     fn draw(&mut self);
 

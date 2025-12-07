@@ -2,10 +2,14 @@ use macroquad::{color::Color, input::KeyCode, math::Rect, shapes, time};
 use nalgebra::{Point2, UnitVector2, Vector2, point};
 
 use crate::{
-    collections::tile_grid::TileRect,
+    collections::{slot_guard::GuardedSlotMap, tile_grid::TileRect},
     input::DirectionalInput,
     level::{
-        entity_tracker::entity::{Entity, ViewKind},
+        EntityKey,
+        entity_tracker::{
+            EntityTracker,
+            entity::{Entity, ViewKind},
+        },
         light_grid::{AngleRange, LightGrid},
     },
 };
@@ -37,7 +41,15 @@ impl Player {
 }
 
 impl Entity for Player {
-    fn update(&mut self, light_grid: &mut LightGrid) {
+    fn update(
+        &mut self,
+        entities: GuardedSlotMap<EntityKey, EntityTracker>,
+        light_grid: &mut LightGrid,
+    ) {
+        for entity in entities.iter() {
+            println!("{entity:?}");
+        }
+
         if let Some(new_direction) =
             UnitVector2::try_new(self.mouse_position - self.position, f64::EPSILON)
         {

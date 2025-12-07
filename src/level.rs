@@ -13,7 +13,10 @@ use nalgebra::{Point2, Vector2, point};
 use slotmap::{SlotMap, new_key_type};
 
 use crate::{
-    collections::tile_grid::{TileGrid, TileIndex},
+    collections::{
+        slot_guard::SlotGuard,
+        tile_grid::{TileGrid, TileIndex},
+    },
     level::{
         entity_tracker::{
             EntityTracker,
@@ -158,8 +161,10 @@ impl Level {
     }
 
     pub fn update(&mut self) {
-        for (_, entity) in &mut self.entities {
-            entity.update(&mut self.light_grid);
+        for key in self.entities.keys().collect::<Vec<_>>() {
+            let (entity, guard) = SlotGuard::new(&mut self.entities, key);
+
+            entity.update(guard, &mut self.light_grid);
         }
     }
 

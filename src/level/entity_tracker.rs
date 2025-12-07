@@ -1,7 +1,10 @@
 use macroquad::input::{KeyCode, MouseButton};
 use nalgebra::{Point2, Vector2};
 
-use crate::level::{entity_tracker::entity::Entity, light_grid::LightGrid};
+use crate::{
+    collections::slot_guard::GuardedSlotMap,
+    level::{EntityKey, entity_tracker::entity::Entity, light_grid::LightGrid},
+};
 
 pub(crate) mod entity;
 pub(crate) mod entity_history;
@@ -16,8 +19,12 @@ impl EntityTracker {
         EntityTracker { inner: inner }
     }
 
-    pub fn update(&mut self, light_grid: &mut LightGrid) {
-        self.inner.update(light_grid);
+    pub fn update(
+        &mut self,
+        entities: GuardedSlotMap<EntityKey, EntityTracker>,
+        light_grid: &mut LightGrid,
+    ) {
+        self.inner.update(entities, light_grid);
     }
 
     pub fn draw(&mut self) {
