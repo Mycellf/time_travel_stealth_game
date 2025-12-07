@@ -701,7 +701,7 @@ pub struct LightArea {
 }
 
 impl LightArea {
-    pub const PENETRATION: f32 = super::TILE_SIZE as f32 / 2.0;
+    pub const PENETRATION: f32 = 4.0;
 
     pub fn mesh(&self, color: Color) -> Option<Mesh> {
         let color = color.into();
