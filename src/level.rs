@@ -38,6 +38,7 @@ pub const UPDATE_TPS: usize = 60;
 pub const UPDATE_DT: f64 = 1.0 / UPDATE_TPS as f64;
 pub const MAX_UPDATES_PER_TICK: usize = 4;
 
+/// TODO: Consider using the include_dir crate for embedding all of the levels into the binary
 pub struct Level {
     pub initial_state: SlotMap<EntityKey, EntityTracker>,
     pub mouse_position: Point2<f64>,
