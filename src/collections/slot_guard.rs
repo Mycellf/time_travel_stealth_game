@@ -8,7 +8,7 @@ use slotmap::SlotMap;
 
 pub type GuardedSlotMap<'a, K, V> = SlotGuard<'a, SlotMap<K, V>, K, V>;
 
-/// HACK: This is probably unsafe if `K` doesn't implement `Eq` correctly
+/// HACK: This is probably unsound if `K` doesn't implement `Eq` correctly
 #[derive(Debug)]
 pub struct SlotGuard<'a, T, K, V> {
     collection: &'a mut T,
