@@ -1,4 +1,4 @@
-use std::mem;
+use std::{fs, mem};
 
 use macroquad::{
     camera::{self, Camera2D},
@@ -124,6 +124,31 @@ impl Level {
         result.load_initial_state();
 
         result
+    }
+
+    pub fn save(&self) -> Vec<u8> {
+        bincode::serde::encode_to_vec(&self.tile_grid, bincode::config::standard()).unwrap()
+    }
+
+    pub fn load(&mut self, data: &[u8]) {
+        let (tile_grid, _) =
+            bincode::serde::decode_from_slice(data, bincode::config::standard()).unwrap();
+
+        self.tile_grid = tile_grid;
+        self.light_grid = LightGrid::default();
+
+        let bounds = self.tile_grid.bounds();
+
+        let tile_kinds = TILE_KINDS.lock().unwrap();
+
+        for x in bounds.left()..bounds.right() + 1 {
+            for y in bounds.top()..bounds.bottom() + 1 {
+                if let Some(tile) = self.tile_grid[point![x, y]] {
+                    self.light_grid
+                        .fill_tile(point![x, y], tile_kinds[tile.kind].pixel_kind);
+                }
+            }
+        }
     }
 
     pub fn set_tile(&mut self, index: TileIndex, tile: Option<Tile>) {
@@ -305,6 +330,16 @@ impl Level {
             KeyCode::Key7 => self.brush = 6,
             KeyCode::Key8 => self.brush = 7,
             KeyCode::Key9 => self.brush = 8,
+            KeyCode::Period => {
+                if self.precise_fill {
+                    fs::write("resources/level", self.save()).unwrap();
+                }
+            }
+            KeyCode::Comma => {
+                if self.precise_fill {
+                    self.load(&fs::read("resources/level").unwrap());
+                }
+            }
             _ => (),
         }
 

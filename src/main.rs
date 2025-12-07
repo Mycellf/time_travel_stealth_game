@@ -9,10 +9,7 @@ use nalgebra::{Point2, UnitVector2, Vector2, point, vector};
 
 use crate::{
     input::DirectionalInput,
-    level::{
-        Level,
-        entity_tracker::entity::{dummy::Dummy, player::Player},
-    },
+    level::{Level, entity_tracker::entity::player::Player},
 };
 
 pub(crate) mod collections;
