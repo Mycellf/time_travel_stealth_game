@@ -4,6 +4,10 @@ use std::{
     ops::{Index, IndexMut},
 };
 
+use slotmap::SlotMap;
+
+pub type GuardedSlotMap<'a, K, V> = SlotGuard<'a, SlotMap<K, V>, K, V>;
+
 /// HACK: This is probably unsafe if `K` doesn't implement `Eq` correctly
 #[derive(Debug)]
 pub struct SlotGuard<'a, T, K, V> {
@@ -31,6 +35,26 @@ impl<'a, K, V, T> SlotGuard<'a, T, K, V> {
                 _phantom: PhantomData,
             },
         )
+    }
+
+    pub fn iter(&'a self) -> impl Iterator<Item = (K, &'a V)>
+    where
+        K: Eq,
+        &'a T: IntoIterator<Item = (K, &'a V)>,
+    {
+        self.collection
+            .into_iter()
+            .filter(|(slot, _)| *slot != self.protected_slot)
+    }
+
+    pub fn iter_mut(&'a mut self) -> impl Iterator<Item = (K, &'a mut V)>
+    where
+        K: Eq,
+        &'a mut T: IntoIterator<Item = (K, &'a mut V)>,
+    {
+        self.collection
+            .into_iter()
+            .filter(|(slot, _)| *slot != self.protected_slot)
     }
 }
 
