@@ -335,11 +335,6 @@ impl Level {
                     fs::write("resources/level", self.save()).unwrap();
                 }
             }
-            KeyCode::Comma => {
-                if self.precise_fill {
-                    self.load(&fs::read("resources/level").unwrap());
-                }
-            }
             _ => (),
         }
 

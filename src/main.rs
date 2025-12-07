@@ -1,3 +1,5 @@
+use std::fs;
+
 use macroquad::{
     camera::{self, Camera2D},
     color::colors,
@@ -87,20 +89,24 @@ impl State {
     fn new() -> Self {
         use std::f64::consts::PI;
 
+        let mut level = Level::new(vec![Box::new(Player {
+            position: point![0.0, 0.0],
+            size: vector![6.0, 6.0],
+
+            mouse_position: point![0.0, 0.0],
+            view_direction: UnitVector2::new_normalize(vector![1.0, 0.0]),
+            view_width: 120.0 * PI / 180.0,
+
+            speed: 64.0,
+            motion_input: DirectionalInput::new(KeyCode::D, KeyCode::W, KeyCode::A, KeyCode::S),
+        })]);
+
+        level.load(&fs::read("resources/level").unwrap());
+
         State {
             fullscreen: true,
 
-            level: Level::new(vec![Box::new(Player {
-                position: point![0.0, 0.0],
-                size: vector![6.0, 6.0],
-
-                mouse_position: point![0.0, 0.0],
-                view_direction: UnitVector2::new_normalize(vector![1.0, 0.0]),
-                view_width: 120.0 * PI / 180.0,
-
-                speed: 64.0,
-                motion_input: DirectionalInput::new(KeyCode::D, KeyCode::W, KeyCode::A, KeyCode::S),
-            })]),
+            level,
         }
     }
 }
