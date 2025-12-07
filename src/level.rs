@@ -166,6 +166,7 @@ impl Level {
     pub fn draw(&mut self) {
         self.update_mask_texture();
 
+        // Trace vision
         let view_areas = self
             .entities
             .iter()
@@ -183,6 +184,7 @@ impl Level {
             .flatten()
             .collect::<Vec<_>>();
 
+        // Tiles
         {
             let tile_kinds = tile::TILE_KINDS.lock().unwrap();
 
@@ -207,12 +209,14 @@ impl Level {
             }
         }
 
+        // Vision occluded entities
         for (_, entity) in &mut self.entities {
             if !entity.inner.always_visible() {
                 entity.draw();
             }
         }
 
+        // Vision mask
         if !self.full_vision {
             camera::push_camera_state();
             camera::set_camera(&self.mask_texture);
@@ -242,11 +246,22 @@ impl Level {
             }
 
             material::gl_use_default_material();
+            camera::set_default_camera();
 
-            self.draw_mask_texture();
+            texture::draw_texture_ex(
+                &self.mask_texture.render_target.as_ref().unwrap().texture,
+                0.0,
+                0.0,
+                colors::WHITE,
+                DrawTextureParams {
+                    dest_size: Some([window::screen_width(), window::screen_height()].into()),
+                    ..Default::default()
+                },
+            );
             camera::pop_camera_state();
         }
 
+        // Always visible entities
         for (_, entity) in &mut self.entities {
             if entity.inner.always_visible() {
                 entity.draw();
@@ -264,21 +279,6 @@ impl Level {
         if size != Vector2::from(render_target.texture.size()).map(|x| x as u32) {
             *render_target = texture::render_target(size.x, size.y);
         }
-    }
-
-    pub fn draw_mask_texture(&self) {
-        camera::set_default_camera();
-
-        texture::draw_texture_ex(
-            &self.mask_texture.render_target.as_ref().unwrap().texture,
-            0.0,
-            0.0,
-            colors::WHITE,
-            DrawTextureParams {
-                dest_size: Some([window::screen_width(), window::screen_height()].into()),
-                ..Default::default()
-            },
-        );
     }
 
     pub fn key_down(&mut self, input: KeyCode) {
