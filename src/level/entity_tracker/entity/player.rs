@@ -17,7 +17,7 @@ use crate::{
             EntityTracker,
             entity::{Entity, ViewKind},
         },
-        light_grid::{AngleRange, LightGrid},
+        light_grid::{AngleRange, LightArea, LightGrid},
     },
 };
 
@@ -35,6 +35,8 @@ pub struct Player {
 
     pub state: PlayerState,
     pub history: History<PlayerHistoryEntry>,
+
+    pub view_area: Option<LightArea>,
 }
 
 #[derive(Clone, Copy, PartialEq, Eq, Debug)]
@@ -126,6 +128,19 @@ impl Entity for Player {
             PlayerState::Disabled => (),
             PlayerState::Dead => (),
         }
+
+        self.view_area = match self.state {
+            PlayerState::Active | PlayerState::Reset | PlayerState::Recording => {
+                Some(light_grid.trace_light_from(
+                    self.position,
+                    Some(AngleRange::from_direction_and_width(
+                        self.view_direction,
+                        self.view_width,
+                    )),
+                ))
+            }
+            PlayerState::Disabled | PlayerState::Dead => None,
+        };
     }
 
     fn draw_front(&mut self) {
@@ -148,11 +163,8 @@ impl Entity for Player {
         self.position
     }
 
-    fn view_range(&self) -> Option<AngleRange> {
-        Some(AngleRange::from_direction_and_width(
-            self.view_direction,
-            self.view_width,
-        ))
+    fn view_area(&self) -> Option<LightArea> {
+        self.view_area.clone()
     }
 
     fn view_kind(&self) -> Option<ViewKind> {

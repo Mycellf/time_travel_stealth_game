@@ -9,7 +9,7 @@ use crate::{
     level::{
         EntityKey,
         entity_tracker::{EntityTracker, entity::player::Player},
-        light_grid::{AngleRange, LightGrid},
+        light_grid::{AngleRange, LightArea, LightGrid},
     },
 };
 
@@ -33,7 +33,7 @@ pub trait Entity: 'static + Debug {
 
     fn position(&self) -> Point2<f64>;
 
-    fn view_range(&self) -> Option<AngleRange> {
+    fn view_area(&self) -> Option<LightArea> {
         None
     }
 

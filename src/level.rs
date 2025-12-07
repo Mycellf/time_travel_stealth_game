@@ -241,17 +241,7 @@ impl Level {
         let view_areas = self
             .entities
             .iter()
-            .map(|(_, entity)| {
-                let view_range = entity.inner.view_range()?;
-                let view_kind = entity.inner.view_kind()?;
-
-                let position = entity.inner.position();
-
-                Some((
-                    self.light_grid.trace_light_from(position, Some(view_range)),
-                    view_kind,
-                ))
-            })
+            .map(|(_, entity)| Some((entity.inner.view_area()?, entity.inner.view_kind()?)))
             .flatten()
             .collect::<Vec<_>>();
 

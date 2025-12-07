@@ -108,6 +108,8 @@ impl State {
 
             state: PlayerState::Active,
             history: History::default(),
+
+            view_area: None,
         })]);
 
         if let Ok(data) = fs::read("resources/level") {

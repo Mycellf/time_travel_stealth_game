@@ -10,7 +10,7 @@ use crate::{
             EntityTracker,
             entity::{Entity, ViewKind},
         },
-        light_grid::{AngleRange, LightGrid},
+        light_grid::{AngleRange, LightArea, LightGrid},
     },
 };
 
@@ -21,6 +21,8 @@ pub struct Dummy {
 
     pub view_direction: UnitVector2<f64>,
     pub view_width: f64,
+
+    pub view_area: Option<LightArea>,
 }
 
 impl Dummy {
@@ -41,9 +43,16 @@ impl Entity for Dummy {
         &mut self,
         _frame: FrameIndex,
         _entities: GuardedSlotMap<EntityKey, EntityTracker>,
-        _light_grid: &mut LightGrid,
+        light_grid: &mut LightGrid,
         _initial_state: &mut SlotMap<EntityKey, EntityTracker>,
     ) {
+        self.view_area = Some(light_grid.trace_light_from(
+            self.position,
+            Some(AngleRange::from_direction_and_width(
+                self.view_direction,
+                self.view_width,
+            )),
+        ));
     }
 
     fn draw_front(&mut self) {
@@ -62,11 +71,8 @@ impl Entity for Dummy {
         self.position
     }
 
-    fn view_range(&self) -> Option<AngleRange> {
-        Some(AngleRange::from_direction_and_width(
-            self.view_direction,
-            self.view_width,
-        ))
+    fn view_area(&self) -> Option<LightArea> {
+        self.view_area.clone()
     }
 
     fn view_kind(&self) -> Option<ViewKind> {
