@@ -9,6 +9,7 @@ use macroquad::{
     window::{self, Conf},
 };
 use nalgebra::{Point2, UnitVector2, Vector2, point, vector};
+use slotmap::SecondaryMap;
 
 use crate::{
     collections::history::History,
@@ -108,6 +109,7 @@ impl State {
 
             state: PlayerState::Active,
             history: History::default(),
+            environment_history: SecondaryMap::default(),
 
             view_area: None,
         })]);

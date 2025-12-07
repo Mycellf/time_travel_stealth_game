@@ -1,8 +1,8 @@
-use std::mem;
+use std::{array, mem};
 
 use macroquad::{color::Color, input::KeyCode, math::Rect, shapes};
 use nalgebra::{Point2, UnitVector2, Vector2, point};
-use slotmap::SlotMap;
+use slotmap::{SecondaryMap, SlotMap};
 
 use crate::{
     collections::{
@@ -15,9 +15,9 @@ use crate::{
         EntityKey, UPDATE_DT,
         entity_tracker::{
             EntityTracker,
-            entity::{Entity, ViewKind},
+            entity::{Entity, EntityVisibleState, ViewKind},
         },
-        light_grid::{AngleRange, LightArea, LightGrid},
+        light_grid::{self, AngleRange, LightArea, LightGrid},
     },
 };
 
@@ -35,6 +35,7 @@ pub struct Player {
 
     pub state: PlayerState,
     pub history: History<PlayerHistoryEntry>,
+    pub environment_history: SecondaryMap<EntityKey, History<EntityVisibleState>>,
 
     pub view_area: Option<LightArea>,
 }
@@ -81,7 +82,7 @@ impl Player {
         }
     }
 
-    pub fn draw(&mut self) {
+    pub fn draw(&self) {
         let corner = self.position - self.size / 2.0;
 
         shapes::draw_rectangle(
@@ -91,6 +92,17 @@ impl Player {
             self.size.y as f32,
             Color::new(1.0, 0.0, 0.0, 1.0),
         );
+    }
+
+    pub fn edges(&self) -> [[Point2<f64>; 2]; 4] {
+        let corners = [[1, 1], [-1, 1], [-1, -1], [1, -1]].map(|offset| {
+            self.position
+                + Vector2::from(offset)
+                    .map(|x| x as f64)
+                    .component_mul(&(self.size / 2.0))
+        });
+
+        array::from_fn(|i| [corners[i], corners[(i + 1) % corners.len()]])
     }
 }
 
@@ -112,6 +124,19 @@ impl Entity for Player {
                 self.update_view_direction();
 
                 self.history.try_insert(frame, self.get_history_entry());
+
+                if let Some(view_area) = &self.view_area {
+                    for (key, entity) in entities.iter() {
+                        if entity.inner.is_within_view_area(light_grid, view_area) {
+                            let state = entity.inner.visible_state().unwrap();
+                            if !self.environment_history.contains_key(key) {
+                                self.environment_history.insert(key, History::default());
+                            }
+
+                            self.environment_history[key].try_insert(frame, state);
+                        }
+                    }
+                }
             }
             PlayerState::Reset => {
                 let old_self = initial_state[*entities.protected_slot()]
@@ -121,6 +146,7 @@ impl Entity for Player {
 
                 old_self.state = PlayerState::Recording;
                 old_self.history = mem::take(&mut self.history);
+                old_self.environment_history = mem::take(&mut self.environment_history);
 
                 self.state = PlayerState::Active;
                 initial_state.insert(EntityTracker::new(Box::new(self.clone())));
@@ -133,6 +159,27 @@ impl Entity for Player {
                     self.mouse_position = entry.mouse_position.map(|x| x as f64);
 
                     self.update_view_direction();
+
+                    if let Some(view_area) = &self.view_area {
+                        for (key, entity) in entities.iter() {
+                            if entity.inner.is_within_view_area(light_grid, view_area) {
+                                let state = entity.inner.visible_state().unwrap();
+                                if self
+                                    .environment_history
+                                    .get(key)
+                                    .is_none_or(|history| Some(&state) != history.get(frame))
+                                {
+                                    self.state = PlayerState::Dead;
+                                }
+                            } else if self
+                                .environment_history
+                                .get(key)
+                                .is_some_and(|history| history.get(frame).is_some())
+                            {
+                                self.state = PlayerState::Dead;
+                            }
+                        }
+                    }
                 } else {
                     self.state = PlayerState::Disabled;
                 }
@@ -169,6 +216,24 @@ impl Entity for Player {
             PlayerState::Active | PlayerState::Reset | PlayerState::Recording => self.draw(),
             _ => (),
         }
+    }
+
+    fn is_within_view_area(&self, light_grid: &LightGrid, view_area: &LightArea) -> bool {
+        if self.state == PlayerState::Disabled {
+            return false;
+        }
+
+        self.edges()
+            .into_iter()
+            .any(|line| view_area.edge_intersects_line(line))
+            || view_area
+                .range
+                .is_none_or(|range| range.contains_offset(self.position - view_area.origin))
+                && light_grid.contains_path(view_area.origin, self.position)
+    }
+
+    fn visible_state(&self) -> Option<EntityVisibleState> {
+        Some(EntityVisibleState::new(self.position, 0))
     }
 
     fn position(&self) -> Point2<f64> {

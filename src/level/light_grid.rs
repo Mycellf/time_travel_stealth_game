@@ -149,6 +149,18 @@ impl LightGrid {
         // }
     }
 
+    pub fn contains_path(&self, start: Point2<f64>, end: Point2<f64>) -> bool {
+        (raycast(
+            |_, index| self[index].blocks_light(),
+            start,
+            UnitVector2::new_normalize(end - start),
+            (end - start).magnitude(),
+        )
+        .0 - start)
+            .magnitude_squared()
+            >= (end - start).magnitude_squared() - 1e-6
+    }
+
     pub fn trace_light_from(
         &mut self,
         origin: Point2<f64>,

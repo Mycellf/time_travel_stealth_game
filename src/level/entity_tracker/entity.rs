@@ -13,7 +13,6 @@ use crate::{
     },
 };
 
-pub(crate) mod dummy;
 pub(crate) mod player;
 
 pub trait Entity: 'static + Debug {
@@ -43,6 +42,14 @@ pub trait Entity: 'static + Debug {
         None
     }
 
+    fn is_within_view_area(&self, _light_grid: &LightGrid, _area: &LightArea) -> bool {
+        false
+    }
+
+    fn visible_state(&self) -> Option<EntityVisibleState> {
+        None
+    }
+
     fn duplicate(&self) -> Box<dyn Entity>;
 
     fn should_recieve_inputs(&self) -> bool;
@@ -66,4 +73,19 @@ pub trait Entity: 'static + Debug {
 pub enum ViewKind {
     Present,
     Past,
+}
+
+#[derive(Clone, Copy, PartialEq, Debug)]
+pub struct EntityVisibleState {
+    pub position: Point2<f32>,
+    pub extra: u64,
+}
+
+impl EntityVisibleState {
+    pub fn new(position: Point2<f64>, extra: u64) -> Self {
+        Self {
+            position: position.map(|x| x as f32),
+            extra,
+        }
+    }
 }
