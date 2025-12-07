@@ -101,7 +101,9 @@ impl State {
             motion_input: DirectionalInput::new(KeyCode::D, KeyCode::W, KeyCode::A, KeyCode::S),
         })]);
 
-        level.load(&fs::read("resources/level").unwrap());
+        if let Ok(data) = fs::read("resources/level") {
+            level.load(&data);
+        }
 
         State {
             fullscreen: true,
