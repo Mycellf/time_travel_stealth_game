@@ -1,4 +1,4 @@
-use std::{fs, mem};
+use std::fs;
 
 use macroquad::{
     camera::{self, Camera2D},
@@ -14,6 +14,7 @@ use slotmap::{SlotMap, new_key_type};
 
 use crate::{
     collections::{
+        history::FrameIndex,
         slot_guard::SlotGuard,
         tile_grid::{TileGrid, TileIndex},
     },
@@ -33,9 +34,14 @@ pub(crate) mod tile;
 
 pub const TILE_SIZE: isize = 8;
 
+pub const UPDATE_TPS: usize = 60;
+pub const UPDATE_DT: f64 = 1.0 / UPDATE_TPS as f64;
+pub const MAX_UPDATES_PER_TICK: usize = 4;
+
 pub struct Level {
     pub initial_state: SlotMap<EntityKey, EntityTracker>,
 
+    pub frame: FrameIndex,
     pub entities: SlotMap<EntityKey, EntityTracker>,
     pub input_readers: Vec<EntityKey>,
 
@@ -75,6 +81,7 @@ impl Level {
         Level {
             initial_state: entities.clone(),
 
+            frame: 0,
             entities,
             input_readers,
 
@@ -188,6 +195,8 @@ impl Level {
                 self.input_readers.push(key);
             }
         }
+
+        self.frame = 0;
     }
 
     pub fn update(&mut self) {
@@ -195,8 +204,15 @@ impl Level {
             // SAFETY: SlotMap doesn't allow accessing the same value with unequal keys.
             let (entity, guard) = unsafe { SlotGuard::new(&mut self.entities, key) };
 
-            entity.update(guard, &mut self.light_grid, &mut self.initial_state);
+            entity.update(
+                self.frame,
+                guard,
+                &mut self.light_grid,
+                &mut self.initial_state,
+            );
         }
+
+        self.frame += 1;
     }
 
     pub fn draw(&mut self) {

@@ -3,7 +3,7 @@ use nalgebra::{Point2, UnitVector2, Vector2, point};
 use slotmap::SlotMap;
 
 use crate::{
-    collections::{slot_guard::GuardedSlotMap, tile_grid::TileRect},
+    collections::{history::FrameIndex, slot_guard::GuardedSlotMap, tile_grid::TileRect},
     level::{
         EntityKey,
         entity_tracker::{
@@ -39,6 +39,7 @@ impl Dummy {
 impl Entity for Dummy {
     fn update(
         &mut self,
+        _frame: FrameIndex,
         _entities: GuardedSlotMap<EntityKey, EntityTracker>,
         _light_grid: &mut LightGrid,
         initial_state: &mut SlotMap<EntityKey, EntityTracker>,
@@ -82,55 +83,5 @@ impl Entity for Dummy {
 
     fn should_recieve_inputs(&self) -> bool {
         false
-    }
-}
-
-impl Dummy {
-    fn move_along_axis<const AXIS: usize>(
-        &mut self,
-        light_grid: &mut LightGrid,
-        displacement: f64,
-    ) {
-        if displacement.abs() <= f64::EPSILON {
-            return;
-        }
-
-        let old_position = self.position[AXIS];
-        self.position[AXIS] += displacement;
-
-        let bounds = TileRect::from_rect_inclusive(self.collision_rect());
-
-        let mut collision = None;
-
-        for x in bounds.left()..bounds.right() + 1 {
-            for y in bounds.top()..bounds.bottom() + 1 {
-                if light_grid[point![x, y]].blocks_motion() {
-                    let axis = [x, y][AXIS];
-
-                    if let Some(collision) = &mut collision {
-                        if (*collision < axis) ^ (displacement < 0.0) {
-                            *collision = axis;
-                        }
-                    } else {
-                        collision = Some(axis);
-                    }
-                }
-            }
-        }
-
-        if let Some(mut collision) = collision {
-            if displacement < 0.0 {
-                collision += 1;
-            }
-
-            self.position[AXIS] = collision as f64;
-            self.position[AXIS] -= self.size[AXIS] * displacement.signum() / 2.0;
-
-            if (self.position[AXIS] < old_position) ^ (displacement < 0.0)
-                || (self.position[AXIS] - old_position).abs() > displacement.abs()
-            {
-                self.position[AXIS] = old_position;
-            }
-        }
     }
 }

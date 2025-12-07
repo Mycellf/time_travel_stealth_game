@@ -3,7 +3,7 @@ use nalgebra::{Point2, Vector2};
 use slotmap::SlotMap;
 
 use crate::{
-    collections::slot_guard::GuardedSlotMap,
+    collections::{history::FrameIndex, slot_guard::GuardedSlotMap},
     level::{EntityKey, entity_tracker::entity::Entity, light_grid::LightGrid},
 };
 
@@ -21,11 +21,13 @@ impl EntityTracker {
 
     pub fn update(
         &mut self,
+        frame: FrameIndex,
         entities: GuardedSlotMap<EntityKey, EntityTracker>,
         light_grid: &mut LightGrid,
         initial_state: &mut SlotMap<EntityKey, EntityTracker>,
     ) {
-        self.inner.update(entities, light_grid, initial_state);
+        self.inner
+            .update(frame, entities, light_grid, initial_state);
     }
 
     pub fn draw(&mut self) {

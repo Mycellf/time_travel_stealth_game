@@ -5,7 +5,7 @@ use nalgebra::{Point2, Vector2};
 use slotmap::SlotMap;
 
 use crate::{
-    collections::slot_guard::GuardedSlotMap,
+    collections::{history::FrameIndex, slot_guard::GuardedSlotMap},
     level::{
         EntityKey,
         entity_tracker::{EntityTracker, entity::player::Player},
@@ -19,6 +19,7 @@ pub(crate) mod player;
 pub trait Entity: 'static + Debug {
     fn update(
         &mut self,
+        frame: FrameIndex,
         entities: GuardedSlotMap<EntityKey, EntityTracker>,
         light_grid: &mut LightGrid,
         initial_state: &mut SlotMap<EntityKey, EntityTracker>,

@@ -5,14 +5,16 @@ use macroquad::{
     color::colors,
     input::{KeyCode, MouseButton},
     math::{Rect, Vec2},
+    time,
     window::{self, Conf},
 };
 use nalgebra::{Point2, UnitVector2, Vector2, point, vector};
 
 use crate::{
+    collections::history::History,
     input::DirectionalInput,
     level::{
-        Level,
+        Level, MAX_UPDATES_PER_TICK, UPDATE_DT,
         entity_tracker::entity::player::{Player, PlayerState},
     },
 };
@@ -74,7 +76,7 @@ async fn main() {
             }
         }
 
-        state.update();
+        state.update(time::get_frame_time() as f64);
 
         state.draw();
 
@@ -86,6 +88,7 @@ pub(crate) struct State {
     fullscreen: bool,
 
     level: Level,
+    update_time: f64,
 }
 
 impl State {
@@ -104,6 +107,7 @@ impl State {
             motion_input: DirectionalInput::new(KeyCode::D, KeyCode::W, KeyCode::A, KeyCode::S),
 
             state: PlayerState::Active,
+            history: History::default(),
         })]);
 
         if let Ok(data) = fs::read("resources/level") {
@@ -114,6 +118,7 @@ impl State {
             fullscreen: true,
 
             level,
+            update_time: 0.0,
         }
     }
 }
@@ -121,8 +126,16 @@ impl State {
 impl State {
     pub const SCREEN_HEIGHT: f32 = 256.0;
 
-    fn update(&mut self) {
-        self.level.update();
+    fn update(&mut self, dt: f64) {
+        self.update_time += dt / UPDATE_DT;
+
+        for _ in 0..MAX_UPDATES_PER_TICK.min(self.update_time.floor() as usize) {
+            self.level.update();
+
+            self.update_time -= 1.0;
+        }
+
+        self.update_time = self.update_time.min(1.0);
     }
 
     fn draw(&mut self) {

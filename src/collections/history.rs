@@ -14,6 +14,14 @@ impl<T> Default for History<T> {
 }
 
 impl<T> History<T> {
+    pub fn records(&self) -> usize {
+        self.data.len()
+    }
+
+    pub fn size(&self) -> usize {
+        self.data.iter().map(|record| record.size()).sum()
+    }
+
     pub fn get(&self, index: FrameIndex) -> Option<&T> {
         let record_index = match self
             .data
@@ -79,6 +87,14 @@ impl<T> Record<T> {
     /// The number of repititions inside a variable record that will cause the creation of a
     /// constant record.
     const CONVERSION_THRESHOLD: usize = 5;
+
+    fn size(&self) -> usize {
+        mem::size_of::<Self>()
+            + match self {
+                Record::Constant { .. } => 0,
+                Record::Variable { values, .. } => values.len() * mem::size_of::<T>(),
+            }
+    }
 
     fn new(start: FrameIndex, value: T) -> Self {
         Self::Constant {
@@ -156,7 +172,7 @@ impl<T> Record<T> {
             }
             Record::Variable { start, values } => {
                 if values.len() >= Self::CONVERSION_THRESHOLD {
-                    let count = dbg!(values.iter().rev().take_while(|x| **x == entry).count());
+                    let count = values.iter().rev().take_while(|x| **x == entry).count();
 
                     if count + 1 >= Self::CONVERSION_THRESHOLD {
                         if values.len() == count {

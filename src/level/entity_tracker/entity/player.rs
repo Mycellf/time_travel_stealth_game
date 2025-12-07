@@ -1,12 +1,18 @@
-use macroquad::{color::Color, input::KeyCode, math::Rect, shapes, time};
+use std::mem;
+
+use macroquad::{color::Color, input::KeyCode, math::Rect, shapes};
 use nalgebra::{Point2, UnitVector2, Vector2, point};
 use slotmap::SlotMap;
 
 use crate::{
-    collections::{slot_guard::GuardedSlotMap, tile_grid::TileRect},
+    collections::{
+        history::{FrameIndex, History},
+        slot_guard::GuardedSlotMap,
+        tile_grid::TileRect,
+    },
     input::DirectionalInput,
     level::{
-        EntityKey,
+        EntityKey, UPDATE_DT,
         entity_tracker::{
             EntityTracker,
             entity::{Entity, ViewKind},
@@ -28,6 +34,7 @@ pub struct Player {
     pub speed: f64,
 
     pub state: PlayerState,
+    pub history: History<PlayerHistoryEntry>,
 }
 
 #[derive(Clone, Copy, PartialEq, Eq, Debug)]
@@ -36,6 +43,13 @@ pub enum PlayerState {
     Reset,
     Recording,
     Disabled,
+    Dead,
+}
+
+#[derive(Clone, Copy, PartialEq, Debug)]
+pub struct PlayerHistoryEntry {
+    pub position: Point2<f32>,
+    pub mouse_position: Point2<f32>,
 }
 
 impl Player {
@@ -49,48 +63,76 @@ impl Player {
             self.size.y as f32,
         )
     }
+
+    pub fn get_history_entry(&self) -> PlayerHistoryEntry {
+        PlayerHistoryEntry {
+            position: self.position.map(|x| x as f32),
+            mouse_position: self.mouse_position.map(|x| x as f32),
+        }
+    }
+
+    pub fn update_view_direction(&mut self) {
+        if let Some(new_direction) =
+            UnitVector2::try_new(self.mouse_position - self.position, f64::EPSILON)
+        {
+            self.view_direction = new_direction;
+        }
+    }
 }
 
 impl Entity for Player {
     fn update(
         &mut self,
+        frame: FrameIndex,
         entities: GuardedSlotMap<EntityKey, EntityTracker>,
         light_grid: &mut LightGrid,
         initial_state: &mut SlotMap<EntityKey, EntityTracker>,
     ) {
         match self.state {
             PlayerState::Active => {
-                if let Some(new_direction) =
-                    UnitVector2::try_new(self.mouse_position - self.position, f64::EPSILON)
-                {
-                    self.view_direction = new_direction;
-                }
+                self.update_view_direction();
 
-                let motion = self.motion_input.normalized_output()
-                    * self.speed
-                    * time::get_frame_time() as f64;
+                let motion = self.motion_input.normalized_output() * self.speed * UPDATE_DT;
 
                 self.move_along_axis::<0>(light_grid, motion.x);
                 self.move_along_axis::<1>(light_grid, motion.y);
+
+                self.history.try_insert(frame, self.get_history_entry());
             }
             PlayerState::Reset => {
-                initial_state[*entities.protected_slot()]
+                let old_self = initial_state[*entities.protected_slot()]
                     .inner
                     .as_player_mut()
-                    .unwrap()
-                    .state = PlayerState::Recording;
+                    .unwrap();
+
+                old_self.state = PlayerState::Recording;
+                old_self.history = mem::take(&mut self.history);
 
                 self.state = PlayerState::Active;
                 initial_state.insert(EntityTracker::new(Box::new(self.clone())));
 
                 self.state = PlayerState::Disabled;
             }
-            PlayerState::Recording => (),
+            PlayerState::Recording => {
+                if let Some(entry) = self.history.get(frame) {
+                    self.position = entry.position.map(|x| x as f64);
+                    self.mouse_position = entry.mouse_position.map(|x| x as f64);
+
+                    self.update_view_direction();
+                } else {
+                    self.state = PlayerState::Disabled;
+                }
+            }
             PlayerState::Disabled => (),
+            PlayerState::Dead => (),
         }
     }
 
     fn draw(&mut self) {
+        if self.state == PlayerState::Disabled {
+            return;
+        }
+
         let corner = self.position - self.size / 2.0;
 
         shapes::draw_rectangle(
@@ -119,6 +161,7 @@ impl Entity for Player {
             PlayerState::Reset => None,
             PlayerState::Recording => Some(ViewKind::Past),
             PlayerState::Disabled => None,
+            PlayerState::Dead => None,
         }
     }
 
