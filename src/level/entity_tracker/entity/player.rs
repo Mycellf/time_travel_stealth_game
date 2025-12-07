@@ -92,12 +92,12 @@ impl Entity for Player {
     ) {
         match self.state {
             PlayerState::Active => {
-                self.update_view_direction();
-
                 let motion = self.motion_input.normalized_output() * self.speed * UPDATE_DT;
 
                 self.move_along_axis::<0>(light_grid, motion.x);
                 self.move_along_axis::<1>(light_grid, motion.y);
+
+                self.update_view_direction();
 
                 self.history.try_insert(frame, self.get_history_entry());
             }
