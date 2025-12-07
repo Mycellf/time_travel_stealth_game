@@ -51,6 +51,9 @@ pub struct Level {
     pub mask_texture: Camera2D,
     pub mask_material: Material,
 
+    pub wall_texture: Camera2D,
+    pub wall_mask_material: Material,
+
     pub tile_grid: TileGrid<Option<Tile>>,
     pub light_grid: LightGrid,
 
@@ -72,12 +75,6 @@ impl Level {
         );
         texture_atlas.set_filter(FilterMode::Nearest);
 
-        let mut mask_texture = Camera2D::from_display_rect(crate::screen_rect());
-        mask_texture.zoom.y *= -1.0;
-
-        let size = crate::screen_pixel_size();
-        mask_texture.render_target = Some(texture::render_target(size.x, size.y));
-
         let (entities, input_readers) = Self::entities_from_initial_state(initial_state);
 
         Level {
@@ -89,11 +86,27 @@ impl Level {
             input_readers,
 
             texture_atlas,
-            mask_texture,
+            mask_texture: Self::new_render_target(),
             mask_material: material::load_material(
                 ShaderSource::Glsl {
                     vertex: DEFAULT_VERTEX_SHADER,
                     fragment: DEFAULT_FRAGMENT_SHADER,
+                },
+                MaterialParams {
+                    pipeline_params: PipelineParams {
+                        color_write: (true, true, true, true),
+                        ..Default::default()
+                    },
+                    ..Default::default()
+                },
+            )
+            .unwrap(),
+
+            wall_texture: Self::new_render_target(),
+            wall_mask_material: material::load_material(
+                ShaderSource::Glsl {
+                    vertex: DEFAULT_VERTEX_SHADER,
+                    fragment: MASK_FRAGMENT_SHADER,
                 },
                 MaterialParams {
                     pipeline_params: PipelineParams {
@@ -221,7 +234,8 @@ impl Level {
     }
 
     pub fn draw(&mut self) {
-        self.update_mask_texture();
+        Self::update_render_target(&mut self.mask_texture);
+        Self::update_render_target(&mut self.wall_texture);
 
         // Trace vision
         let view_areas = self
@@ -272,40 +286,60 @@ impl Level {
             }
         }
 
-        // Wall Tiles
         {
-            let tile_kinds = tile::TILE_KINDS.lock().unwrap();
+            camera::push_camera_state();
+            camera::set_camera(&self.wall_texture);
+            window::clear_background(colors::BLANK);
 
-            let bounds = self.tile_grid.bounds();
-            for x in bounds.left()..bounds.right() + 1 {
-                for y in bounds.top()..bounds.bottom() + 1 {
-                    let Some(tile) = self.tile_grid[point![x, y]] else {
-                        continue;
-                    };
+            // Wall Tiles
+            {
+                let tile_kinds = tile::TILE_KINDS.lock().unwrap();
 
-                    let kind = &tile_kinds[tile.kind];
+                let bounds = self.tile_grid.bounds();
+                for x in bounds.left()..bounds.right() + 1 {
+                    for y in bounds.top()..bounds.bottom() + 1 {
+                        let Some(tile) = self.tile_grid[point![x, y]] else {
+                            continue;
+                        };
 
-                    if !kind.pixel_kind.blocks_light() {
-                        continue;
+                        let kind = &tile_kinds[tile.kind];
+
+                        if !kind.pixel_kind.blocks_light() {
+                            continue;
+                        }
+
+                        texture::draw_texture_ex(
+                            &self.texture_atlas,
+                            x as f32 * TILE_SIZE as f32,
+                            y as f32 * TILE_SIZE as f32,
+                            colors::WHITE,
+                            DrawTextureParams {
+                                source: Some(kind.texture_rect()),
+                                ..Default::default()
+                            },
+                        );
                     }
-
-                    texture::draw_texture_ex(
-                        &self.texture_atlas,
-                        x as f32 * TILE_SIZE as f32,
-                        y as f32 * TILE_SIZE as f32,
-                        colors::WHITE,
-                        DrawTextureParams {
-                            source: Some(kind.texture_rect()),
-                            ..Default::default()
-                        },
-                    );
                 }
             }
-        }
 
-        // Wall entities
-        for (_, entity) in &mut self.entities {
-            entity.draw_wall();
+            // Wall entities
+            for (_, entity) in &mut self.entities {
+                entity.draw_wall();
+            }
+
+            camera::set_default_camera();
+
+            texture::draw_texture_ex(
+                &self.wall_texture.render_target.as_ref().unwrap().texture,
+                0.0,
+                0.0,
+                colors::WHITE,
+                DrawTextureParams {
+                    dest_size: Some([window::screen_width(), window::screen_height()].into()),
+                    ..Default::default()
+                },
+            );
+            camera::pop_camera_state();
         }
 
         // Vision occluded entities
@@ -324,7 +358,7 @@ impl Level {
             for &(ref area, kind) in &view_areas {
                 match kind {
                     ViewKind::Present => {
-                        area.draw_all(colors::BLANK, colors::BLANK);
+                        area.draw_wall_lighting(colors::BLANK);
                     }
                     ViewKind::Past => (),
                 }
@@ -332,13 +366,45 @@ impl Level {
 
             for &(ref area, kind) in &view_areas {
                 match kind {
-                    ViewKind::Past => {
-                        area.draw_all(
-                            Color::new(1.0, 0.0, 0.0, 0.2),
-                            Color::new(1.0, 0.0, 0.0, 0.2),
-                        );
-                    }
                     ViewKind::Present => (),
+                    ViewKind::Past => {
+                        area.draw_wall_lighting(Color::new(1.0, 0.0, 0.0, 0.2));
+                    }
+                }
+            }
+
+            material::gl_use_material(&self.wall_mask_material);
+
+            let screen_rect = crate::screen_rect();
+
+            texture::draw_texture_ex(
+                &self.wall_texture.render_target.as_ref().unwrap().texture,
+                screen_rect.x,
+                screen_rect.y,
+                colors::WHITE,
+                DrawTextureParams {
+                    dest_size: Some(screen_rect.size()),
+                    ..Default::default()
+                },
+            );
+
+            material::gl_use_material(&self.mask_material);
+
+            for &(ref area, kind) in &view_areas {
+                match kind {
+                    ViewKind::Present => {
+                        area.draw_direct_lighting(colors::BLANK);
+                    }
+                    ViewKind::Past => (),
+                }
+            }
+
+            for &(ref area, kind) in &view_areas {
+                match kind {
+                    ViewKind::Present => (),
+                    ViewKind::Past => {
+                        area.draw_direct_lighting(Color::new(1.0, 0.0, 0.0, 0.2));
+                    }
                 }
             }
 
@@ -364,12 +430,22 @@ impl Level {
         }
     }
 
-    pub fn update_mask_texture(&mut self) {
+    pub fn new_render_target() -> Camera2D {
+        let mut camera = Camera2D::from_display_rect(crate::screen_rect());
+        camera.zoom.y *= -1.0;
+
+        let size = crate::screen_pixel_size();
+        camera.render_target = Some(texture::render_target(size.x, size.y));
+
+        camera
+    }
+
+    pub fn update_render_target(camera: &mut Camera2D) {
         let mut new_zoom = Camera2D::from_display_rect(crate::screen_rect()).zoom;
         new_zoom.y *= -1.0;
-        self.mask_texture.zoom = new_zoom;
+        camera.zoom = new_zoom;
 
-        let render_target = self.mask_texture.render_target.as_mut().unwrap();
+        let render_target = camera.render_target.as_mut().unwrap();
         let size = crate::screen_pixel_size();
         if size != Vector2::from(render_target.texture.size()).map(|x| x as u32) {
             *render_target = texture::render_target(size.x, size.y);
@@ -500,6 +576,22 @@ pub const DEFAULT_FRAGMENT_SHADER: &str = r#"
     uniform sampler2D Texture;
 
     void main() {
-        gl_FragColor = color * texture2D(Texture, uv) ;
+        gl_FragColor = color * texture2D(Texture, uv);
+    }
+"#;
+
+pub const MASK_FRAGMENT_SHADER: &str = r#"
+    #version 100
+    varying lowp vec4 color;
+    varying lowp vec2 uv;
+
+    uniform sampler2D Texture;
+
+    void main() {
+        if (texture2D(Texture, uv) == vec4(0.0, 0.0, 0.0, 0.0)) {
+            gl_FragColor = vec4(0.0, 0.0, 0.0, 1.0);
+        } else {
+            discard;
+        }
     }
 "#;
