@@ -17,7 +17,7 @@ use crate::{
             EntityTracker,
             entity::{Entity, EntityVisibleState, ViewKind},
         },
-        light_grid::{self, AngleRange, LightArea, LightGrid},
+        light_grid::{AngleRange, LightArea, LightGrid},
     },
 };
 
@@ -44,6 +44,7 @@ pub struct Player {
 pub enum PlayerState {
     Active,
     Reset,
+    Replay,
     Recording,
     Disabled,
     Dead,
@@ -138,7 +139,7 @@ impl Entity for Player {
                     }
                 }
             }
-            PlayerState::Reset => {
+            PlayerState::Reset | PlayerState::Replay => {
                 let old_self = initial_state[*entities.protected_slot()]
                     .inner
                     .as_player_mut()
@@ -148,8 +149,10 @@ impl Entity for Player {
                 old_self.history = mem::take(&mut self.history);
                 old_self.environment_history = mem::take(&mut self.environment_history);
 
-                self.state = PlayerState::Active;
-                initial_state.insert(EntityTracker::new(Box::new(self.clone())));
+                if self.state == PlayerState::Reset {
+                    self.state = PlayerState::Active;
+                    initial_state.insert(EntityTracker::new(Box::new(self.clone())));
+                }
 
                 self.state = PlayerState::Disabled;
             }
@@ -184,23 +187,23 @@ impl Entity for Player {
                     self.state = PlayerState::Disabled;
                 }
             }
-            PlayerState::Disabled => (),
-            PlayerState::Dead => (),
+            PlayerState::Disabled | PlayerState::Dead => (),
         }
     }
 
     fn update_view_area(&mut self, light_grid: &mut LightGrid) {
         self.view_area = match self.state {
-            PlayerState::Active | PlayerState::Reset | PlayerState::Recording => {
-                Some(light_grid.trace_light_from(
-                    self.position,
-                    Some(AngleRange::from_direction_and_width(
-                        self.view_direction,
-                        self.view_width,
-                    )),
-                ))
-            }
-            PlayerState::Disabled | PlayerState::Dead => None,
+            PlayerState::Active | PlayerState::Recording => Some(light_grid.trace_light_from(
+                self.position,
+                Some(AngleRange::from_direction_and_width(
+                    self.view_direction,
+                    self.view_width,
+                )),
+            )),
+            PlayerState::Reset
+            | PlayerState::Replay
+            | PlayerState::Disabled
+            | PlayerState::Dead => None,
         };
     }
 
@@ -233,7 +236,11 @@ impl Entity for Player {
     }
 
     fn visible_state(&self) -> Option<EntityVisibleState> {
-        Some(EntityVisibleState::new(self.position, 0))
+        if self.state == PlayerState::Disabled {
+            None
+        } else {
+            Some(EntityVisibleState::new(self.position, 0))
+        }
     }
 
     fn position(&self) -> Point2<f64> {
@@ -248,6 +255,7 @@ impl Entity for Player {
         match self.state {
             PlayerState::Active => Some(ViewKind::Present),
             PlayerState::Reset => None,
+            PlayerState::Replay => None,
             PlayerState::Recording => Some(ViewKind::Past),
             PlayerState::Disabled => None,
             PlayerState::Dead => None,
@@ -267,6 +275,7 @@ impl Entity for Player {
 
         match input {
             KeyCode::T => self.state = PlayerState::Reset,
+            KeyCode::Y => self.state = PlayerState::Replay,
             _ => (),
         }
     }
