@@ -91,7 +91,11 @@ impl Player {
             corner.y as f32,
             self.size.x as f32,
             self.size.y as f32,
-            Color::new(1.0, 0.0, 0.0, 1.0),
+            if self.state == PlayerState::Dead {
+                Color::new(0.5, 0.0, 0.0, 1.0)
+            } else {
+                Color::new(1.0, 0.0, 0.0, 1.0)
+            },
         );
     }
 
@@ -239,7 +243,10 @@ impl Entity for Player {
         if self.state == PlayerState::Disabled {
             None
         } else {
-            Some(EntityVisibleState::new(self.position, 0))
+            Some(EntityVisibleState::new(
+                self.position,
+                (self.state == PlayerState::Dead) as u64,
+            ))
         }
     }
 
