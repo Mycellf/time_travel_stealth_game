@@ -201,6 +201,7 @@ impl Level {
         self.frame = 0;
 
         self.mouse_moved(self.mouse_position, vector![0.0, 0.0]);
+        self.update();
     }
 
     pub fn update(&mut self) {
