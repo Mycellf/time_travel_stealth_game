@@ -230,6 +230,10 @@ impl Level {
             );
         }
 
+        for (_, entity) in &mut self.entities {
+            entity.inner.update_view_area(&mut self.light_grid);
+        }
+
         self.frame += 1;
     }
 

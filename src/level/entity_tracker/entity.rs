@@ -9,7 +9,7 @@ use crate::{
     level::{
         EntityKey,
         entity_tracker::{EntityTracker, entity::player::Player},
-        light_grid::{AngleRange, LightArea, LightGrid},
+        light_grid::{LightArea, LightGrid},
     },
 };
 
@@ -24,6 +24,8 @@ pub trait Entity: 'static + Debug {
         light_grid: &mut LightGrid,
         initial_state: &mut SlotMap<EntityKey, EntityTracker>,
     );
+
+    fn update_view_area(&mut self, _light_grid: &mut LightGrid) {}
 
     fn draw_wall(&mut self) {}
 

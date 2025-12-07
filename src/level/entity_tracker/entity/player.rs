@@ -80,6 +80,18 @@ impl Player {
             self.view_direction = new_direction;
         }
     }
+
+    pub fn draw(&mut self) {
+        let corner = self.position - self.size / 2.0;
+
+        shapes::draw_rectangle(
+            corner.x as f32,
+            corner.y as f32,
+            self.size.x as f32,
+            self.size.y as f32,
+            Color::new(1.0, 0.0, 0.0, 1.0),
+        );
+    }
 }
 
 impl Entity for Player {
@@ -128,7 +140,9 @@ impl Entity for Player {
             PlayerState::Disabled => (),
             PlayerState::Dead => (),
         }
+    }
 
+    fn update_view_area(&mut self, light_grid: &mut LightGrid) {
         self.view_area = match self.state {
             PlayerState::Active | PlayerState::Reset | PlayerState::Recording => {
                 Some(light_grid.trace_light_from(
@@ -143,20 +157,18 @@ impl Entity for Player {
         };
     }
 
-    fn draw_front(&mut self) {
-        if self.state == PlayerState::Disabled {
-            return;
+    fn draw_back(&mut self) {
+        match self.state {
+            PlayerState::Dead => self.draw(),
+            _ => (),
         }
+    }
 
-        let corner = self.position - self.size / 2.0;
-
-        shapes::draw_rectangle(
-            corner.x as f32,
-            corner.y as f32,
-            self.size.x as f32,
-            self.size.y as f32,
-            Color::new(1.0, 0.0, 0.0, 1.0),
-        );
+    fn draw_front(&mut self) {
+        match self.state {
+            PlayerState::Active | PlayerState::Reset | PlayerState::Recording => self.draw(),
+            _ => (),
+        }
     }
 
     fn position(&self) -> Point2<f64> {

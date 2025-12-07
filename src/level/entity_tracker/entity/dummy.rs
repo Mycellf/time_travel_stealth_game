@@ -43,9 +43,12 @@ impl Entity for Dummy {
         &mut self,
         _frame: FrameIndex,
         _entities: GuardedSlotMap<EntityKey, EntityTracker>,
-        light_grid: &mut LightGrid,
+        _light_grid: &mut LightGrid,
         _initial_state: &mut SlotMap<EntityKey, EntityTracker>,
     ) {
+    }
+
+    fn update_view_area(&mut self, light_grid: &mut LightGrid) {
         self.view_area = Some(light_grid.trace_light_from(
             self.position,
             Some(AngleRange::from_direction_and_width(
