@@ -128,7 +128,7 @@ impl Entity for Player {
         }
     }
 
-    fn draw(&mut self) {
+    fn draw_front(&mut self) {
         if self.state == PlayerState::Disabled {
             return;
         }
@@ -167,10 +167,6 @@ impl Entity for Player {
 
     fn duplicate(&self) -> Box<dyn Entity> {
         Box::new(self.clone())
-    }
-
-    fn always_visible(&self) -> bool {
-        true
     }
 
     fn should_recieve_inputs(&self) -> bool {

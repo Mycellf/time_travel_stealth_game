@@ -1,9 +1,9 @@
 use macroquad::{color::Color, math::Rect, shapes};
-use nalgebra::{Point2, UnitVector2, Vector2, point};
+use nalgebra::{Point2, UnitVector2, Vector2};
 use slotmap::SlotMap;
 
 use crate::{
-    collections::{history::FrameIndex, slot_guard::GuardedSlotMap, tile_grid::TileRect},
+    collections::{history::FrameIndex, slot_guard::GuardedSlotMap},
     level::{
         EntityKey,
         entity_tracker::{
@@ -42,11 +42,11 @@ impl Entity for Dummy {
         _frame: FrameIndex,
         _entities: GuardedSlotMap<EntityKey, EntityTracker>,
         _light_grid: &mut LightGrid,
-        initial_state: &mut SlotMap<EntityKey, EntityTracker>,
+        _initial_state: &mut SlotMap<EntityKey, EntityTracker>,
     ) {
     }
 
-    fn draw(&mut self) {
+    fn draw_front(&mut self) {
         let corner = self.position - self.size / 2.0;
 
         shapes::draw_rectangle(
@@ -75,10 +75,6 @@ impl Entity for Dummy {
 
     fn duplicate(&self) -> Box<dyn Entity> {
         Box::new(self.clone())
-    }
-
-    fn always_visible(&self) -> bool {
-        true
     }
 
     fn should_recieve_inputs(&self) -> bool {

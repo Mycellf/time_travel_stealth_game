@@ -25,7 +25,11 @@ pub trait Entity: 'static + Debug {
         initial_state: &mut SlotMap<EntityKey, EntityTracker>,
     );
 
-    fn draw(&mut self);
+    fn draw_wall(&mut self) {}
+
+    fn draw_back(&mut self) {}
+
+    fn draw_front(&mut self) {}
 
     fn position(&self) -> Point2<f64>;
 
@@ -38,8 +42,6 @@ pub trait Entity: 'static + Debug {
     }
 
     fn duplicate(&self) -> Box<dyn Entity>;
-
-    fn always_visible(&self) -> bool;
 
     fn should_recieve_inputs(&self) -> bool;
 

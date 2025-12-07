@@ -241,7 +241,7 @@ impl Level {
             .flatten()
             .collect::<Vec<_>>();
 
-        // Tiles
+        // Non-wall Tiles
         {
             let tile_kinds = tile::TILE_KINDS.lock().unwrap();
 
@@ -252,13 +252,19 @@ impl Level {
                         continue;
                     };
 
+                    let kind = &tile_kinds[tile.kind];
+
+                    if kind.pixel_kind.blocks_light() {
+                        continue;
+                    }
+
                     texture::draw_texture_ex(
                         &self.texture_atlas,
                         x as f32 * TILE_SIZE as f32,
                         y as f32 * TILE_SIZE as f32,
                         colors::WHITE,
                         DrawTextureParams {
-                            source: Some(tile_kinds[tile.kind].texture_rect()),
+                            source: Some(kind.texture_rect()),
                             ..Default::default()
                         },
                     );
@@ -266,11 +272,45 @@ impl Level {
             }
         }
 
+        // Wall Tiles
+        {
+            let tile_kinds = tile::TILE_KINDS.lock().unwrap();
+
+            let bounds = self.tile_grid.bounds();
+            for x in bounds.left()..bounds.right() + 1 {
+                for y in bounds.top()..bounds.bottom() + 1 {
+                    let Some(tile) = self.tile_grid[point![x, y]] else {
+                        continue;
+                    };
+
+                    let kind = &tile_kinds[tile.kind];
+
+                    if !kind.pixel_kind.blocks_light() {
+                        continue;
+                    }
+
+                    texture::draw_texture_ex(
+                        &self.texture_atlas,
+                        x as f32 * TILE_SIZE as f32,
+                        y as f32 * TILE_SIZE as f32,
+                        colors::WHITE,
+                        DrawTextureParams {
+                            source: Some(kind.texture_rect()),
+                            ..Default::default()
+                        },
+                    );
+                }
+            }
+        }
+
+        // Wall entities
+        for (_, entity) in &mut self.entities {
+            entity.draw_wall();
+        }
+
         // Vision occluded entities
         for (_, entity) in &mut self.entities {
-            if !entity.inner.always_visible() {
-                entity.draw();
-            }
+            entity.draw_back();
         }
 
         // Vision mask
@@ -320,9 +360,7 @@ impl Level {
 
         // Always visible entities
         for (_, entity) in &mut self.entities {
-            if entity.inner.always_visible() {
-                entity.draw();
-            }
+            entity.draw_front();
         }
     }
 
