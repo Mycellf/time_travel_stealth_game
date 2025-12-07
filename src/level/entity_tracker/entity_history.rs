@@ -15,15 +15,15 @@ impl<T> Default for EntityHistory<T> {
 
 impl<T> EntityHistory<T> {
     pub fn get(&self, index: FrameIndex) -> Option<&T> {
-        for record in &self.data {
-            if let entry @ Some(_) = record.get(index) {
-                return entry;
-            } else if record.start() > index {
-                return None;
-            }
-        }
+        let record_index = match self
+            .data
+            .binary_search_by_key(&index, |record| record.start())
+        {
+            Ok(index) => index,
+            Err(index) => index.wrapping_sub(1),
+        };
 
-        None
+        self.data.get(record_index)?.get(index)
     }
 
     pub fn try_insert(&mut self, index: FrameIndex, entry: T) -> Option<()>
