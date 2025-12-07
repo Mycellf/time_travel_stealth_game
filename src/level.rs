@@ -118,7 +118,7 @@ impl Level {
             brush: usize::MAX,
             drawing: false,
             precise_fill: false,
-            full_vision: true,
+            full_vision: false,
         };
 
         result.load_initial_state();
