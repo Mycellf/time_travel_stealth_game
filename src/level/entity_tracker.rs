@@ -7,7 +7,6 @@ use crate::{
 };
 
 pub(crate) mod entity;
-pub(crate) mod entity_history;
 
 #[derive(Debug)]
 pub struct EntityTracker {

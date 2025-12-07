@@ -3,17 +3,17 @@ use std::{mem, num::NonZero, ops::Range};
 pub type FrameIndex = usize;
 
 #[derive(Clone, Debug)]
-pub struct EntityHistory<T> {
+pub struct History<T> {
     data: Vec<Record<T>>,
 }
 
-impl<T> Default for EntityHistory<T> {
+impl<T> Default for History<T> {
     fn default() -> Self {
         Self { data: Vec::new() }
     }
 }
 
-impl<T> EntityHistory<T> {
+impl<T> History<T> {
     pub fn get(&self, index: FrameIndex) -> Option<&T> {
         let record_index = match self
             .data
