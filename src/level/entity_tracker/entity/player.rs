@@ -43,13 +43,9 @@ impl Player {
 impl Entity for Player {
     fn update(
         &mut self,
-        entities: GuardedSlotMap<EntityKey, EntityTracker>,
+        _entities: GuardedSlotMap<EntityKey, EntityTracker>,
         light_grid: &mut LightGrid,
     ) {
-        for entity in entities.iter() {
-            println!("{entity:?}");
-        }
-
         if let Some(new_direction) =
             UnitVector2::try_new(self.mouse_position - self.position, f64::EPSILON)
         {
