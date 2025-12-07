@@ -4,13 +4,12 @@ use std::{
     ops::{Index, IndexMut},
 };
 
-use slotmap::SlotMap;
+use slotmap::{DenseSlotMap, HopSlotMap, Key, SlotMap};
+
+use crate::collections::small_map::{SmallKey, SmallMap};
 
 pub type GuardedSlotMap<'a, K, V> = SlotGuard<'a, SlotMap<K, V>, K, V>;
 
-/// # Safety
-///
-/// This is unsound if `T` allows accessing the same value with multiple (unequal) `K` values.
 #[derive(Debug)]
 pub struct SlotGuard<'a, T, K, V> {
     collection: &'a mut T,
@@ -19,17 +18,11 @@ pub struct SlotGuard<'a, T, K, V> {
 }
 
 impl<'a, K, V, T> SlotGuard<'a, T, K, V> {
-    /// # Safety
-    ///
-    /// This is unsound if `T` allows accessing the same value with multiple (unequal) `K` values.
-    pub unsafe fn new(collection: &'a mut T, protected_slot: K) -> (&'a mut V, Self)
+    pub fn new(collection: &'a mut T, protected_slot: K) -> (&'a mut V, Self)
     where
         K: Clone + Eq + Debug,
-        T: IndexMut<K, Output = V>,
+        T: Guardable + IndexMut<K, Output = V>,
     {
-        // Basic sanity check for the valididy of Eq.
-        assert_eq!(protected_slot, protected_slot);
-
         let value = &mut collection[protected_slot.clone()];
 
         // SAFETY: The returned reference should only live as long as 'a, and aliasing should be
@@ -100,3 +93,17 @@ where
         &mut self.collection[index]
     }
 }
+
+/// # Safety
+///
+/// This is unsound if the implementor allows accessing the same value with multiple (unequal) keys
+/// via the Index/IndexMut trait.
+pub unsafe trait Guardable {}
+
+unsafe impl<T, const N: usize> Guardable for [T; N] {}
+
+unsafe impl<K: Key, V> Guardable for SlotMap<K, V> {}
+unsafe impl<K: Key, V> Guardable for HopSlotMap<K, V> {}
+unsafe impl<K: Key, V> Guardable for DenseSlotMap<K, V> {}
+
+unsafe impl<K: SmallKey, V> Guardable for SmallMap<K, V> {}
