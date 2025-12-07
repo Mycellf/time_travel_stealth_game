@@ -37,7 +37,7 @@ pub const TEXTURE_ATLAS: &[u8] = include_bytes!("../resources/texture_atlas.png"
 async fn main() {
     let mut state = State::new();
 
-    let mut mouse_position = get_mouse_position();
+    let mut mouse_position = point![0.0, 0.0];
 
     loop {
         let last_mouse_position = mouse_position;
@@ -214,7 +214,7 @@ pub fn transform_between_rectangles(
             .component_mul(&destination_size)
 }
 
-fn get_mouse_position() -> Point2<f32> {
+pub fn get_mouse_position() -> Point2<f32> {
     Point2::from(Vec2::from(macroquad::input::mouse_position()))
 }
 

@@ -9,7 +9,7 @@ use macroquad::{
     texture::{self, DrawTextureParams, FilterMode, Image, Texture2D},
     window,
 };
-use nalgebra::{Point2, Vector2, point};
+use nalgebra::{Point2, Vector2, point, vector};
 use slotmap::{SlotMap, new_key_type};
 
 use crate::{
@@ -40,6 +40,7 @@ pub const MAX_UPDATES_PER_TICK: usize = 4;
 
 pub struct Level {
     pub initial_state: SlotMap<EntityKey, EntityTracker>,
+    pub mouse_position: Point2<f64>,
 
     pub frame: FrameIndex,
     pub entities: SlotMap<EntityKey, EntityTracker>,
@@ -80,6 +81,7 @@ impl Level {
 
         Level {
             initial_state: entities.clone(),
+            mouse_position: point![0.0, 0.0],
 
             frame: 0,
             entities,
@@ -197,6 +199,8 @@ impl Level {
         }
 
         self.frame = 0;
+
+        self.mouse_moved(self.mouse_position, vector![0.0, 0.0]);
     }
 
     pub fn update(&mut self) {
@@ -413,6 +417,8 @@ impl Level {
     }
 
     pub fn mouse_moved(&mut self, position: Point2<f64>, delta: Vector2<f64>) {
+        self.mouse_position = position;
+
         for &key in &self.input_readers {
             self.entities[key].mouse_moved(position, delta);
         }
