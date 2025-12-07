@@ -15,7 +15,7 @@ pub struct SlotGuard<'a, T, K, V> {
 impl<'a, K, V, T> SlotGuard<'a, T, K, V> {
     pub fn new(collection: &'a mut T, protected_slot: K) -> (&'a mut V, Self)
     where
-        K: Clone + Eq + Debug,
+        K: Clone,
         T: IndexMut<K, Output = V>,
     {
         let value = &mut collection[protected_slot.clone()];
