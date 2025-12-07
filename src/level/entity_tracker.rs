@@ -4,6 +4,7 @@ use nalgebra::{Point2, Vector2};
 use crate::level::{entity_tracker::entity::Entity, light_grid::LightGrid};
 
 pub(crate) mod entity;
+pub(crate) mod entity_history;
 
 #[derive(Debug)]
 pub struct EntityTracker {
