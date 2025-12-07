@@ -179,7 +179,7 @@ impl Player {
                     let axis = [x, y][AXIS];
 
                     if let Some(collision) = &mut collision {
-                        if (*collision < axis) ^ (displacement < 0.0) {
+                        if (*collision < axis) ^ (displacement > 0.0) {
                             *collision = axis;
                         }
                     } else {
