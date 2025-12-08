@@ -366,16 +366,17 @@ impl Entity for Player {
 
             let mut position = self.position.map(|x| x as f32);
 
-            let spacing = 2.0 / self.confusion as f32;
             let displacement = (paradox_position - self.position).map(|x| x as f32);
             let distance = displacement.magnitude();
+
+            let spacing = 8.0 / self.confusion as f32;
             let offset = displacement / distance * spacing;
 
             let size = 1.0;
 
             let iterations = distance / spacing;
 
-            for _ in 0..iterations.floor() as usize {
+            for _ in 0..iterations.ceil() as usize {
                 shapes::draw_rectangle(
                     (position.x - size / 2.0).round(),
                     (position.y - size / 2.0).round(),
