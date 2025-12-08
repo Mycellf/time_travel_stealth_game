@@ -348,8 +348,8 @@ impl Entity for Player {
 
             for _ in 0..iterations.floor() as usize {
                 shapes::draw_rectangle(
-                    position.x - size / 2.0,
-                    position.y - size / 2.0,
+                    (position.x - size / 2.0).round(),
+                    (position.y - size / 2.0).round(),
                     size,
                     size,
                     Color::new(
@@ -390,8 +390,8 @@ impl Entity for Player {
 
                     texture::draw_texture_ex(
                         texture_atlas,
-                        position.x,
-                        position.y,
+                        position.x.round(),
+                        position.y.round(),
                         colors::WHITE,
                         DrawTextureParams {
                             source: Some(source),
