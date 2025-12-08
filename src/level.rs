@@ -439,6 +439,12 @@ impl Level {
 
         let size = crate::screen_pixel_size();
         camera.render_target = Some(texture::render_target(size.x, size.y));
+        camera
+            .render_target
+            .as_ref()
+            .unwrap()
+            .texture
+            .set_filter(FilterMode::Nearest);
 
         camera
     }
