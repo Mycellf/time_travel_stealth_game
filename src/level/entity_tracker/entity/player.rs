@@ -1,4 +1,4 @@
-use std::{array, mem};
+use std::{array, cmp::Ordering, mem};
 
 use macroquad::{
     color::{Color, colors},
@@ -283,13 +283,24 @@ impl Entity for Player {
             }
             PlayerState::Recording => {
                 if let Some(entry) = self.history.get(frame) {
+                    const MAXIMUM_TEMPORAL_OFFSET: usize = 2;
+
                     self.position = entry.position.map(|x| x as f64);
                     self.mouse_position = entry.mouse_position.map(|x| x as f64);
 
                     self.update_view_direction();
 
-                    if let Some((paradox_level, paradox_position)) =
-                        self.paradox_level(frame, &entities, light_grid)
+                    // Check a few previous and next frames as well to account for differences in
+                    // entity insertion order.
+                    if let Some(Some((paradox_level, paradox_position))) =
+                        (frame - MAXIMUM_TEMPORAL_OFFSET..frame + MAXIMUM_TEMPORAL_OFFSET + 1)
+                            .map(|frame| self.paradox_level(frame, &entities, light_grid))
+                            .min_by(|a, b| {
+                                a.unzip()
+                                    .0
+                                    .partial_cmp(&b.unzip().0)
+                                    .unwrap_or(Ordering::Equal)
+                            })
                     {
                         self.confusion += (paradox_level / Self::CONFUSION_TIME) * UPDATE_DT;
                         self.paradox_position = Some((paradox_level, paradox_position));
