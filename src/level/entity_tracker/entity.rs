@@ -1,6 +1,9 @@
 use std::fmt::Debug;
 
-use macroquad::input::{KeyCode, MouseButton};
+use macroquad::{
+    input::{KeyCode, MouseButton},
+    texture::Texture2D,
+};
 use nalgebra::{Point2, Vector2};
 use slotmap::SlotMap;
 
@@ -26,11 +29,15 @@ pub trait Entity: 'static + Debug {
 
     fn update_view_area(&mut self, _light_grid: &mut LightGrid) {}
 
-    fn draw_wall(&mut self) {}
+    fn draw_wall(&mut self, _texture_atlas: &Texture2D) {}
 
-    fn draw_back(&mut self) {}
+    fn draw_effect_back(&mut self, _texture_atlas: &Texture2D) {}
 
-    fn draw_front(&mut self) {}
+    fn draw_back(&mut self, _texture_atlas: &Texture2D) {}
+
+    fn draw_front(&mut self, _texture_atlas: &Texture2D) {}
+
+    fn draw_effect_front(&mut self, _texture_atlas: &Texture2D) {}
 
     fn position(&self) -> Point2<f64>;
 

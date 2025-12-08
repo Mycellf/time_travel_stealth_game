@@ -318,7 +318,7 @@ impl Level {
 
             // Wall entities
             for (_, entity) in &mut self.entities {
-                entity.draw_wall();
+                entity.inner.draw_wall(&self.texture_atlas);
             }
 
             camera::set_default_camera();
@@ -337,8 +337,9 @@ impl Level {
         }
 
         // Vision occluded entities
+
         for (_, entity) in &mut self.entities {
-            entity.draw_back();
+            entity.inner.draw_back(&self.texture_atlas);
         }
 
         // Vision mask
@@ -420,7 +421,15 @@ impl Level {
 
         // Always visible entities
         for (_, entity) in &mut self.entities {
-            entity.draw_front();
+            entity.inner.draw_effect_back(&self.texture_atlas);
+        }
+
+        for (_, entity) in &mut self.entities {
+            entity.inner.draw_front(&self.texture_atlas);
+        }
+
+        for (_, entity) in &mut self.entities {
+            entity.inner.draw_effect_front(&self.texture_atlas);
         }
     }
 

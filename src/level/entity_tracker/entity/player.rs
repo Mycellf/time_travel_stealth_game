@@ -1,7 +1,13 @@
 use std::{array, mem};
 
-use macroquad::{color::Color, input::KeyCode, math::Rect, shapes};
-use nalgebra::{Point2, UnitVector2, Vector2, point};
+use macroquad::{
+    color::{Color, colors},
+    input::KeyCode,
+    math::Rect,
+    shapes,
+    texture::{self, DrawTextureParams, Texture2D},
+};
+use nalgebra::{Point2, UnitVector2, Vector2, point, vector};
 use slotmap::{SecondaryMap, SlotMap};
 
 use crate::{
@@ -20,6 +26,24 @@ use crate::{
         light_grid::{AngleRange, LightArea, LightGrid},
     },
 };
+
+pub const CONFUSION_EFFECT_START: Point2<f32> = point![0.0, 16.0];
+pub const CONFUSION_EFFECT_SIZE: Vector2<f32> = vector![8.0, 8.0];
+pub const CONFUSION_EFFECT_OFFSET: Vector2<f32> = vector![-4.0, -12.0];
+pub const CONFUSION_EFFECT_RUN: usize = 10;
+
+pub fn rect_of_confusion_effect(paradox_level: f64) -> Rect {
+    let effect_index = ((paradox_level.clamp(0.0, 1.0) * CONFUSION_EFFECT_RUN as f64).floor()
+        as usize)
+        .min(CONFUSION_EFFECT_RUN - 1);
+
+    Rect::new(
+        CONFUSION_EFFECT_START.x + effect_index as f32 * CONFUSION_EFFECT_SIZE.x,
+        CONFUSION_EFFECT_START.y,
+        CONFUSION_EFFECT_SIZE.x,
+        CONFUSION_EFFECT_SIZE.y,
+    )
+}
 
 #[derive(Clone, Debug)]
 pub struct Player {
@@ -60,7 +84,7 @@ pub struct PlayerHistoryEntry {
 }
 
 impl Player {
-    pub const CONFUSION_TIME: f64 = 0.05;
+    pub const CONFUSION_TIME: f64 = 0.1;
     pub const CONFUSION_FALLOFF_DISTANCE: f64 = 16.0;
     pub const CONFUSION_DISTANCE_THRESHOLD: f64 = 12.0;
 
@@ -93,19 +117,6 @@ impl Player {
     }
 
     pub fn draw(&self) {
-        if let Some((_, paradox_position)) = self.paradox_position
-            && self.state == PlayerState::Recording
-        {
-            shapes::draw_line(
-                self.position.x as f32,
-                self.position.y as f32,
-                paradox_position.x as f32,
-                paradox_position.y as f32,
-                self.confusion as f32 * 2.0,
-                Color::new(1.0, self.confusion as f32, 0.0, 0.75),
-            );
-        }
-
         let corner = self.position - self.size / 2.0;
 
         shapes::draw_rectangle(
@@ -116,7 +127,7 @@ impl Player {
             if self.state == PlayerState::Dead {
                 Color::new(0.5, 0.0, 0.0, 1.0)
             } else {
-                Color::new(1.0, self.confusion as f32, 0.0, 1.0)
+                Color::new(1.0, 0.0, 0.0, 1.0)
             },
         );
     }
@@ -139,7 +150,7 @@ impl Player {
         light_grid: &LightGrid,
     ) -> Option<(f64, Point2<f64>)> {
         let view_area = self.view_area.as_ref()?;
-
+        //
         let mut exists = SecondaryMap::default();
 
         let mut error = None;
@@ -265,6 +276,7 @@ impl Entity for Player {
 
                 if self.state == PlayerState::Reset {
                     self.state = PlayerState::Active;
+                    self.motion_input.clear_keys_down();
                     initial_state.insert(EntityTracker::new(Box::new(self.clone())));
                 }
 
@@ -316,16 +328,78 @@ impl Entity for Player {
         };
     }
 
-    fn draw_back(&mut self) {
+    fn draw_effect_back(&mut self, _texture_atlas: &Texture2D) {
+        if let Some((_, paradox_position)) = self.paradox_position
+            && self.state == PlayerState::Recording
+            && self.confusion > 0.0
+        {
+            let mut color = 1.0;
+
+            let mut position = self.position.map(|x| x as f32);
+
+            let spacing = 2.0 / self.confusion as f32;
+            let displacement = (paradox_position - self.position).map(|x| x as f32);
+            let distance = displacement.magnitude();
+            let offset = displacement / distance * spacing;
+
+            let size = 1.0;
+
+            let iterations = distance / spacing;
+
+            for _ in 0..iterations.floor() as usize {
+                shapes::draw_rectangle(
+                    position.x - size / 2.0,
+                    position.y - size / 2.0,
+                    size,
+                    size,
+                    Color::new(
+                        1.0,
+                        if color < self.confusion { 0.0 } else { 1.0 },
+                        0.0,
+                        1.0,
+                    ),
+                );
+
+                position += offset;
+                color += 1.0 / iterations as f64;
+                color %= 1.0;
+            }
+        }
+    }
+
+    fn draw_back(&mut self, _texture_atlas: &Texture2D) {
         match self.state {
             PlayerState::Dead => self.draw(),
             _ => (),
         }
     }
 
-    fn draw_front(&mut self) {
+    fn draw_front(&mut self, _texture_atlas: &Texture2D) {
         match self.state {
             PlayerState::Active | PlayerState::Reset | PlayerState::Recording => self.draw(),
+            _ => (),
+        }
+    }
+
+    fn draw_effect_front(&mut self, texture_atlas: &Texture2D) {
+        match self.state {
+            PlayerState::Recording => {
+                if self.confusion > 0.0 {
+                    let source = rect_of_confusion_effect(self.confusion);
+                    let position = self.position.map(|x| x as f32) + CONFUSION_EFFECT_OFFSET;
+
+                    texture::draw_texture_ex(
+                        texture_atlas,
+                        position.x,
+                        position.y,
+                        colors::WHITE,
+                        DrawTextureParams {
+                            source: Some(source),
+                            ..Default::default()
+                        },
+                    );
+                }
+            }
             _ => (),
         }
     }

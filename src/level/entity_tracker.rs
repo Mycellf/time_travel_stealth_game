@@ -30,18 +30,6 @@ impl EntityTracker {
             .update(frame, entities, light_grid, initial_state);
     }
 
-    pub fn draw_wall(&mut self) {
-        self.inner.draw_wall();
-    }
-
-    pub fn draw_back(&mut self) {
-        self.inner.draw_back();
-    }
-
-    pub fn draw_front(&mut self) {
-        self.inner.draw_front();
-    }
-
     pub fn key_down(&mut self, input: KeyCode) {
         if self.inner.should_recieve_inputs() {
             self.inner.key_down(input);
