@@ -150,7 +150,6 @@ impl Player {
         light_grid: &LightGrid,
     ) -> Option<(f64, Point2<f64>)> {
         let view_area = self.view_area.as_ref()?;
-        //
         let mut exists = SecondaryMap::default();
 
         let mut error = None;
