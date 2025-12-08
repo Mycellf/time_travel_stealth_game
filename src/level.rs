@@ -62,6 +62,8 @@ pub struct Level {
     pub drawing: bool,
     pub precise_fill: bool,
     pub full_vision: bool,
+
+    pub occlude_wall_shadows: bool,
 }
 
 new_key_type! {
@@ -144,6 +146,8 @@ impl Level {
             drawing: false,
             precise_fill: false,
             full_vision: false,
+
+            occlude_wall_shadows: true,
         }
     }
 
@@ -239,7 +243,9 @@ impl Level {
 
     pub fn draw(&mut self) {
         Self::update_render_target(&mut self.mask_texture);
-        Self::update_render_target(&mut self.wall_texture);
+        if self.occlude_wall_shadows {
+            Self::update_render_target(&mut self.wall_texture);
+        }
 
         // Trace vision
         let view_areas = self
@@ -281,9 +287,11 @@ impl Level {
         }
 
         {
-            camera::push_camera_state();
-            camera::set_camera(&self.wall_texture);
-            window::clear_background(colors::BLANK);
+            if self.occlude_wall_shadows {
+                camera::push_camera_state();
+                camera::set_camera(&self.wall_texture);
+                window::clear_background(colors::BLANK);
+            }
 
             // Wall Tiles
             {
@@ -321,19 +329,21 @@ impl Level {
                 entity.inner.draw_wall(&self.texture_atlas);
             }
 
-            camera::set_default_camera();
+            if self.occlude_wall_shadows {
+                camera::set_default_camera();
 
-            texture::draw_texture_ex(
-                &self.wall_texture.render_target.as_ref().unwrap().texture,
-                0.0,
-                0.0,
-                colors::WHITE,
-                DrawTextureParams {
-                    dest_size: Some([window::screen_width(), window::screen_height()].into()),
-                    ..Default::default()
-                },
-            );
-            camera::pop_camera_state();
+                texture::draw_texture_ex(
+                    &self.wall_texture.render_target.as_ref().unwrap().texture,
+                    0.0,
+                    0.0,
+                    colors::WHITE,
+                    DrawTextureParams {
+                        dest_size: Some([window::screen_width(), window::screen_height()].into()),
+                        ..Default::default()
+                    },
+                );
+                camera::pop_camera_state();
+            }
         }
 
         // Vision occluded entities
@@ -368,22 +378,24 @@ impl Level {
                 }
             }
 
-            material::gl_use_material(&self.wall_mask_material);
+            if self.occlude_wall_shadows {
+                material::gl_use_material(&self.wall_mask_material);
 
-            let screen_rect = crate::screen_rect();
+                let screen_rect = crate::screen_rect();
 
-            texture::draw_texture_ex(
-                &self.wall_texture.render_target.as_ref().unwrap().texture,
-                screen_rect.x,
-                screen_rect.y,
-                colors::WHITE,
-                DrawTextureParams {
-                    dest_size: Some(screen_rect.size()),
-                    ..Default::default()
-                },
-            );
+                texture::draw_texture_ex(
+                    &self.wall_texture.render_target.as_ref().unwrap().texture,
+                    screen_rect.x,
+                    screen_rect.y,
+                    colors::WHITE,
+                    DrawTextureParams {
+                        dest_size: Some(screen_rect.size()),
+                        ..Default::default()
+                    },
+                );
 
-            material::gl_use_material(&self.mask_material);
+                material::gl_use_material(&self.mask_material);
+            }
 
             for &(ref area, kind) in &view_areas {
                 match kind {
