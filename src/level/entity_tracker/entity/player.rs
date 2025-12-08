@@ -132,6 +132,22 @@ impl Player {
         );
     }
 
+    pub fn draw_question_mark(&self, texture_atlas: &Texture2D, confusion: f64, color: Color) {
+        let source = rect_of_confusion_effect(confusion);
+        let position = self.position.map(|x| x as f32) + CONFUSION_EFFECT_OFFSET;
+
+        texture::draw_texture_ex(
+            texture_atlas,
+            position.x.round(),
+            position.y.round(),
+            color,
+            DrawTextureParams {
+                source: Some(source),
+                ..Default::default()
+            },
+        );
+    }
+
     pub fn edges(&self) -> [[Point2<f64>; 2]; 4] {
         let corners = [[1, 1], [-1, 1], [-1, -1], [1, -1]].map(|offset| {
             self.position
@@ -312,14 +328,17 @@ impl Entity for Player {
                     if self.confusion > 1.0 {
                         self.state = PlayerState::Dead;
                     }
-
-                    self.confusion = self.confusion.clamp(0.0, 1.0);
                 } else {
                     self.state = PlayerState::Disabled;
                 }
             }
-            PlayerState::Disabled | PlayerState::Dead => (),
+            PlayerState::Dead => {
+                self.confusion -= (1.0 / Self::RECOVERY_TIME) * UPDATE_DT;
+            }
+            PlayerState::Disabled => (),
         }
+
+        self.confusion = self.confusion.clamp(0.0, 1.0);
     }
 
     fn update_view_area(&mut self, light_grid: &mut LightGrid) {
@@ -395,17 +414,17 @@ impl Entity for Player {
         match self.state {
             PlayerState::Recording => {
                 if self.confusion > 0.0 {
-                    let source = rect_of_confusion_effect(self.confusion);
-                    let position = self.position.map(|x| x as f32) + CONFUSION_EFFECT_OFFSET;
-
-                    texture::draw_texture_ex(
+                    self.draw_question_mark(texture_atlas, self.confusion, colors::WHITE);
+                }
+            }
+            PlayerState::Dead => {
+                if self.confusion > 0.0 {
+                    self.draw_question_mark(
                         texture_atlas,
-                        position.x.round(),
-                        position.y.round(),
-                        colors::WHITE,
-                        DrawTextureParams {
-                            source: Some(source),
-                            ..Default::default()
+                        1.0,
+                        Color {
+                            a: self.confusion as f32,
+                            ..colors::WHITE
                         },
                     );
                 }
