@@ -445,6 +445,10 @@ impl Entity for Player {
         self.position
     }
 
+    fn collision_rect(&self) -> Option<TileRect> {
+        Some(TileRect::from_rect_inclusive(self.collision_rect()))
+    }
+
     fn view_area(&self) -> Option<LightArea> {
         self.view_area.clone()
     }

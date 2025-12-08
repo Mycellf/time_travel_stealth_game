@@ -667,6 +667,7 @@ pub enum Pixel {
     None,
     #[default]
     Solid,
+    Transparent,
 }
 
 impl Empty for Pixel {
@@ -693,7 +694,7 @@ impl Pixel {
     /// [`None`]: MaterialKind::None
     #[must_use]
     pub fn blocks_light(&self) -> bool {
-        !self.is_none()
+        matches!(self, Self::Solid)
     }
 
     /// Returns `false` if the material kind is [`None`].
@@ -701,7 +702,7 @@ impl Pixel {
     /// [`None`]: MaterialKind::None
     #[must_use]
     pub fn blocks_motion(&self) -> bool {
-        !self.is_none()
+        matches!(self, Self::Solid | Self::Transparent)
     }
 }
 

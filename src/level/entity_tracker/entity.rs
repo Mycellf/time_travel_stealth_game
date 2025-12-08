@@ -8,7 +8,7 @@ use nalgebra::{Point2, Vector2};
 use slotmap::SlotMap;
 
 use crate::{
-    collections::{history::FrameIndex, slot_guard::GuardedSlotMap},
+    collections::{history::FrameIndex, slot_guard::GuardedSlotMap, tile_grid::TileRect},
     level::{
         EntityKey,
         entity_tracker::{EntityTracker, entity::player::Player},
@@ -16,6 +16,7 @@ use crate::{
     },
 };
 
+pub(crate) mod elevator_door;
 pub(crate) mod player;
 
 pub trait Entity: 'static + Debug {
@@ -40,6 +41,10 @@ pub trait Entity: 'static + Debug {
     fn draw_effect_front(&mut self, _texture_atlas: &Texture2D) {}
 
     fn position(&self) -> Point2<f64>;
+
+    fn collision_rect(&self) -> Option<TileRect> {
+        None
+    }
 
     fn view_area(&self) -> Option<LightArea> {
         None

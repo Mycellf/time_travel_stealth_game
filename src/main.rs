@@ -16,7 +16,10 @@ use crate::{
     input::DirectionalInput,
     level::{
         Level, MAX_UPDATES_PER_TICK, UPDATE_DT,
-        entity_tracker::entity::player::{Player, PlayerState},
+        entity_tracker::entity::{
+            elevator_door::{ElevatorDoor, ElevatorDoorOrientation},
+            player::{Player, PlayerState},
+        },
     },
 };
 
@@ -98,26 +101,46 @@ impl State {
     fn new() -> Self {
         use std::f64::consts::PI;
 
-        let mut level = Level::new(vec![Box::new(Player {
-            position: point![0.0, 0.0],
-            size: vector![6.0, 6.0],
+        let mut level = Level::new(vec![
+            Box::new(Player {
+                position: point![0.0, 0.0],
+                size: vector![6.0, 6.0],
 
-            mouse_position: point![0.0, 0.0],
-            view_direction: UnitVector2::new_normalize(vector![1.0, 0.0]),
-            view_width: 120.0 * PI / 180.0,
+                mouse_position: point![0.0, 0.0],
+                view_direction: UnitVector2::new_normalize(vector![1.0, 0.0]),
+                view_width: 120.0 * PI / 180.0,
 
-            speed: 64.0,
-            motion_input: DirectionalInput::new(KeyCode::D, KeyCode::W, KeyCode::A, KeyCode::S),
+                speed: 64.0,
+                motion_input: DirectionalInput::new(KeyCode::D, KeyCode::W, KeyCode::A, KeyCode::S),
 
-            state: PlayerState::Active,
-            history: History::default(),
-            environment_history: SecondaryMap::default(),
+                state: PlayerState::Active,
+                history: History::default(),
+                environment_history: SecondaryMap::default(),
 
-            confusion: 0.0,
-            paradox_position: None,
+                confusion: 0.0,
+                paradox_position: None,
 
-            view_area: None,
-        })]);
+                view_area: None,
+            }),
+            Box::new(ElevatorDoor {
+                position: point![28.0, 0.0],
+
+                extent: 16,
+                open: false,
+                lighting_needs_update: true,
+
+                orientation: ElevatorDoorOrientation::Vertical,
+            }),
+            Box::new(ElevatorDoor {
+                position: point![0.0, -28.0],
+
+                extent: 16,
+                open: false,
+                lighting_needs_update: true,
+
+                orientation: ElevatorDoorOrientation::Horizontal,
+            }),
+        ]);
 
         if let Ok(data) = fs::read("resources/level") {
             level.load(&data);
