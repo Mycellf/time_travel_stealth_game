@@ -126,7 +126,7 @@ impl State {
                 position: point![118.0, 0.0],
 
                 extent: 16,
-                open: false,
+                open: true,
                 lighting_needs_update: true,
 
                 orientation: ElevatorDoorOrientation::Vertical,
@@ -135,7 +135,7 @@ impl State {
                 position: point![-118.0, 0.0],
 
                 extent: 16,
-                open: false,
+                open: true,
                 lighting_needs_update: true,
 
                 orientation: ElevatorDoorOrientation::Vertical,
