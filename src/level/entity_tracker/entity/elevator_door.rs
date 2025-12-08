@@ -2,7 +2,6 @@ use std::{array, f32::consts::PI};
 
 use macroquad::{
     color::colors,
-    input::KeyCode,
     math::Rect,
     texture::{self, DrawTextureParams, Texture2D},
 };
@@ -225,17 +224,5 @@ impl Entity for ElevatorDoor {
 
     fn should_recieve_inputs(&self) -> bool {
         true
-    }
-
-    fn key_down(&mut self, input: KeyCode) {
-        match input {
-            KeyCode::LeftBracket => {
-                self.open = false;
-            }
-            KeyCode::RightBracket => {
-                self.open = true;
-            }
-            _ => (),
-        }
     }
 }
