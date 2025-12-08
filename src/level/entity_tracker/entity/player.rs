@@ -85,7 +85,7 @@ pub struct PlayerHistoryEntry {
 
 impl Player {
     pub const CONFUSION_TIME: f64 = 0.1;
-    pub const CONFUSION_FALLOFF_DISTANCE: f64 = 16.0;
+    pub const CONFUSION_FALLOFF_DISTANCE: f64 = 24.0;
     pub const CONFUSION_DISTANCE_THRESHOLD: f64 = 12.0;
 
     pub const RECOVERY_TIME: f64 = 5.0;
