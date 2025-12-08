@@ -360,20 +360,23 @@ impl Level {
 
             material::gl_use_material(&self.mask_material);
 
-            for &(ref area, kind) in &view_areas {
+            let mut indecies = (0..view_areas.len()).collect::<Vec<_>>();
+            indecies.sort_unstable_by(|&a, &b| {
+                view_areas[a]
+                    .1
+                    .confusion()
+                    .total_cmp(&view_areas[b].1.confusion())
+            });
+
+            for &i in &indecies {
+                let &(ref area, kind) = &view_areas[i];
+
                 match kind {
                     ViewKind::Present => {
                         area.draw_wall_lighting(colors::BLANK);
                     }
-                    ViewKind::Past => (),
-                }
-            }
-
-            for &(ref area, kind) in &view_areas {
-                match kind {
-                    ViewKind::Present => (),
-                    ViewKind::Past => {
-                        area.draw_wall_lighting(Color::new(1.0, 0.0, 0.0, 0.2));
+                    ViewKind::Past { confusion } => {
+                        area.draw_wall_lighting(Color::new(1.0, confusion as f32, 0.0, 0.2));
                     }
                 }
             }
@@ -397,20 +400,15 @@ impl Level {
                 material::gl_use_material(&self.mask_material);
             }
 
-            for &(ref area, kind) in &view_areas {
+            for &i in &indecies {
+                let &(ref area, kind) = &view_areas[i];
+
                 match kind {
                     ViewKind::Present => {
                         area.draw_direct_lighting(colors::BLANK);
                     }
-                    ViewKind::Past => (),
-                }
-            }
-
-            for &(ref area, kind) in &view_areas {
-                match kind {
-                    ViewKind::Present => (),
-                    ViewKind::Past => {
-                        area.draw_direct_lighting(Color::new(1.0, 0.0, 0.0, 0.2));
+                    ViewKind::Past { confusion } => {
+                        area.draw_direct_lighting(Color::new(1.0, confusion as f32, 0.0, 0.2));
                     }
                 }
             }

@@ -84,7 +84,16 @@ pub trait Entity: 'static + Debug {
 #[derive(Clone, Copy, Debug)]
 pub enum ViewKind {
     Present,
-    Past,
+    Past { confusion: f64 },
+}
+
+impl ViewKind {
+    pub fn confusion(self) -> f64 {
+        match self {
+            ViewKind::Present => -f64::INFINITY,
+            ViewKind::Past { confusion } => confusion,
+        }
+    }
 }
 
 #[derive(Clone, Copy, PartialEq, Debug)]

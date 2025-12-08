@@ -458,7 +458,9 @@ impl Entity for Player {
             PlayerState::Active => Some(ViewKind::Present),
             PlayerState::Reset => None,
             PlayerState::Replay => None,
-            PlayerState::Recording => Some(ViewKind::Past),
+            PlayerState::Recording => Some(ViewKind::Past {
+                confusion: self.confusion,
+            }),
             PlayerState::Disabled => None,
             PlayerState::Dead => None,
         }
