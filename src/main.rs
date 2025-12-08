@@ -110,6 +110,7 @@ impl State {
             state: PlayerState::Active,
             history: History::default(),
             environment_history: SecondaryMap::default(),
+            confusion: 0.0,
 
             view_area: None,
         })]);

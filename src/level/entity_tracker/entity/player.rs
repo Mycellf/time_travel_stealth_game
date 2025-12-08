@@ -36,6 +36,7 @@ pub struct Player {
     pub state: PlayerState,
     pub history: History<PlayerHistoryEntry>,
     pub environment_history: SecondaryMap<EntityKey, History<EntityVisibleState>>,
+    pub confusion: f64,
 
     pub view_area: Option<LightArea>,
 }
@@ -57,6 +58,12 @@ pub struct PlayerHistoryEntry {
 }
 
 impl Player {
+    pub const CONFUSION_TIME: f64 = 0.2;
+    pub const CONFUSION_FALLOFF_DISTANCE: f64 = 64.0;
+    pub const CONFUSION_DISTANCE_THRESHOLD: f64 = 12.0;
+
+    pub const RECOVERY_TIME: f64 = 5.0;
+
     pub fn collision_rect(&self) -> Rect {
         let corner = self.position - self.size / 2.0;
 
@@ -94,7 +101,7 @@ impl Player {
             if self.state == PlayerState::Dead {
                 Color::new(0.5, 0.0, 0.0, 1.0)
             } else {
-                Color::new(1.0, 0.0, 0.0, 1.0)
+                Color::new(1.0, self.confusion as f32, 0.0, 1.0)
             },
         );
     }
@@ -108,6 +115,91 @@ impl Player {
         });
 
         array::from_fn(|i| [corners[i], corners[(i + 1) % corners.len()]])
+    }
+
+    pub fn paradox_level(
+        &self,
+        frame: FrameIndex,
+        entities: &GuardedSlotMap<EntityKey, EntityTracker>,
+        light_grid: &LightGrid,
+    ) -> Option<f64> {
+        let view_area = self.view_area.as_ref()?;
+
+        let mut exists = SecondaryMap::default();
+
+        let mut error = None;
+
+        for (key, entity) in entities.iter() {
+            exists.insert(key, ());
+
+            let mut current_state @ Some(_) = entity.inner.visible_state() else {
+                continue;
+            };
+
+            if !entity.inner.is_within_view_area(light_grid, view_area) {
+                current_state = None;
+            };
+
+            let expected_state = self
+                .environment_history
+                .get(key)
+                .and_then(|history| history.get(frame))
+                .copied();
+
+            let this_error = self.compare_states(current_state, expected_state);
+            if this_error > error {
+                error = this_error;
+            }
+        }
+
+        for (key, history) in &self.environment_history {
+            if exists.contains_key(key) {
+                continue;
+            }
+
+            if let expected_state @ Some(_) = history.get(frame).copied() {
+                let this_error = self.compare_states(None, expected_state);
+                if this_error > error {
+                    error = this_error;
+                }
+            }
+        }
+
+        error
+    }
+
+    pub fn compare_states(
+        &self,
+        current_state: Option<EntityVisibleState>,
+        expected_state: Option<EntityVisibleState>,
+    ) -> Option<f64> {
+        if current_state != expected_state {
+            let [current_distance, expected_distance] =
+                [current_state, expected_state].map(|state| {
+                    state
+                        .map(|state| (state.position() - self.position).magnitude())
+                        .unwrap_or(f64::INFINITY)
+                });
+
+            // Distance != f64::INFINITY: None == None, so we can't get two of them
+            let distance = current_distance.min(expected_distance);
+
+            let [current_angle, expected_angle] = [current_state, expected_state].map(|state| {
+                state
+                    .map(|state| (state.position() - self.position).angle(&self.view_direction))
+                    .unwrap_or(f64::INFINITY)
+            });
+
+            // Angle != f64::INFINITY: None == None, so we can't get two of them
+            let angle = current_angle.min(expected_angle);
+
+            Some(
+                (Self::CONFUSION_FALLOFF_DISTANCE / distance).clamp(0.0, 1.0)
+                    * (1.0 - 2.0 * angle / self.view_width).clamp(0.25, 1.0),
+            )
+        } else {
+            None
+        }
     }
 }
 
@@ -167,26 +259,17 @@ impl Entity for Player {
 
                     self.update_view_direction();
 
-                    if let Some(view_area) = &self.view_area {
-                        for (key, entity) in entities.iter() {
-                            if entity.inner.is_within_view_area(light_grid, view_area) {
-                                let state = entity.inner.visible_state().unwrap();
-                                if self
-                                    .environment_history
-                                    .get(key)
-                                    .is_none_or(|history| Some(&state) != history.get(frame))
-                                {
-                                    self.state = PlayerState::Dead;
-                                }
-                            } else if self
-                                .environment_history
-                                .get(key)
-                                .is_some_and(|history| history.get(frame).is_some())
-                            {
-                                self.state = PlayerState::Dead;
-                            }
-                        }
+                    if let Some(paradox_level) = self.paradox_level(frame, &entities, light_grid) {
+                        self.confusion += (paradox_level / Self::CONFUSION_TIME) * UPDATE_DT;
+                    } else {
+                        self.confusion -= (1.0 / Self::RECOVERY_TIME) * UPDATE_DT;
                     }
+
+                    if self.confusion > 1.0 {
+                        self.state = PlayerState::Dead;
+                    }
+
+                    self.confusion = self.confusion.clamp(0.0, 1.0);
                 } else {
                     self.state = PlayerState::Disabled;
                 }
@@ -233,9 +316,11 @@ impl Entity for Player {
         self.edges()
             .into_iter()
             .any(|line| view_area.edge_intersects_line(line))
-            || view_area
+            || (view_area
                 .range
                 .is_none_or(|range| range.contains_offset(self.position - view_area.origin))
+                || (self.position - view_area.origin).magnitude_squared()
+                    <= Self::CONFUSION_DISTANCE_THRESHOLD.powi(2))
                 && light_grid.contains_path(view_area.origin, self.position)
     }
 

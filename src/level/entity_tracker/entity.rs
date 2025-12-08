@@ -88,4 +88,8 @@ impl EntityVisibleState {
             extra,
         }
     }
+
+    pub fn position(&self) -> Point2<f64> {
+        self.position.map(|x| x as f64)
+    }
 }
