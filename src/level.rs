@@ -234,9 +234,14 @@ impl Level {
             );
         }
 
-        for (_, entity) in &mut self.entities {
+        self.entities.retain(|_, entity| {
+            if entity.inner.should_be_deleted() {
+                return false;
+            }
+
             entity.inner.update_view_area(&mut self.light_grid);
-        }
+            true
+        });
 
         self.frame += 1;
     }
@@ -500,9 +505,15 @@ impl Level {
             _ => (),
         }
 
-        for &key in &self.input_readers {
-            self.entities[key].key_down(input);
-        }
+        self.input_readers.retain(|&key| {
+            let Some(entity) = self.entities.get_mut(key) else {
+                return false;
+            };
+
+            entity.key_down(input);
+
+            true
+        });
     }
 
     pub fn key_up(&mut self, input: KeyCode) {
@@ -513,15 +524,27 @@ impl Level {
             _ => (),
         }
 
-        for &key in &self.input_readers {
-            self.entities[key].key_up(input);
-        }
+        self.input_readers.retain(|&key| {
+            let Some(entity) = self.entities.get_mut(key) else {
+                return false;
+            };
+
+            entity.key_up(input);
+
+            true
+        });
     }
 
     pub fn mouse_down(&mut self, input: MouseButton, position: Point2<f64>) {
-        for &key in &self.input_readers {
-            self.entities[key].mouse_down(input, position);
-        }
+        self.input_readers.retain(|&key| {
+            let Some(entity) = self.entities.get_mut(key) else {
+                return false;
+            };
+
+            entity.mouse_down(input, position);
+
+            true
+        });
 
         match input {
             MouseButton::Left => {
@@ -538,9 +561,15 @@ impl Level {
     }
 
     pub fn mouse_up(&mut self, input: MouseButton, position: Point2<f64>) {
-        for &key in &self.input_readers {
-            self.entities[key].mouse_up(input, position);
-        }
+        self.input_readers.retain(|&key| {
+            let Some(entity) = self.entities.get_mut(key) else {
+                return false;
+            };
+
+            entity.mouse_up(input, position);
+
+            true
+        });
 
         match input {
             MouseButton::Left => {
@@ -553,9 +582,15 @@ impl Level {
     pub fn mouse_moved(&mut self, position: Point2<f64>, delta: Vector2<f64>) {
         self.mouse_position = position;
 
-        for &key in &self.input_readers {
-            self.entities[key].mouse_moved(position, delta);
-        }
+        self.input_readers.retain(|&key| {
+            let Some(entity) = self.entities.get_mut(key) else {
+                return false;
+            };
+
+            entity.mouse_moved(position, delta);
+
+            true
+        });
 
         if self.drawing {
             let index = position.map(|x| (x.floor() as isize).div_euclid(TILE_SIZE));

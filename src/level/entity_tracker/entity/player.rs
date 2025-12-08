@@ -490,6 +490,10 @@ impl Entity for Player {
         Box::new(self.clone())
     }
 
+    fn should_be_deleted(&self) -> bool {
+        self.state == PlayerState::Disabled
+    }
+
     fn should_recieve_inputs(&self) -> bool {
         self.state == PlayerState::Active
     }
