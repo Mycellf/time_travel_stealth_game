@@ -215,7 +215,7 @@ impl Entity for ElevatorDoor {
     }
 
     fn collision_rect(&self) -> Option<TileRect> {
-        Some(self.collision_rect())
+        (self.extent > 0).then(|| self.collision_rect())
     }
 
     fn duplicate(&self) -> Box<dyn Entity> {
