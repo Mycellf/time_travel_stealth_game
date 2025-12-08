@@ -123,7 +123,7 @@ impl State {
                 view_area: None,
             }),
             Box::new(ElevatorDoor {
-                position: point![28.0, 0.0],
+                position: point![118.0, 0.0],
 
                 extent: 16,
                 open: false,
@@ -132,13 +132,13 @@ impl State {
                 orientation: ElevatorDoorOrientation::Vertical,
             }),
             Box::new(ElevatorDoor {
-                position: point![0.0, -28.0],
+                position: point![-118.0, 0.0],
 
                 extent: 16,
                 open: false,
                 lighting_needs_update: true,
 
-                orientation: ElevatorDoorOrientation::Horizontal,
+                orientation: ElevatorDoorOrientation::Vertical,
             }),
         ]);
 
