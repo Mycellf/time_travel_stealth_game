@@ -36,7 +36,9 @@ pub struct Player {
     pub state: PlayerState,
     pub history: History<PlayerHistoryEntry>,
     pub environment_history: SecondaryMap<EntityKey, History<EntityVisibleState>>,
+
     pub confusion: f64,
+    pub paradox_position: Option<(f64, Point2<f64>)>,
 
     pub view_area: Option<LightArea>,
 }
@@ -58,8 +60,8 @@ pub struct PlayerHistoryEntry {
 }
 
 impl Player {
-    pub const CONFUSION_TIME: f64 = 0.2;
-    pub const CONFUSION_FALLOFF_DISTANCE: f64 = 128.0;
+    pub const CONFUSION_TIME: f64 = 0.05;
+    pub const CONFUSION_FALLOFF_DISTANCE: f64 = 16.0;
     pub const CONFUSION_DISTANCE_THRESHOLD: f64 = 12.0;
 
     pub const RECOVERY_TIME: f64 = 5.0;
@@ -91,6 +93,19 @@ impl Player {
     }
 
     pub fn draw(&self) {
+        if let Some((_, paradox_position)) = self.paradox_position
+            && self.state == PlayerState::Recording
+        {
+            shapes::draw_line(
+                self.position.x as f32,
+                self.position.y as f32,
+                paradox_position.x as f32,
+                paradox_position.y as f32,
+                self.confusion as f32 * 2.0,
+                Color::new(1.0, self.confusion as f32, 0.0, 0.75),
+            );
+        }
+
         let corner = self.position - self.size / 2.0;
 
         shapes::draw_rectangle(
@@ -122,12 +137,13 @@ impl Player {
         frame: FrameIndex,
         entities: &GuardedSlotMap<EntityKey, EntityTracker>,
         light_grid: &LightGrid,
-    ) -> Option<f64> {
+    ) -> Option<(f64, Point2<f64>)> {
         let view_area = self.view_area.as_ref()?;
 
         let mut exists = SecondaryMap::default();
 
         let mut error = None;
+        let mut position = None;
 
         for (key, entity) in entities.iter() {
             exists.insert(key, ());
@@ -149,6 +165,7 @@ impl Player {
             let this_error = self.compare_states(current_state, expected_state);
             if this_error > error {
                 error = this_error;
+                position = Some(current_state.or(expected_state).unwrap().position());
             }
         }
 
@@ -157,15 +174,16 @@ impl Player {
                 continue;
             }
 
-            if let expected_state @ Some(_) = history.get(frame).copied() {
-                let this_error = self.compare_states(None, expected_state);
+            if let Some(expected_state) = history.get(frame).copied() {
+                let this_error = self.compare_states(None, Some(expected_state));
                 if this_error > error {
                     error = this_error;
+                    position = Some(expected_state.position());
                 }
             }
         }
 
-        error
+        error.zip(position)
     }
 
     pub fn compare_states(
@@ -259,10 +277,14 @@ impl Entity for Player {
 
                     self.update_view_direction();
 
-                    if let Some(paradox_level) = self.paradox_level(frame, &entities, light_grid) {
+                    if let Some((paradox_level, paradox_position)) =
+                        self.paradox_level(frame, &entities, light_grid)
+                    {
                         self.confusion += (paradox_level / Self::CONFUSION_TIME) * UPDATE_DT;
+                        self.paradox_position = Some((paradox_level, paradox_position));
                     } else {
                         self.confusion -= (1.0 / Self::RECOVERY_TIME) * UPDATE_DT;
+                        self.paradox_position = None;
                     }
 
                     if self.confusion > 1.0 {
