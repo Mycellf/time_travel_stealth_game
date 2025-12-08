@@ -24,10 +24,12 @@ pub(crate) mod collections;
 pub(crate) mod input;
 pub(crate) mod level;
 
+pub const START_IN_FULLSCREEN: bool = true;
+
 fn config() -> Conf {
     Conf {
         window_title: "Time Travel Stealth Game".to_owned(),
-        fullscreen: true,
+        fullscreen: START_IN_FULLSCREEN,
         ..Default::default()
     }
 }
@@ -122,7 +124,7 @@ impl State {
         }
 
         State {
-            fullscreen: true,
+            fullscreen: START_IN_FULLSCREEN,
 
             level,
             update_time: 0.0,
