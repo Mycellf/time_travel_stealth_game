@@ -1,4 +1,4 @@
-use std::fs;
+use std::{fs, mem};
 
 use macroquad::{
     camera::{self, Camera2D},
@@ -77,15 +77,15 @@ impl Level {
         );
         texture_atlas.set_filter(FilterMode::Nearest);
 
-        let (entities, input_readers) = Self::entities_from_initial_state(initial_state);
+        let initial_state = Self::entities_from_initial_state(initial_state);
 
         Level {
-            initial_state: entities.clone(),
+            initial_state,
             mouse_position: point![0.0, 0.0],
 
             frame: 0,
-            entities,
-            input_readers,
+            entities: SlotMap::default(),
+            input_readers: Vec::new(),
 
             texture_atlas,
             mask_texture: Self::new_render_target(),
@@ -190,30 +190,30 @@ impl Level {
 
     pub fn entities_from_initial_state(
         initial_state: Vec<Box<dyn Entity>>,
-    ) -> (SlotMap<EntityKey, EntityTracker>, Vec<EntityKey>) {
+    ) -> SlotMap<EntityKey, EntityTracker> {
         let mut entities = SlotMap::default();
-        let mut input_readers = Vec::new();
 
         for entity in initial_state {
-            let needs_input = entity.should_recieve_inputs();
-            let key = entities.insert(EntityTracker::new(entity.duplicate()));
-
-            if needs_input {
-                input_readers.push(key);
-            }
+            entities.insert(EntityTracker::new(entity.duplicate()));
         }
 
-        (entities, input_readers)
+        entities
     }
 
     pub fn load_initial_state(&mut self) {
         self.entities.clone_from(&self.initial_state);
         self.input_readers.clear();
 
-        for (key, entity) in &self.entities {
+        for key in self.entities.keys().collect::<Vec<_>>() {
+            let mut entity = mem::take(&mut self.entities[key]);
+
             if entity.inner.should_recieve_inputs() {
                 self.input_readers.push(key);
             }
+
+            entity.inner.spawn(key, &mut self.entities);
+
+            self.entities[key] = entity;
         }
 
         self.frame = 0;

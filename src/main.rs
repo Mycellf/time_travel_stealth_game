@@ -17,6 +17,7 @@ use crate::{
     level::{
         Level, MAX_UPDATES_PER_TICK, UPDATE_DT,
         entity_tracker::entity::{
+            elevator::{Elevator, ElevatorDirection},
             elevator_door::{ElevatorDoor, ElevatorDoorOrientation},
             player::{Player, PlayerState},
         },
@@ -122,29 +123,27 @@ impl State {
 
                 view_area: None,
             }),
-            Box::new(ElevatorDoor {
-                position: point![118.0, 0.0],
+            Box::new(Elevator {
+                position: point![128.0, 0.0],
+                direction: ElevatorDirection::West,
+                door: None,
 
-                extent: 16,
-                open: true,
-                lighting_needs_update: true,
-
-                orientation: ElevatorDoorOrientation::Vertical,
+                used: false,
             }),
-            Box::new(ElevatorDoor {
-                position: point![-118.0, 0.0],
+            Box::new(Elevator {
+                position: point![-128.0, 0.0],
+                direction: ElevatorDirection::East,
+                door: None,
 
-                extent: 16,
-                open: true,
-                lighting_needs_update: true,
-
-                orientation: ElevatorDoorOrientation::Vertical,
+                used: false,
             }),
         ]);
 
         if let Ok(data) = fs::read("resources/level") {
             level.load(&data);
         }
+
+        level.load_initial_state();
 
         State {
             fullscreen: START_IN_FULLSCREEN,

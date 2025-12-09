@@ -4,7 +4,11 @@ use slotmap::SlotMap;
 
 use crate::{
     collections::{history::FrameIndex, slot_guard::GuardedSlotMap},
-    level::{EntityKey, entity_tracker::entity::Entity, light_grid::LightGrid},
+    level::{
+        EntityKey,
+        entity_tracker::entity::{Entity, empty::Empty},
+        light_grid::LightGrid,
+    },
 };
 
 pub(crate) mod entity;
@@ -12,6 +16,12 @@ pub(crate) mod entity;
 #[derive(Debug)]
 pub struct EntityTracker {
     pub inner: Box<dyn Entity>,
+}
+
+impl Default for EntityTracker {
+    fn default() -> Self {
+        Self::new(Box::new(Empty))
+    }
 }
 
 impl EntityTracker {

@@ -16,7 +16,9 @@ use crate::{
     },
 };
 
+pub(crate) mod elevator;
 pub(crate) mod elevator_door;
+pub(crate) mod empty;
 pub(crate) mod player;
 
 pub trait Entity: 'static + Debug {
@@ -63,6 +65,8 @@ pub trait Entity: 'static + Debug {
     }
 
     fn duplicate(&self) -> Box<dyn Entity>;
+
+    fn spawn(&mut self, _key: EntityKey, _entities: &mut SlotMap<EntityKey, EntityTracker>) {}
 
     fn should_be_deleted(&self) -> bool {
         false
