@@ -124,6 +124,23 @@ impl State {
             }),
             Box::new(Elevator::new(point![128.0, 0.0], ElevatorDirection::West)),
             Box::new(Elevator::new(point![-128.0, 0.0], ElevatorDirection::East)),
+            Box::new(Elevator::new(
+                point![-160.0, 32.0],
+                ElevatorDirection::South,
+            )),
+            Box::new(Elevator::new(
+                point![-136.0, 32.0],
+                ElevatorDirection::South,
+            )),
+            Box::new(Elevator::new(
+                point![-160.0, -112.0],
+                ElevatorDirection::South,
+            )),
+            Box::new(Elevator::new(
+                point![168.0, -112.0],
+                ElevatorDirection::South,
+            )),
+            Box::new(Elevator::new(point![184.0, 80.0], ElevatorDirection::West)),
         ]);
 
         level.reset();

@@ -1,4 +1,4 @@
-use macroquad::math::Rect;
+use macroquad::{color, math::Rect, shapes, texture::Texture2D};
 use nalgebra::{Point2, Scalar, Vector2, vector};
 use slotmap::SlotMap;
 
@@ -161,6 +161,15 @@ impl Entity for Elevator {
         } else {
             None
         }
+    }
+
+    fn draw_effect_back(&mut self, _texture_atlas: &Texture2D) {
+        // shapes::draw_circle(
+        //     self.position.x as f32,
+        //     self.position.y as f32,
+        //     4.0,
+        //     color::WHITE,
+        // );
     }
 
     fn position(&self) -> Point2<f64> {

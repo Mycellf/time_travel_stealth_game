@@ -40,7 +40,9 @@ pub const MAX_UPDATES_PER_TICK: usize = 4;
 
 /// TODO: Consider using the include_dir crate for embedding all of the levels into the binary
 pub struct Level {
-    pub initial_state: SlotMap<EntityKey, EntityTracker>,
+    pub initial_state: Vec<Box<dyn Entity>>,
+
+    pub initial_entities: SlotMap<EntityKey, EntityTracker>,
     pub mouse_position: Point2<f64>,
 
     pub frame: FrameIndex,
@@ -71,16 +73,18 @@ new_key_type! {
 }
 
 impl Level {
-    pub fn new(initial_state: Vec<Box<dyn Entity>>) -> Level {
+    pub fn new(initial_entities: Vec<Box<dyn Entity>>) -> Level {
         let texture_atlas = Texture2D::from_image(
             &Image::from_file_with_format(crate::TEXTURE_ATLAS, None).unwrap(),
         );
         texture_atlas.set_filter(FilterMode::Nearest);
 
-        let initial_state = Self::entities_from_initial_state(initial_state);
+        let initial_state = Self::entities_from_initial_state(&initial_entities);
 
         Level {
-            initial_state,
+            initial_state: initial_entities,
+
+            initial_entities: initial_state,
             mouse_position: point![0.0, 0.0],
 
             frame: 0,
@@ -189,7 +193,7 @@ impl Level {
     }
 
     pub fn entities_from_initial_state(
-        initial_state: Vec<Box<dyn Entity>>,
+        initial_state: &[Box<dyn Entity>],
     ) -> SlotMap<EntityKey, EntityTracker> {
         let mut entities = SlotMap::default();
 
@@ -208,8 +212,8 @@ impl Level {
         entities
     }
 
-    pub fn load_initial_state(&mut self) {
-        self.entities.clone_from(&self.initial_state);
+    pub fn load_initial_entities(&mut self) {
+        self.entities.clone_from(&self.initial_entities);
         self.input_readers.clear();
 
         for (key, entity) in &self.entities {
@@ -225,11 +229,13 @@ impl Level {
     }
 
     pub fn reset(&mut self) {
+        self.initial_entities = Self::entities_from_initial_state(&self.initial_state);
+
         if let Ok(data) = fs::read("resources/level") {
             self.load(&data);
         }
 
-        self.load_initial_state();
+        self.load_initial_entities();
     }
 
     pub fn update(&mut self) {
@@ -242,7 +248,7 @@ impl Level {
                 self.frame,
                 guard,
                 &mut self.light_grid,
-                &mut self.initial_state,
+                &mut self.initial_entities,
             );
 
             actions.extend(action);
@@ -258,7 +264,7 @@ impl Level {
             if actions.contains(&GameAction::HardReset) {
                 self.reset();
             } else if actions.contains(&GameAction::SoftReset) {
-                self.load_initial_state();
+                self.load_initial_entities();
             }
         }
     }
@@ -500,6 +506,9 @@ impl Level {
             }
             KeyCode::LeftShift => {
                 self.precise_fill = true;
+            }
+            KeyCode::R => {
+                self.reset();
             }
             KeyCode::Key0 => self.brush = usize::MAX,
             KeyCode::Key1 => self.brush = 0,
