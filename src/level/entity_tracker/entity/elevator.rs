@@ -1,3 +1,5 @@
+use std::f64::consts::PI;
+
 use macroquad::{
     color::colors,
     math::Rect,
@@ -25,6 +27,9 @@ pub const ELEVATOR_SIZE: Vector2<f64> = vector![16.0, 16.0];
 
 pub const ELEVATOR_FLOOR_TEXTURE_POSITION: Point2<f32> = point![8.0, 24.0];
 pub const ELEVATOR_FLOOR_TEXTURE_SIZE: Vector2<f32> = vector![16.0, 16.0];
+
+pub const ELEVATOR_WALLS_TEXTURE_POSITION: Point2<f32> = point![24.0, 24.0];
+pub const ELEVATOR_WALLS_TEXTURE_SIZE: Vector2<f32> = vector![24.0, 24.0];
 
 #[derive(Clone, Debug)]
 pub struct Elevator {
@@ -85,6 +90,15 @@ impl ElevatorDirection {
             ElevatorDirection::South => vector![0, 1],
         }
         .map(|x| x.into())
+    }
+
+    pub fn angle(self) -> f64 {
+        match self {
+            ElevatorDirection::East => 0.0,
+            ElevatorDirection::North => PI * 1.5,
+            ElevatorDirection::West => PI,
+            ElevatorDirection::South => PI * 0.5,
+        }
     }
 }
 
@@ -170,7 +184,7 @@ impl Entity for Elevator {
         }
     }
 
-    fn draw_back(&mut self, texture_atlas: &Texture2D) {
+    fn draw_floor(&mut self, texture_atlas: &Texture2D) {
         texture::draw_texture_ex(
             texture_atlas,
             self.position.x as f32 - ELEVATOR_FLOOR_TEXTURE_SIZE.x / 2.0,
@@ -183,6 +197,25 @@ impl Entity for Elevator {
                     ELEVATOR_FLOOR_TEXTURE_SIZE.x,
                     ELEVATOR_FLOOR_TEXTURE_SIZE.y,
                 )),
+                ..Default::default()
+            },
+        );
+    }
+
+    fn draw_wall(&mut self, texture_atlas: &Texture2D) {
+        texture::draw_texture_ex(
+            texture_atlas,
+            self.position.x as f32 - ELEVATOR_WALLS_TEXTURE_SIZE.x / 2.0,
+            self.position.y as f32 - ELEVATOR_WALLS_TEXTURE_SIZE.y / 2.0,
+            colors::WHITE,
+            DrawTextureParams {
+                source: Some(Rect::new(
+                    ELEVATOR_WALLS_TEXTURE_POSITION.x,
+                    ELEVATOR_WALLS_TEXTURE_POSITION.y,
+                    ELEVATOR_WALLS_TEXTURE_SIZE.x,
+                    ELEVATOR_WALLS_TEXTURE_SIZE.y,
+                )),
+                rotation: self.direction.angle() as f32,
                 ..Default::default()
             },
         );

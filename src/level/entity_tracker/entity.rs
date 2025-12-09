@@ -42,8 +42,12 @@ pub trait Entity: 'static + Debug {
     /// any player inputs to use a recording in stead.
     fn travel_to_beginning(&mut self, _past: &mut EntityTracker) {}
 
-    /// Drawn behind every other layer, after all tiles. Used to occlude the wall mask if enabled.
-    /// Good for drawing parts of an entity that will be inside of light blocking pixels.
+    /// Drawn behind every other layer, before wall tiles. Not used to occlude the wall mask.
+    /// Good for drawing parts of an entity that should logically be part of the floor.
+    fn draw_floor(&mut self, _texture_atlas: &Texture2D) {}
+
+    /// Drawn behind every layer but draw_floor, and after all tiles. Used to occlude the wall mask
+    /// if enabled. Good for drawing parts of an entity that will be inside of light blocking pixels.
     fn draw_wall(&mut self, _texture_atlas: &Texture2D) {}
 
     /// Occluded by light, but not used to occlude the wall mask. Good for drawing generic entities

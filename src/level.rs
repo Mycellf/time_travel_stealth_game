@@ -318,6 +318,11 @@ impl Level {
             }
         }
 
+        // Floor like entities
+        for (_, entity) in &mut self.entities {
+            entity.inner.draw_floor(&self.texture_atlas);
+        }
+
         {
             if self.occlude_wall_shadows {
                 camera::push_camera_state();
@@ -356,7 +361,7 @@ impl Level {
                 }
             }
 
-            // Wall entities
+            // Wall like entities
             for (_, entity) in &mut self.entities {
                 entity.inner.draw_wall(&self.texture_atlas);
             }
@@ -379,7 +384,6 @@ impl Level {
         }
 
         // Vision occluded entities
-
         for (_, entity) in &mut self.entities {
             entity.inner.draw_back(&self.texture_atlas);
         }
