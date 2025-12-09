@@ -45,6 +45,7 @@ pub struct Elevator {
     pub occupants: Vec<EntityKey>,
 
     pub delay: Option<usize>,
+    pub closed: bool,
 }
 
 impl Elevator {
@@ -60,6 +61,7 @@ impl Elevator {
             occupants: Vec::new(),
 
             delay: None,
+            closed: false,
         }
     }
 
@@ -161,12 +163,21 @@ impl Entity for Elevator {
             }
         }
 
-        if self.delay.is_none() && door.extent == 16 && !door.open && self.closing_time.is_some() {
+        if self.delay.is_none()
+            && door.extent == 16
+            && !door.open
+            && self.closing_time.is_some()
+            && !self.broken
+            && !self.closed
+        {
             self.delay = Some(UPDATE_TPS * 3);
+            self.closed = true;
         }
 
         if let Some(delay) = &mut self.delay {
             if !self.available {
+                self.delay = None;
+
                 let actual_occupants = entities
                     .iter()
                     .filter(|(_, entity)| {
@@ -189,8 +200,6 @@ impl Entity for Elevator {
                     // Check for missing occupants
                     for &key in &self.occupants {
                         if !actual_occupants.contains(&key) {
-                            self.broken = true;
-
                             break 'verify_contents true;
                         }
                     }
@@ -205,7 +214,6 @@ impl Entity for Elevator {
                             player.confusion = 1.0;
                         }
                     }
-                    self.delay = None;
                 } else {
                     for &key in &self.occupants {
                         entities[key].inner = Box::new(Empty);
