@@ -548,9 +548,6 @@ impl Level {
             KeyCode::LeftShift => {
                 self.precise_fill = true;
             }
-            KeyCode::R => {
-                self.reset();
-            }
             KeyCode::Key0 => self.brush = usize::MAX,
             KeyCode::Key1 => self.brush = 0,
             KeyCode::Key2 => self.brush = 1,
