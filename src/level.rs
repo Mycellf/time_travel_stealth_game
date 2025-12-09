@@ -236,14 +236,9 @@ impl Level {
             );
         }
 
-        self.entities.retain(|_, entity| {
-            if entity.inner.should_be_deleted() {
-                return false;
-            }
-
+        for (_, entity) in &mut self.entities {
             entity.inner.update_view_area(&mut self.light_grid);
-            true
-        });
+        }
 
         self.frame += 1;
     }

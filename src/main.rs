@@ -18,7 +18,6 @@ use crate::{
         Level, MAX_UPDATES_PER_TICK, UPDATE_DT,
         entity_tracker::entity::{
             elevator::{Elevator, ElevatorDirection},
-            elevator_door::{ElevatorDoor, ElevatorDoorOrientation},
             player::{Player, PlayerState},
         },
     },

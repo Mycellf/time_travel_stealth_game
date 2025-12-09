@@ -70,8 +70,6 @@ pub struct Player {
 #[derive(Clone, Copy, PartialEq, Eq, Debug)]
 pub enum PlayerState {
     Active,
-    Reset,
-    Replay,
     Recording,
     Disabled,
     Dead,
@@ -253,7 +251,7 @@ impl Entity for Player {
         frame: FrameIndex,
         entities: GuardedSlotMap<EntityKey, EntityTracker>,
         light_grid: &mut LightGrid,
-        initial_state: &mut SlotMap<EntityKey, EntityTracker>,
+        _initial_state: &mut SlotMap<EntityKey, EntityTracker>,
     ) {
         match self.state {
             PlayerState::Active => {
@@ -278,24 +276,6 @@ impl Entity for Player {
                         }
                     }
                 }
-            }
-            PlayerState::Reset | PlayerState::Replay => {
-                let old_self = initial_state[*entities.protected_slot()]
-                    .inner
-                    .as_player()
-                    .unwrap();
-
-                old_self.state = PlayerState::Recording;
-                old_self.history = mem::take(&mut self.history);
-                old_self.environment_history = mem::take(&mut self.environment_history);
-
-                if self.state == PlayerState::Reset {
-                    self.state = PlayerState::Active;
-                    self.motion_input.clear_keys_down();
-                    initial_state.insert(EntityTracker::new(Box::new(self.clone())));
-                }
-
-                self.state = PlayerState::Disabled;
             }
             PlayerState::Recording => {
                 if let Some(entry) = self.history.get(frame) {
@@ -350,11 +330,19 @@ impl Entity for Player {
                     self.view_width,
                 )),
             )),
-            PlayerState::Reset
-            | PlayerState::Replay
-            | PlayerState::Disabled
-            | PlayerState::Dead => None,
+            PlayerState::Disabled | PlayerState::Dead => None,
         };
+    }
+
+    fn travel_to_beginning(&mut self, past: &mut EntityTracker) {
+        let old_self = past.inner.as_player().unwrap();
+
+        old_self.state = PlayerState::Recording;
+        old_self.history = mem::take(&mut self.history);
+        old_self.environment_history = mem::take(&mut self.environment_history);
+
+        self.state = PlayerState::Active;
+        self.motion_input.clear_keys_down();
     }
 
     fn draw_effect_back(&mut self, _texture_atlas: &Texture2D) {
@@ -406,7 +394,7 @@ impl Entity for Player {
 
     fn draw_front(&mut self, _texture_atlas: &Texture2D) {
         match self.state {
-            PlayerState::Active | PlayerState::Reset | PlayerState::Recording => self.draw(),
+            PlayerState::Active | PlayerState::Recording => self.draw(),
             _ => (),
         }
     }
@@ -476,8 +464,6 @@ impl Entity for Player {
     fn view_kind(&self) -> Option<ViewKind> {
         match self.state {
             PlayerState::Active => Some(ViewKind::Present),
-            PlayerState::Reset => None,
-            PlayerState::Replay => None,
             PlayerState::Recording => Some(ViewKind::Past {
                 confusion: self.confusion,
             }),
@@ -490,8 +476,8 @@ impl Entity for Player {
         Box::new(self.clone())
     }
 
-    fn should_be_deleted(&self) -> bool {
-        self.state == PlayerState::Disabled
+    fn is_dead(&self) -> bool {
+        self.state == PlayerState::Dead
     }
 
     fn should_recieve_inputs(&self) -> bool {
@@ -500,12 +486,6 @@ impl Entity for Player {
 
     fn key_down(&mut self, input: KeyCode) {
         self.motion_input.key_down(input);
-
-        match input {
-            KeyCode::T => self.state = PlayerState::Reset,
-            KeyCode::Y => self.state = PlayerState::Replay,
-            _ => (),
-        }
     }
 
     fn key_up(&mut self, input: KeyCode) {

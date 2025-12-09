@@ -26,6 +26,8 @@ pub struct Elevator {
     pub door: Option<EntityKey>,
 
     pub closing_time: Option<FrameIndex>,
+    pub available: bool,
+    pub broken: bool,
     pub occupants: Vec<EntityKey>,
 }
 
@@ -37,6 +39,8 @@ impl Elevator {
             door: None,
 
             closing_time: None,
+            available: true,
+            broken: false,
             occupants: Vec::new(),
         }
     }
@@ -84,7 +88,13 @@ impl Entity for Elevator {
         if let Some(door) = self.door {
             let collision_rect = TileRect::from_rect_inclusive(self.collision_rect());
 
-            if self.closing_time.is_none() {
+            if let Some(_) = self.closing_time {
+                for &key in &self.occupants {
+                    if entities[key].inner.is_dead() {
+                        self.broken = true;
+                    }
+                }
+            } else {
                 self.occupants.clear();
                 self.occupants.extend(
                     entities
@@ -99,25 +109,37 @@ impl Entity for Elevator {
                 );
             }
 
-            let mut close = false;
+            let key = *entities.protected_slot();
 
             let door = entities[door].inner.as_door().unwrap();
-            door.open = if let Some(closing_time) = self.closing_time {
-                frame < closing_time
-            } else {
-                if !door.open && !door.blocked {
-                    close = true;
+            if let Some(closing_time) = self.closing_time {
+                if door.blocked || self.broken {
+                    self.broken = true;
+                    door.open = true;
+                } else {
+                    door.open = frame < closing_time;
                 }
-                self.occupants.is_empty()
-            };
+            } else {
+                let was_open = door.open;
+                door.open = self.occupants.is_empty();
 
-            if close {
-                self.closing_time = Some(frame);
-                initial_state[*entities.protected_slot()]
-                    .inner
-                    .as_elevator()
-                    .unwrap()
-                    .closing_time = self.closing_time;
+                if !was_open && !door.open && !door.blocked {
+                    self.closing_time = Some(frame);
+                    let initial = initial_state[key].inner.as_elevator().unwrap();
+                    initial.closing_time = self.closing_time;
+                    initial.occupants.clone_from(&self.occupants);
+                }
+            }
+
+            if self.available && door.extent == 16 && !door.open {
+                self.available = false;
+                initial_state[key].inner.as_elevator().unwrap().available = self.available;
+                for &key in &self.occupants {
+                    let entity = &mut entities[key];
+                    entity.inner.travel_to_beginning(&mut initial_state[key]);
+
+                    initial_state.insert(entity.clone());
+                }
             }
         }
     }

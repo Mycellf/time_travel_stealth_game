@@ -35,6 +35,8 @@ pub trait Entity: 'static + Debug {
 
     fn update_view_area(&mut self, _light_grid: &mut LightGrid) {}
 
+    fn travel_to_beginning(&mut self, _past: &mut EntityTracker) {}
+
     fn draw_wall(&mut self, _texture_atlas: &Texture2D) {}
 
     fn draw_effect_back(&mut self, _texture_atlas: &Texture2D) {}
@@ -71,7 +73,7 @@ pub trait Entity: 'static + Debug {
 
     fn spawn(&mut self, _key: EntityKey, _entities: &mut SlotMap<EntityKey, EntityTracker>) {}
 
-    fn should_be_deleted(&self) -> bool {
+    fn is_dead(&self) -> bool {
         false
     }
 
