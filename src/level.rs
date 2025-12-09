@@ -142,6 +142,10 @@ impl Level {
                         pixel_kind: Pixel::None,
                         texture_location: point![0, 1],
                     }),
+                    tile::add_tile_kind(TileKind {
+                        pixel_kind: Pixel::None,
+                        texture_location: point![1, 1],
+                    }),
                 ]
             } else {
                 TILE_KINDS.lock().unwrap().keys().collect()

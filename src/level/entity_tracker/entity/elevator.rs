@@ -1,5 +1,9 @@
-use macroquad::{color, math::Rect, shapes, texture::Texture2D};
-use nalgebra::{Point2, Scalar, Vector2, vector};
+use macroquad::{
+    color::colors,
+    math::Rect,
+    texture::{self, DrawTextureParams, Texture2D},
+};
+use nalgebra::{Point2, Scalar, Vector2, point, vector};
 use slotmap::SlotMap;
 
 use crate::{
@@ -18,6 +22,9 @@ use crate::{
 };
 
 pub const ELEVATOR_SIZE: Vector2<f64> = vector![16.0, 16.0];
+
+pub const ELEVATOR_FLOOR_TEXTURE_POSITION: Point2<f32> = point![8.0, 24.0];
+pub const ELEVATOR_FLOOR_TEXTURE_SIZE: Vector2<f32> = vector![16.0, 16.0];
 
 #[derive(Clone, Debug)]
 pub struct Elevator {
@@ -163,6 +170,24 @@ impl Entity for Elevator {
         }
     }
 
+    fn draw_back(&mut self, texture_atlas: &Texture2D) {
+        texture::draw_texture_ex(
+            texture_atlas,
+            self.position.x as f32 - ELEVATOR_FLOOR_TEXTURE_SIZE.x / 2.0,
+            self.position.y as f32 - ELEVATOR_FLOOR_TEXTURE_SIZE.y / 2.0,
+            colors::WHITE,
+            DrawTextureParams {
+                source: Some(Rect::new(
+                    ELEVATOR_FLOOR_TEXTURE_POSITION.x,
+                    ELEVATOR_FLOOR_TEXTURE_POSITION.y,
+                    ELEVATOR_FLOOR_TEXTURE_SIZE.x,
+                    ELEVATOR_FLOOR_TEXTURE_SIZE.y,
+                )),
+                ..Default::default()
+            },
+        );
+    }
+
     fn draw_effect_back(&mut self, _texture_atlas: &Texture2D) {
         // shapes::draw_circle(
         //     self.position.x as f32,
@@ -170,10 +195,6 @@ impl Entity for Elevator {
         //     4.0,
         //     color::WHITE,
         // );
-    }
-
-    fn position(&self) -> Point2<f64> {
-        self.position
     }
 
     fn duplicate(&self) -> Box<dyn Entity> {

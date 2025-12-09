@@ -1,4 +1,3 @@
-use nalgebra::{Point2, point};
 use slotmap::SlotMap;
 
 use crate::{
@@ -25,10 +24,6 @@ impl Entity for Empty {
         _initial_state: &mut SlotMap<EntityKey, EntityTracker>,
     ) -> Option<GameAction> {
         None
-    }
-
-    fn position(&self) -> Point2<f64> {
-        point![0.0, 0.0]
     }
 
     fn duplicate(&self) -> Box<dyn Entity> {

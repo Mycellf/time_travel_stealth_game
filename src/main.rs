@@ -1,5 +1,3 @@
-use std::fs;
-
 use macroquad::{
     camera::{self, Camera2D},
     color::colors,

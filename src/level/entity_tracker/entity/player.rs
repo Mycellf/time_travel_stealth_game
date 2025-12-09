@@ -450,10 +450,6 @@ impl Entity for Player {
         }
     }
 
-    fn position(&self) -> Point2<f64> {
-        self.position
-    }
-
     fn collision_rect(&self) -> Option<TileRect> {
         Some(TileRect::from_rect_inclusive(self.collision_rect()))
     }

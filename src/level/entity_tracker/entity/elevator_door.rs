@@ -216,10 +216,6 @@ impl Entity for ElevatorDoor {
         Some(EntityVisibleState::new(self.position, self.extent as u64))
     }
 
-    fn position(&self) -> Point2<f64> {
-        self.position
-    }
-
     fn collision_rect(&self) -> Option<TileRect> {
         (self.extent > 0).then(|| self.collision_rect())
     }

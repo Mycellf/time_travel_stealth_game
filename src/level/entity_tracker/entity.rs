@@ -48,8 +48,6 @@ pub trait Entity: 'static + Debug {
 
     fn draw_effect_front(&mut self, _texture_atlas: &Texture2D) {}
 
-    fn position(&self) -> Point2<f64>;
-
     fn collision_rect(&self) -> Option<TileRect> {
         None
     }
