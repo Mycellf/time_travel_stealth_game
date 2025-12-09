@@ -138,7 +138,7 @@ impl Entity for Elevator {
             }
         }
 
-        if self.available && door.extent == 16 && !door.open {
+        if self.available && door.extent == 16 && !door.open && self.closing_time.is_some() {
             self.available = false;
             self.delay = Some(UPDATE_TPS * 3);
         }
