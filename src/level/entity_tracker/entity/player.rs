@@ -361,7 +361,7 @@ impl Entity for Player {
             let displacement = (paradox_position - self.position).map(|x| x as f32);
             let distance = displacement.magnitude();
 
-            let spacing = 8.0 / self.confusion as f32;
+            let spacing = 4.0 / self.confusion as f32;
             let offset = displacement / distance * spacing;
 
             let size = 1.0;
