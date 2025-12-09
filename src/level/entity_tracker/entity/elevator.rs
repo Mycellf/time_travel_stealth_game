@@ -167,7 +167,7 @@ impl Entity for Elevator {
 
         if let Some(delay) = &mut self.delay {
             if !self.available {
-                for key in entities
+                let actual_occupants = entities
                     .iter()
                     .filter(|(_, entity)| {
                         entity
@@ -176,14 +176,27 @@ impl Entity for Elevator {
                             .is_some_and(|rect| rect.intersects(&collision_rect))
                     })
                     .map(|(key, _)| key)
-                {
-                    if !self.occupants.contains(&key) {
-                        self.broken = true;
-                        self.delay = None;
+                    .collect::<Vec<_>>();
 
-                        break;
+                self.broken |= 'verify_contents: {
+                    // Check for extra occupants
+                    for &key in &actual_occupants {
+                        if !self.occupants.contains(&key) {
+                            break 'verify_contents true;
+                        }
                     }
-                }
+
+                    // Check for missing occupants
+                    for &key in &self.occupants {
+                        if !actual_occupants.contains(&key) {
+                            self.broken = true;
+
+                            break 'verify_contents true;
+                        }
+                    }
+
+                    false
+                };
 
                 if self.broken {
                     for &key in &self.occupants {
@@ -192,6 +205,7 @@ impl Entity for Elevator {
                             player.confusion = 1.0;
                         }
                     }
+                    self.delay = None;
                 } else {
                     for &key in &self.occupants {
                         entities[key].inner = Box::new(Empty);
