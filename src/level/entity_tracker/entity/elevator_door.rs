@@ -223,6 +223,6 @@ impl Entity for ElevatorDoor {
     }
 
     fn should_recieve_inputs(&self) -> bool {
-        true
+        false
     }
 }
