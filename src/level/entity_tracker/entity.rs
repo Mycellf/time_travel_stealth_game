@@ -11,7 +11,10 @@ use crate::{
     collections::{history::FrameIndex, slot_guard::GuardedSlotMap, tile_grid::TileRect},
     level::{
         EntityKey,
-        entity_tracker::{EntityTracker, entity::player::Player},
+        entity_tracker::{
+            EntityTracker,
+            entity::{elevator::Elevator, elevator_door::ElevatorDoor, player::Player},
+        },
         light_grid::{LightArea, LightGrid},
     },
 };
@@ -84,7 +87,15 @@ pub trait Entity: 'static + Debug {
 
     fn mouse_moved(&mut self, _position: Point2<f64>, _delta: Vector2<f64>) {}
 
-    fn as_player_mut(&mut self) -> Option<&mut Player> {
+    fn as_player(&mut self) -> Option<&mut Player> {
+        None
+    }
+
+    fn as_door(&mut self) -> Option<&mut ElevatorDoor> {
+        None
+    }
+
+    fn as_elevator(&mut self) -> Option<&mut Elevator> {
         None
     }
 }

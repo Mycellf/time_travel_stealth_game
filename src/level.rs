@@ -197,6 +197,14 @@ impl Level {
             entities.insert(EntityTracker::new(entity.duplicate()));
         }
 
+        for key in entities.keys().collect::<Vec<_>>() {
+            let mut entity = mem::take(&mut entities[key]);
+
+            entity.inner.spawn(key, &mut entities);
+
+            entities[key] = entity;
+        }
+
         entities
     }
 
@@ -204,16 +212,10 @@ impl Level {
         self.entities.clone_from(&self.initial_state);
         self.input_readers.clear();
 
-        for key in self.entities.keys().collect::<Vec<_>>() {
-            let mut entity = mem::take(&mut self.entities[key]);
-
+        for (key, entity) in &self.entities {
             if entity.inner.should_recieve_inputs() {
                 self.input_readers.push(key);
             }
-
-            entity.inner.spawn(key, &mut self.entities);
-
-            self.entities[key] = entity;
         }
 
         self.frame = 0;

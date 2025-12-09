@@ -123,20 +123,8 @@ impl State {
 
                 view_area: None,
             }),
-            Box::new(Elevator {
-                position: point![128.0, 0.0],
-                direction: ElevatorDirection::West,
-                door: None,
-
-                used: false,
-            }),
-            Box::new(Elevator {
-                position: point![-128.0, 0.0],
-                direction: ElevatorDirection::East,
-                door: None,
-
-                used: false,
-            }),
+            Box::new(Elevator::new(point![128.0, 0.0], ElevatorDirection::West)),
+            Box::new(Elevator::new(point![-128.0, 0.0], ElevatorDirection::East)),
         ]);
 
         if let Ok(data) = fs::read("resources/level") {

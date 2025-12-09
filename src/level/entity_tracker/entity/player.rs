@@ -282,7 +282,7 @@ impl Entity for Player {
             PlayerState::Reset | PlayerState::Replay => {
                 let old_self = initial_state[*entities.protected_slot()]
                     .inner
-                    .as_player_mut()
+                    .as_player()
                     .unwrap();
 
                 old_self.state = PlayerState::Recording;
@@ -516,7 +516,7 @@ impl Entity for Player {
         self.mouse_position = position;
     }
 
-    fn as_player_mut(&mut self) -> Option<&mut Player> {
+    fn as_player(&mut self) -> Option<&mut Player> {
         Some(self)
     }
 }

@@ -33,6 +33,7 @@ pub struct ElevatorDoor {
 
     pub extent: usize,
     pub open: bool,
+    pub blocked: bool,
     pub lighting_needs_update: bool,
 
     pub orientation: ElevatorDoorOrientation,
@@ -118,6 +119,7 @@ impl Entity for ElevatorDoor {
         _initial_state: &mut SlotMap<EntityKey, EntityTracker>,
     ) {
         let previous_extent = self.extent;
+        self.blocked = false;
         if self.open {
             self.extent = self.extent.saturating_sub(1);
         } else {
@@ -139,6 +141,8 @@ impl Entity for ElevatorDoor {
                 }
             {
                 self.extent = (self.extent + 1).min(16);
+            } else {
+                self.blocked = true;
             }
         }
 
@@ -224,5 +228,9 @@ impl Entity for ElevatorDoor {
 
     fn should_recieve_inputs(&self) -> bool {
         false
+    }
+
+    fn as_door(&mut self) -> Option<&mut ElevatorDoor> {
+        Some(self)
     }
 }
