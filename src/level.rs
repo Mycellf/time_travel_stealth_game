@@ -65,6 +65,7 @@ pub struct Level {
 
     pub tiles: Vec<TileKindKey>,
     pub brush: usize,
+    pub shift_held: bool,
 
     pub occlude_wall_shadows: bool,
 }
@@ -154,6 +155,7 @@ impl Level {
                 TILE_KINDS.lock().unwrap().keys().collect()
             },
             brush: usize::MAX,
+            shift_held: false,
 
             occlude_wall_shadows: true,
         }
@@ -595,6 +597,9 @@ impl Level {
 
     pub fn key_down(&mut self, input: KeyCode) {
         match input {
+            KeyCode::LeftShift | KeyCode::RightShift => {
+                self.shift_held = true;
+            }
             KeyCode::Key0 => self.brush = usize::MAX,
             KeyCode::Key1 => self.brush = 0,
             KeyCode::Key2 => self.brush = 1,
@@ -606,7 +611,7 @@ impl Level {
             KeyCode::Key8 => self.brush = 7,
             KeyCode::Key9 => self.brush = 8,
             KeyCode::Period => {
-                if macroquad::input::is_key_down(KeyCode::LeftShift) {
+                if self.shift_held {
                     fs::write("resources/level", self.save()).unwrap();
                 }
             }
@@ -625,6 +630,13 @@ impl Level {
     }
 
     pub fn key_up(&mut self, input: KeyCode) {
+        match input {
+            KeyCode::LeftShift | KeyCode::RightShift => {
+                self.shift_held = false;
+            }
+            _ => (),
+        }
+
         self.input_readers.retain(|&key| {
             let Some(entity) = self.entities.get_mut(key) else {
                 return false;
