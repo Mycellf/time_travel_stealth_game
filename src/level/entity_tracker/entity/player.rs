@@ -72,8 +72,6 @@ pub struct Player {
     pub view_area: Option<LightArea>,
 }
 
-fn none() {}
-
 #[derive(Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Debug)]
 pub enum PlayerState {
     Active,

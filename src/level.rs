@@ -165,9 +165,10 @@ impl Level {
         }
     }
 
-    pub fn save(&self) -> Vec<u8> {
+    pub fn save(&mut self) -> Vec<u8> {
         let config = bincode::config::standard();
 
+        self.tile_grid.shrink_to_fit();
         let mut level = bincode::serde::encode_to_vec(&self.tile_grid, config).unwrap();
 
         level.append(&mut bincode::serde::encode_to_vec(&self.initial_state, config).unwrap());
