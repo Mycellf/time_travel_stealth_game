@@ -63,11 +63,8 @@ pub struct Level {
     pub tile_grid: TileGrid<Option<Tile>>,
     pub light_grid: LightGrid,
 
-    pub brushes: Vec<TileKindKey>,
+    pub tiles: Vec<TileKindKey>,
     pub brush: usize,
-    pub drawing: bool,
-    pub precise_fill: bool,
-    pub full_vision: bool,
 
     pub occlude_wall_shadows: bool,
 }
@@ -133,7 +130,7 @@ impl Level {
             tile_grid: TileGrid::default(),
             light_grid: LightGrid::default(),
 
-            brushes: if TILE_KINDS.lock().unwrap().is_empty() {
+            tiles: if TILE_KINDS.lock().unwrap().is_empty() {
                 drop(TILE_KINDS.lock().unwrap());
                 vec![
                     tile::add_tile_kind(TileKind {
@@ -157,9 +154,6 @@ impl Level {
                 TILE_KINDS.lock().unwrap().keys().collect()
             },
             brush: usize::MAX,
-            drawing: false,
-            precise_fill: false,
-            full_vision: false,
 
             occlude_wall_shadows: true,
         }
@@ -272,6 +266,10 @@ impl Level {
     }
 
     pub fn update(&mut self) {
+        self.update_game();
+    }
+
+    pub fn update_game(&mut self) {
         let mut actions = Vec::new();
 
         for key in self.entities.keys().collect::<Vec<_>>() {
@@ -342,6 +340,10 @@ impl Level {
     }
 
     pub fn draw(&mut self) {
+        self.draw_game();
+    }
+
+    pub fn draw_game(&mut self) {
         Self::update_render_target(&mut self.mask_texture);
         if self.occlude_wall_shadows {
             Self::update_render_target(&mut self.wall_texture);
@@ -465,91 +467,89 @@ impl Level {
         }
 
         // Vision mask
-        if !self.full_vision {
-            camera::push_camera_state();
-            camera::set_camera(&self.mask_texture);
-            window::clear_background(colors::BLACK);
+        camera::push_camera_state();
+        camera::set_camera(&self.mask_texture);
+        window::clear_background(colors::BLACK);
 
-            material::gl_use_material(&self.mask_material);
+        material::gl_use_material(&self.mask_material);
 
-            let mut indecies = (0..view_areas.len()).collect::<Vec<_>>();
-            indecies.sort_unstable_by(|&a, &b| {
-                view_areas[a]
-                    .1
-                    .confusion()
-                    .total_cmp(&view_areas[b].1.confusion())
-            });
+        let mut indecies = (0..view_areas.len()).collect::<Vec<_>>();
+        indecies.sort_unstable_by(|&a, &b| {
+            view_areas[a]
+                .1
+                .confusion()
+                .total_cmp(&view_areas[b].1.confusion())
+        });
 
-            for &i in &indecies {
-                let &(ref area, kind) = &view_areas[i];
+        for &i in &indecies {
+            let &(ref area, kind) = &view_areas[i];
 
-                match kind {
-                    ViewKind::Present => {
-                        area.draw_wall_lighting(colors::BLANK);
-                    }
-                    ViewKind::Past { confusion } => {
-                        area.draw_wall_lighting(Color::new(
-                            past_visibility,
-                            past_visibility * confusion as f32,
-                            0.0,
-                            1.0 - 0.8 * past_visibility,
-                        ));
-                    }
+            match kind {
+                ViewKind::Present => {
+                    area.draw_wall_lighting(colors::BLANK);
+                }
+                ViewKind::Past { confusion } => {
+                    area.draw_wall_lighting(Color::new(
+                        past_visibility,
+                        past_visibility * confusion as f32,
+                        0.0,
+                        1.0 - 0.8 * past_visibility,
+                    ));
                 }
             }
+        }
 
-            if self.occlude_wall_shadows {
-                material::gl_use_material(&self.wall_mask_material);
+        if self.occlude_wall_shadows {
+            material::gl_use_material(&self.wall_mask_material);
 
-                let screen_rect = crate::screen_rect();
-
-                texture::draw_texture_ex(
-                    &self.wall_texture.render_target.as_ref().unwrap().texture,
-                    screen_rect.x,
-                    screen_rect.y,
-                    colors::WHITE,
-                    DrawTextureParams {
-                        dest_size: Some(screen_rect.size()),
-                        ..Default::default()
-                    },
-                );
-
-                material::gl_use_material(&self.mask_material);
-            }
-
-            for &i in &indecies {
-                let &(ref area, kind) = &view_areas[i];
-
-                match kind {
-                    ViewKind::Present => {
-                        area.draw_direct_lighting(colors::BLANK);
-                    }
-                    ViewKind::Past { confusion } => {
-                        area.draw_direct_lighting(Color::new(
-                            past_visibility,
-                            past_visibility * confusion as f32,
-                            0.0,
-                            1.0 - 0.8 * past_visibility,
-                        ));
-                    }
-                }
-            }
-
-            material::gl_use_default_material();
-            camera::set_default_camera();
+            let screen_rect = crate::screen_rect();
 
             texture::draw_texture_ex(
-                &self.mask_texture.render_target.as_ref().unwrap().texture,
-                0.0,
-                0.0,
+                &self.wall_texture.render_target.as_ref().unwrap().texture,
+                screen_rect.x,
+                screen_rect.y,
                 colors::WHITE,
                 DrawTextureParams {
-                    dest_size: Some([window::screen_width(), window::screen_height()].into()),
+                    dest_size: Some(screen_rect.size()),
                     ..Default::default()
                 },
             );
-            camera::pop_camera_state();
+
+            material::gl_use_material(&self.mask_material);
         }
+
+        for &i in &indecies {
+            let &(ref area, kind) = &view_areas[i];
+
+            match kind {
+                ViewKind::Present => {
+                    area.draw_direct_lighting(colors::BLANK);
+                }
+                ViewKind::Past { confusion } => {
+                    area.draw_direct_lighting(Color::new(
+                        past_visibility,
+                        past_visibility * confusion as f32,
+                        0.0,
+                        1.0 - 0.8 * past_visibility,
+                    ));
+                }
+            }
+        }
+
+        material::gl_use_default_material();
+        camera::set_default_camera();
+
+        texture::draw_texture_ex(
+            &self.mask_texture.render_target.as_ref().unwrap().texture,
+            0.0,
+            0.0,
+            colors::WHITE,
+            DrawTextureParams {
+                dest_size: Some([window::screen_width(), window::screen_height()].into()),
+                ..Default::default()
+            },
+        );
+        camera::pop_camera_state();
 
         // Always visible entities
         for (_, entity) in &mut self.entities {
@@ -595,12 +595,6 @@ impl Level {
 
     pub fn key_down(&mut self, input: KeyCode) {
         match input {
-            KeyCode::V => {
-                self.full_vision ^= true;
-            }
-            KeyCode::LeftShift => {
-                self.precise_fill = true;
-            }
             KeyCode::Key0 => self.brush = usize::MAX,
             KeyCode::Key1 => self.brush = 0,
             KeyCode::Key2 => self.brush = 1,
@@ -612,7 +606,7 @@ impl Level {
             KeyCode::Key8 => self.brush = 7,
             KeyCode::Key9 => self.brush = 8,
             KeyCode::Period => {
-                if self.precise_fill {
+                if macroquad::input::is_key_down(KeyCode::LeftShift) {
                     fs::write("resources/level", self.save()).unwrap();
                 }
             }
@@ -631,13 +625,6 @@ impl Level {
     }
 
     pub fn key_up(&mut self, input: KeyCode) {
-        match input {
-            KeyCode::LeftShift => {
-                self.precise_fill = false;
-            }
-            _ => (),
-        }
-
         self.input_readers.retain(|&key| {
             let Some(entity) = self.entities.get_mut(key) else {
                 return false;
@@ -663,12 +650,7 @@ impl Level {
         match input {
             MouseButton::Left => {
                 let index = position.map(|x| (x.floor() as isize).div_euclid(TILE_SIZE));
-                self.set_tile(
-                    index,
-                    self.brushes.get(self.brush).map(|&kind| Tile { kind }),
-                );
-
-                self.drawing = true;
+                self.set_tile(index, self.tiles.get(self.brush).map(|&kind| Tile { kind }));
             }
             _ => (),
         }
@@ -684,13 +666,6 @@ impl Level {
 
             true
         });
-
-        match input {
-            MouseButton::Left => {
-                self.drawing = false;
-            }
-            _ => (),
-        }
     }
 
     pub fn mouse_moved(&mut self, position: Point2<f64>, delta: Vector2<f64>) {
@@ -705,14 +680,6 @@ impl Level {
 
             true
         });
-
-        if self.drawing {
-            let index = position.map(|x| (x.floor() as isize).div_euclid(TILE_SIZE));
-            self.set_tile(
-                index,
-                self.brushes.get(self.brush).map(|&kind| Tile { kind }),
-            );
-        }
     }
 }
 
