@@ -25,6 +25,7 @@ pub(crate) mod empty;
 pub(crate) mod player;
 
 pub trait Entity: 'static + Debug {
+    /// Called `UPDATE_TPS` times per second.
     #[must_use]
     fn update(
         &mut self,
@@ -34,68 +35,112 @@ pub trait Entity: 'static + Debug {
         initial_state: &mut SlotMap<EntityKey, EntityTracker>,
     ) -> Option<GameAction>;
 
+    /// Called for each entity after everything has had `update` called.
     fn update_view_area(&mut self, _light_grid: &mut LightGrid) {}
 
+    /// Called just before an entity is teleported back to the start of the level, good for setting
+    /// any player inputs to use a recording in stead.
     fn travel_to_beginning(&mut self, _past: &mut EntityTracker) {}
 
+    /// Drawn behind every other layer, after all tiles. Used to occlude the wall mask if enabled.
+    /// Good for drawing parts of an entity that will be inside of light blocking pixels.
     fn draw_wall(&mut self, _texture_atlas: &Texture2D) {}
 
-    fn draw_effect_back(&mut self, _texture_atlas: &Texture2D) {}
-
+    /// Occluded by light, but not used to occlude the wall mask. Good for drawing generic entities
+    /// that shouldn't be visible outside the field of view.
     fn draw_back(&mut self, _texture_atlas: &Texture2D) {}
 
+    /// Not occluded by light. Drawn just in front of `draw_back`.
+    fn draw_effect_back(&mut self, _texture_atlas: &Texture2D) {}
+
+    /// Not occluded by light. Good for drawing entities that should always be on screen.
     fn draw_front(&mut self, _texture_atlas: &Texture2D) {}
 
+    /// Not occluded by light. Drawn just in front of `draw_front`.
     fn draw_effect_front(&mut self, _texture_atlas: &Texture2D) {}
 
+    /// The set of tiles an entity would collide with, if applicable.
     fn collision_rect(&self) -> Option<TileRect> {
         None
     }
 
+    /// The field of view of this entity, if applicable.
     fn view_area(&self) -> Option<LightArea> {
         None
     }
 
+    /// The style this entity's view should be drawn as, if applicable.
     fn view_kind(&self) -> Option<ViewKind> {
         None
     }
 
+    /// Check if this entity is within a certain field of view, if applicable.
     fn is_within_view_area(&self, _light_grid: &LightGrid, _area: &LightArea) -> bool {
         false
     }
 
+    /// The state of this entity if seen according to `is_within_view_area`.
     fn visible_state(&self) -> Option<EntityVisibleState> {
         None
     }
 
+    /// A hack to get cloning entities to work. Typically an implementation looks like this:
+    ///
+    /// ```
+    /// fn duplicate(&self) -> Box<dyn Entity> {
+    ///     Box::new(self.clone())
+    /// }
+    /// ```
     fn duplicate(&self) -> Box<dyn Entity>;
 
+    /// Called when this entity is first loaded from the initial state. Best used to add any needed
+    /// child entities to the list, e.g. the elevator's door.
+    ///
+    /// For the duration of this call, `entities[key]` is the `Empty` entity.
     fn spawn(&mut self, _key: EntityKey, _entities: &mut SlotMap<EntityKey, EntityTracker>) {}
 
+    /// If this returns true, the elevator that this entity is destined for will break, if any.
     fn is_dead(&self) -> bool {
         false
     }
 
+    /// Called once when this entity is copied into the level. If it returns true, player inputs
+    /// will be passed to the `key_down`, `key_up`, `mouse_down`, `mouse_up`, and `mouse_moved`
+    /// functions.
     fn should_recieve_inputs(&self) -> bool;
 
+    /// `should_recieve_inputs` must return true for inputs to be passed through to this.
     fn key_down(&mut self, _input: KeyCode) {}
 
+    /// `should_recieve_inputs` must return true for inputs to be passed through to this.
     fn key_up(&mut self, _input: KeyCode) {}
 
+    /// `should_recieve_inputs` must return true for inputs to be passed through to this.
     fn mouse_down(&mut self, _input: MouseButton, _position: Point2<f64>) {}
 
+    /// `should_recieve_inputs` must return true for inputs to be passed through to this.
     fn mouse_up(&mut self, _input: MouseButton, _position: Point2<f64>) {}
 
+    /// `should_recieve_inputs` must return true for inputs to be passed through to this.
     fn mouse_moved(&mut self, _position: Point2<f64>, _delta: Vector2<f64>) {}
 
+    /// If this entity is a `Player`, return Some(self).
+    ///
+    /// This should only be overridden by something which is or contains a `Player`.
     fn as_player(&mut self) -> Option<&mut Player> {
         None
     }
 
+    /// If this entity is an `ElevatorDoor`, return Some(self).
+    ///
+    /// This should only be overridden by something which is or contains an `ElevatorDoor`.
     fn as_door(&mut self) -> Option<&mut ElevatorDoor> {
         None
     }
 
+    /// If this entity is an `Elevator`, return Some(self).
+    ///
+    /// This should only be overridden by something which is or contains an `Elevator`.
     fn as_elevator(&mut self) -> Option<&mut Elevator> {
         None
     }

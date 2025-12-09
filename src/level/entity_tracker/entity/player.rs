@@ -346,6 +346,13 @@ impl Entity for Player {
         self.state = PlayerState::Active;
     }
 
+    fn draw_back(&mut self, _texture_atlas: &Texture2D) {
+        match self.state {
+            PlayerState::Dead => self.draw(),
+            _ => (),
+        }
+    }
+
     fn draw_effect_back(&mut self, _texture_atlas: &Texture2D) {
         if let Some((_, paradox_position)) = self.paradox_position
             && self.state == PlayerState::Recording
@@ -383,13 +390,6 @@ impl Entity for Player {
                 color += 1.0 / iterations as f64;
                 color %= 1.0;
             }
-        }
-    }
-
-    fn draw_back(&mut self, _texture_atlas: &Texture2D) {
-        match self.state {
-            PlayerState::Dead => self.draw(),
-            _ => (),
         }
     }
 
