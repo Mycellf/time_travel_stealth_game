@@ -40,6 +40,9 @@ pub const MAX_UPDATES_PER_TICK: usize = 4;
 
 /// TODO: Consider using the include_dir crate for embedding all of the levels into the binary
 pub struct Level {
+    pub path: String,
+    pub level_data: Option<Vec<u8>>,
+
     pub initial_state: Vec<Box<dyn Entity>>,
 
     pub initial_entities: SlotMap<EntityKey, EntityTracker>,
@@ -74,13 +77,16 @@ new_key_type! {
 }
 
 impl Level {
-    pub fn new() -> Level {
+    pub fn new(path: String) -> Level {
         let texture_atlas = Texture2D::from_image(
             &Image::from_file_with_format(crate::TEXTURE_ATLAS, None).unwrap(),
         );
         texture_atlas.set_filter(FilterMode::Nearest);
 
         Level {
+            path,
+            level_data: None,
+
             initial_state: Vec::new(),
 
             initial_entities: SlotMap::default(),
@@ -169,7 +175,16 @@ impl Level {
         level
     }
 
-    pub fn load(&mut self, data: &[u8]) {
+    pub fn load_from_level_data(&mut self) {
+        let data = if let Some(level_data) = &self.level_data {
+            level_data
+        } else {
+            let data = fs::read(&self.path).unwrap();
+            self.level_data = Some(data);
+
+            self.level_data.as_ref().unwrap()
+        };
+
         let (tile_grid, read) =
             bincode::serde::decode_from_slice(data, bincode::config::standard()).unwrap();
 
@@ -229,9 +244,7 @@ impl Level {
     }
 
     pub fn reset(&mut self) {
-        if let Ok(data) = fs::read("resources/level") {
-            self.load(&data);
-        }
+        self.load_from_level_data();
 
         self.initial_entities = Self::entities_from_initial_state(&self.initial_state);
 
