@@ -6,21 +6,9 @@ use macroquad::{
     time,
     window::{self, Conf},
 };
-use nalgebra::{Point2, UnitVector2, Vector2, point, vector};
-use slotmap::SecondaryMap;
+use nalgebra::{Point2, Vector2, point, vector};
 
-use crate::{
-    collections::history::History,
-    input::DirectionalInput,
-    level::{
-        Level, MAX_UPDATES_PER_TICK, UPDATE_DT,
-        entity_tracker::entity::{
-            GameAction,
-            elevator::{Elevator, ElevatorDirection},
-            player::{Player, PlayerState},
-        },
-    },
-};
+use crate::level::{Level, MAX_UPDATES_PER_TICK, UPDATE_DT};
 
 pub(crate) mod collections;
 pub(crate) mod input;
@@ -109,65 +97,7 @@ pub(crate) struct State {
 
 impl State {
     fn new() -> Self {
-        use std::f64::consts::PI;
-
-        let mut level = Level::new(vec![
-            Box::new(Player {
-                position: point![-128.0, 0.0],
-                size: vector![6.0, 6.0],
-
-                mouse_position: point![0.0, 0.0],
-                view_direction: UnitVector2::new_normalize(vector![1.0, 0.0]),
-                view_width: 120.0 * PI / 180.0,
-
-                speed: 64.0,
-                motion_input: DirectionalInput::default(),
-
-                state: PlayerState::Active,
-                history: History::default(),
-                environment_history: SecondaryMap::default(),
-
-                confusion: 0.0,
-                paradox_position: None,
-
-                view_area: None,
-            }),
-            Box::new(Elevator::new(
-                point![-128.0, 0.0],
-                ElevatorDirection::East,
-                GameAction::HardResetSavePlayerPosition,
-            )),
-            Box::new(Elevator::new(
-                point![128.0, 0.0],
-                ElevatorDirection::West,
-                GameAction::SoftReset,
-            )),
-            Box::new(Elevator::new(
-                point![-160.0, 32.0],
-                ElevatorDirection::South,
-                GameAction::SoftReset,
-            )),
-            Box::new(Elevator::new(
-                point![-136.0, 32.0],
-                ElevatorDirection::South,
-                GameAction::SoftReset,
-            )),
-            Box::new(Elevator::new(
-                point![-160.0, -112.0],
-                ElevatorDirection::South,
-                GameAction::SoftReset,
-            )),
-            Box::new(Elevator::new(
-                point![168.0, -112.0],
-                ElevatorDirection::South,
-                GameAction::SoftReset,
-            )),
-            Box::new(Elevator::new(
-                point![184.0, 80.0],
-                ElevatorDirection::West,
-                GameAction::SoftReset,
-            )),
-        ]);
+        let mut level = Level::new();
 
         level.reset();
         level.step_at_level_start();

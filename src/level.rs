@@ -74,18 +74,16 @@ new_key_type! {
 }
 
 impl Level {
-    pub fn new(initial_entities: Vec<Box<dyn Entity>>) -> Level {
+    pub fn new() -> Level {
         let texture_atlas = Texture2D::from_image(
             &Image::from_file_with_format(crate::TEXTURE_ATLAS, None).unwrap(),
         );
         texture_atlas.set_filter(FilterMode::Nearest);
 
-        let initial_state = Self::entities_from_initial_state(&initial_entities);
-
         Level {
-            initial_state: initial_entities,
+            initial_state: Vec::new(),
 
-            initial_entities: initial_state,
+            initial_entities: SlotMap::default(),
             mouse_position: point![0.0, 0.0],
 
             frame: 0,
@@ -162,13 +160,25 @@ impl Level {
     }
 
     pub fn save(&self) -> Vec<u8> {
-        bincode::serde::encode_to_vec(&self.tile_grid, bincode::config::standard()).unwrap()
+        let config = bincode::config::standard();
+
+        let mut level = bincode::serde::encode_to_vec(&self.tile_grid, config).unwrap();
+
+        level.append(&mut bincode::serde::encode_to_vec(&self.initial_state, config).unwrap());
+
+        level
     }
 
     pub fn load(&mut self, data: &[u8]) {
-        let (tile_grid, _) =
+        let (tile_grid, read) =
             bincode::serde::decode_from_slice(data, bincode::config::standard()).unwrap();
 
+        let data = &data[read..];
+
+        let (initial_state, _) =
+            bincode::serde::decode_from_slice(data, bincode::config::standard()).unwrap();
+
+        self.initial_state = initial_state;
         self.tile_grid = tile_grid;
         self.light_grid = LightGrid::default();
 
@@ -219,11 +229,11 @@ impl Level {
     }
 
     pub fn reset(&mut self) {
-        self.initial_entities = Self::entities_from_initial_state(&self.initial_state);
-
         if let Ok(data) = fs::read("resources/level") {
             self.load(&data);
         }
+
+        self.initial_entities = Self::entities_from_initial_state(&self.initial_state);
 
         self.load_initial_entities();
     }
