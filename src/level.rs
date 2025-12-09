@@ -429,6 +429,8 @@ impl Level {
 
             material::gl_use_material(&self.mask_material);
 
+            let past_visibility = self.frame.clamp(0, 16) as f32 / 16.0;
+
             let mut indecies = (0..view_areas.len()).collect::<Vec<_>>();
             indecies.sort_unstable_by(|&a, &b| {
                 view_areas[a]
@@ -445,7 +447,12 @@ impl Level {
                         area.draw_wall_lighting(colors::BLANK);
                     }
                     ViewKind::Past { confusion } => {
-                        area.draw_wall_lighting(Color::new(1.0, confusion as f32, 0.0, 0.2));
+                        area.draw_wall_lighting(Color::new(
+                            past_visibility,
+                            past_visibility * confusion as f32,
+                            0.0,
+                            1.0 - 0.8 * past_visibility,
+                        ));
                     }
                 }
             }
@@ -477,7 +484,12 @@ impl Level {
                         area.draw_direct_lighting(colors::BLANK);
                     }
                     ViewKind::Past { confusion } => {
-                        area.draw_direct_lighting(Color::new(1.0, confusion as f32, 0.0, 0.2));
+                        area.draw_direct_lighting(Color::new(
+                            past_visibility,
+                            past_visibility * confusion as f32,
+                            0.0,
+                            1.0 - 0.8 * past_visibility,
+                        ));
                     }
                 }
             }
