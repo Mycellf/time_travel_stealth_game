@@ -40,28 +40,34 @@ pub struct Elevator {
     pub door: Option<EntityKey>,
 
     pub closing_time: Option<FrameIndex>,
+    pub hold_open: bool,
     pub available: bool,
     pub broken: bool,
     pub occupants: Vec<EntityKey>,
 
     pub delay: Option<usize>,
     pub closed: bool,
+
+    pub action: GameAction,
 }
 
 impl Elevator {
-    pub fn new(position: Point2<f64>, direction: ElevatorDirection) -> Self {
+    pub fn new(position: Point2<f64>, direction: ElevatorDirection, action: GameAction) -> Self {
         Self {
             position,
             direction,
             door: None,
 
             closing_time: None,
+            hold_open: true,
             available: true,
             broken: false,
             occupants: Vec::new(),
 
             delay: None,
             closed: false,
+
+            action,
         }
     }
 
@@ -154,6 +160,13 @@ impl Entity for Elevator {
         } else {
             let was_open = door.open;
             door.open = self.occupants.is_empty();
+            if self.hold_open {
+                if door.open {
+                    self.hold_open = false;
+                } else {
+                    door.open = true;
+                }
+            }
 
             if !was_open && !door.open && !door.blocked {
                 self.closing_time = Some(frame);
@@ -224,14 +237,16 @@ impl Entity for Elevator {
             } else if *delay == 0 {
                 self.available = false;
                 initial_state[key].inner.as_elevator().unwrap().available = self.available;
-                for &key in &self.occupants {
-                    let entity = &mut entities[key];
-                    entity.inner.travel_to_beginning(&mut initial_state[key]);
+                if self.action == GameAction::SoftReset {
+                    for &key in &self.occupants {
+                        let entity = &mut entities[key];
+                        entity.inner.travel_to_beginning(&mut initial_state[key]);
 
-                    initial_state.insert(entity.clone());
+                        initial_state.insert(entity.clone());
+                    }
                 }
 
-                Some(GameAction::SoftReset)
+                Some(self.action)
             } else {
                 *delay -= 1;
                 None

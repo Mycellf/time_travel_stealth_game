@@ -150,9 +150,10 @@ pub trait Entity: 'static + Debug {
     }
 }
 
-#[derive(Clone, Copy, PartialEq, Eq, Debug)]
+#[derive(Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Debug)]
 pub enum GameAction {
     SoftReset,
+    HardResetSavePlayerPosition,
     HardReset,
 }
 

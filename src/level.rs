@@ -21,7 +21,7 @@ use crate::{
     level::{
         entity_tracker::{
             EntityTracker,
-            entity::{Entity, GameAction, ViewKind},
+            entity::{Entity, GameAction, ViewKind, player::PlayerState},
         },
         light_grid::{LightGrid, Pixel},
         tile::{TILE_KINDS, Tile, TileKind, TileKindKey},
@@ -216,6 +216,16 @@ impl Level {
         entities
     }
 
+    pub fn reset(&mut self) {
+        self.initial_entities = Self::entities_from_initial_state(&self.initial_state);
+
+        if let Ok(data) = fs::read("resources/level") {
+            self.load(&data);
+        }
+
+        self.load_initial_entities();
+    }
+
     pub fn load_initial_entities(&mut self) {
         self.entities.clone_from(&self.initial_entities);
         self.input_readers.clear();
@@ -227,19 +237,11 @@ impl Level {
         }
 
         self.frame = 0;
-
-        self.mouse_moved(self.mouse_position, vector![0.0, 0.0]);
-        self.update();
     }
 
-    pub fn reset(&mut self) {
-        self.initial_entities = Self::entities_from_initial_state(&self.initial_state);
-
-        if let Ok(data) = fs::read("resources/level") {
-            self.load(&data);
-        }
-
-        self.load_initial_entities();
+    pub fn step_at_level_start(&mut self) {
+        self.mouse_moved(self.mouse_position, vector![0.0, 0.0]);
+        self.update();
     }
 
     pub fn update(&mut self) {
@@ -264,12 +266,43 @@ impl Level {
 
         self.frame += 1;
 
-        if !actions.is_empty() {
-            if actions.contains(&GameAction::HardReset) {
+        match actions.iter().max() {
+            Some(GameAction::HardReset) => {
                 self.reset();
-            } else if actions.contains(&GameAction::SoftReset) {
-                self.load_initial_entities();
+                self.step_at_level_start();
             }
+            Some(GameAction::HardResetSavePlayerPosition) => {
+                let mut player_position = None;
+
+                for (_, entity) in &mut self.entities {
+                    if let Some(player) = entity.inner.as_player()
+                        && player.state == PlayerState::Active
+                    {
+                        player_position = Some(player.position);
+                        break;
+                    }
+                }
+
+                self.reset();
+
+                if let Some(player_position) = player_position {
+                    for (_, entity) in &mut self.entities {
+                        if let Some(player) = entity.inner.as_player()
+                            && player.state == PlayerState::Active
+                        {
+                            player.position = player_position;
+                            break;
+                        }
+                    }
+                }
+
+                self.step_at_level_start();
+            }
+            Some(GameAction::SoftReset) => {
+                self.load_initial_entities();
+                self.step_at_level_start();
+            }
+            None => (),
         }
     }
 

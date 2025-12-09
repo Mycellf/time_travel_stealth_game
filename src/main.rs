@@ -15,6 +15,7 @@ use crate::{
     level::{
         Level, MAX_UPDATES_PER_TICK, UPDATE_DT,
         entity_tracker::entity::{
+            GameAction,
             elevator::{Elevator, ElevatorDirection},
             player::{Player, PlayerState},
         },
@@ -101,7 +102,7 @@ impl State {
 
         let mut level = Level::new(vec![
             Box::new(Player {
-                position: point![0.0, 0.0],
+                position: point![-128.0, 0.0],
                 size: vector![6.0, 6.0],
 
                 mouse_position: point![0.0, 0.0],
@@ -120,28 +121,45 @@ impl State {
 
                 view_area: None,
             }),
-            Box::new(Elevator::new(point![128.0, 0.0], ElevatorDirection::West)),
-            Box::new(Elevator::new(point![-128.0, 0.0], ElevatorDirection::East)),
+            Box::new(Elevator::new(
+                point![-128.0, 0.0],
+                ElevatorDirection::East,
+                GameAction::HardResetSavePlayerPosition,
+            )),
+            Box::new(Elevator::new(
+                point![128.0, 0.0],
+                ElevatorDirection::West,
+                GameAction::SoftReset,
+            )),
             Box::new(Elevator::new(
                 point![-160.0, 32.0],
                 ElevatorDirection::South,
+                GameAction::SoftReset,
             )),
             Box::new(Elevator::new(
                 point![-136.0, 32.0],
                 ElevatorDirection::South,
+                GameAction::SoftReset,
             )),
             Box::new(Elevator::new(
                 point![-160.0, -112.0],
                 ElevatorDirection::South,
+                GameAction::SoftReset,
             )),
             Box::new(Elevator::new(
                 point![168.0, -112.0],
                 ElevatorDirection::South,
+                GameAction::SoftReset,
             )),
-            Box::new(Elevator::new(point![184.0, 80.0], ElevatorDirection::West)),
+            Box::new(Elevator::new(
+                point![184.0, 80.0],
+                ElevatorDirection::West,
+                GameAction::SoftReset,
+            )),
         ]);
 
         level.reset();
+        level.step_at_level_start();
 
         State {
             fullscreen: START_IN_FULLSCREEN,
