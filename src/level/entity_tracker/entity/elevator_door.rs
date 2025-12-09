@@ -14,7 +14,7 @@ use crate::{
         EntityKey,
         entity_tracker::{
             EntityTracker,
-            entity::{Entity, EntityVisibleState},
+            entity::{Entity, EntityVisibleState, GameAction},
         },
         light_grid::{LightArea, LightGrid, Pixel},
     },
@@ -117,7 +117,7 @@ impl Entity for ElevatorDoor {
         entities: GuardedSlotMap<EntityKey, EntityTracker>,
         light_grid: &mut LightGrid,
         _initial_state: &mut SlotMap<EntityKey, EntityTracker>,
-    ) {
+    ) -> Option<GameAction> {
         let previous_extent = self.extent;
         self.blocked = false;
         if self.open {
@@ -149,6 +149,8 @@ impl Entity for ElevatorDoor {
         if self.extent != previous_extent || self.lighting_needs_update {
             self.update_light_grid(light_grid);
         }
+
+        None
     }
 
     fn draw_wall(&mut self, texture_atlas: &Texture2D) {

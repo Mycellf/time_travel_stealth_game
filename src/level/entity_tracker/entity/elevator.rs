@@ -5,11 +5,11 @@ use slotmap::SlotMap;
 use crate::{
     collections::{history::FrameIndex, slot_guard::GuardedSlotMap, tile_grid::TileRect},
     level::{
-        EntityKey,
+        EntityKey, UPDATE_TPS,
         entity_tracker::{
             EntityTracker,
             entity::{
-                Entity,
+                Entity, GameAction,
                 elevator_door::{ElevatorDoor, ElevatorDoorOrientation},
             },
         },
@@ -29,6 +29,8 @@ pub struct Elevator {
     pub available: bool,
     pub broken: bool,
     pub occupants: Vec<EntityKey>,
+
+    pub delay: Option<usize>,
 }
 
 impl Elevator {
@@ -42,6 +44,8 @@ impl Elevator {
             available: true,
             broken: false,
             occupants: Vec::new(),
+
+            delay: None,
         }
     }
 
@@ -84,55 +88,63 @@ impl Entity for Elevator {
         mut entities: GuardedSlotMap<EntityKey, EntityTracker>,
         _light_grid: &mut LightGrid,
         initial_state: &mut SlotMap<EntityKey, EntityTracker>,
-    ) {
-        if let Some(door) = self.door {
-            let collision_rect = TileRect::from_rect_inclusive(self.collision_rect());
+    ) -> Option<GameAction> {
+        let Some(door) = self.door else {
+            return None;
+        };
 
-            if let Some(_) = self.closing_time {
-                for &key in &self.occupants {
-                    if entities[key].inner.is_dead() {
-                        self.broken = true;
-                    }
-                }
-            } else {
-                self.occupants.clear();
-                self.occupants.extend(
-                    entities
-                        .iter()
-                        .filter(|(_, entity)| {
-                            entity
-                                .inner
-                                .collision_rect()
-                                .is_some_and(|rect| rect.intersects(&collision_rect))
-                        })
-                        .map(|(key, _)| key),
-                );
-            }
+        let collision_rect = TileRect::from_rect_inclusive(self.collision_rect());
 
-            let key = *entities.protected_slot();
-
-            let door = entities[door].inner.as_door().unwrap();
-            if let Some(closing_time) = self.closing_time {
-                if door.blocked || self.broken {
+        if let Some(_) = self.closing_time {
+            for &key in &self.occupants {
+                if entities[key].inner.is_dead() {
                     self.broken = true;
-                    door.open = true;
-                } else {
-                    door.open = frame < closing_time;
-                }
-            } else {
-                let was_open = door.open;
-                door.open = self.occupants.is_empty();
-
-                if !was_open && !door.open && !door.blocked {
-                    self.closing_time = Some(frame);
-                    let initial = initial_state[key].inner.as_elevator().unwrap();
-                    initial.closing_time = self.closing_time;
-                    initial.occupants.clone_from(&self.occupants);
                 }
             }
+        } else {
+            self.occupants.clear();
+            self.occupants.extend(
+                entities
+                    .iter()
+                    .filter(|(_, entity)| {
+                        entity
+                            .inner
+                            .collision_rect()
+                            .is_some_and(|rect| rect.intersects(&collision_rect))
+                    })
+                    .map(|(key, _)| key),
+            );
+        }
 
-            if self.available && door.extent == 16 && !door.open {
-                self.available = false;
+        let key = *entities.protected_slot();
+
+        let door = entities[door].inner.as_door().unwrap();
+        if let Some(closing_time) = self.closing_time {
+            if door.blocked || self.broken {
+                self.broken = true;
+                door.open = true;
+            } else {
+                door.open = frame < closing_time;
+            }
+        } else {
+            let was_open = door.open;
+            door.open = self.occupants.is_empty();
+
+            if !was_open && !door.open && !door.blocked {
+                self.closing_time = Some(frame);
+                let initial = initial_state[key].inner.as_elevator().unwrap();
+                initial.closing_time = self.closing_time;
+                initial.occupants.clone_from(&self.occupants);
+            }
+        }
+
+        if self.available && door.extent == 16 && !door.open {
+            self.available = false;
+            self.delay = Some(UPDATE_TPS * 3);
+        }
+
+        if let Some(delay) = &mut self.delay {
+            if *delay == 0 {
                 initial_state[key].inner.as_elevator().unwrap().available = self.available;
                 for &key in &self.occupants {
                     let entity = &mut entities[key];
@@ -140,7 +152,14 @@ impl Entity for Elevator {
 
                     initial_state.insert(entity.clone());
                 }
+
+                Some(GameAction::SoftReset)
+            } else {
+                *delay -= 1;
+                None
             }
+        } else {
+            None
         }
     }
 

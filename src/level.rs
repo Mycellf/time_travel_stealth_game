@@ -21,7 +21,7 @@ use crate::{
     level::{
         entity_tracker::{
             EntityTracker,
-            entity::{Entity, ViewKind},
+            entity::{Entity, GameAction, ViewKind},
         },
         light_grid::{LightGrid, Pixel},
         tile::{TILE_KINDS, Tile, TileKind, TileKindKey},
@@ -225,19 +225,31 @@ impl Level {
     }
 
     pub fn update(&mut self) {
+        let mut actions = Vec::new();
+
         for key in self.entities.keys().collect::<Vec<_>>() {
             let (entity, guard) = SlotGuard::new(&mut self.entities, key);
 
-            entity.update(
+            let action = entity.update(
                 self.frame,
                 guard,
                 &mut self.light_grid,
                 &mut self.initial_state,
             );
+
+            actions.extend(action);
         }
 
         for (_, entity) in &mut self.entities {
             entity.inner.update_view_area(&mut self.light_grid);
+        }
+
+        if !actions.is_empty() {
+            if actions.contains(&GameAction::HardReset) {
+                todo!();
+            } else if actions.contains(&GameAction::SoftReset) {
+                self.load_initial_state();
+            }
         }
 
         self.frame += 1;

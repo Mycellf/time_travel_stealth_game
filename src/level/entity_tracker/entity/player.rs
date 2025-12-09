@@ -21,7 +21,7 @@ use crate::{
         EntityKey, UPDATE_DT,
         entity_tracker::{
             EntityTracker,
-            entity::{Entity, EntityVisibleState, ViewKind},
+            entity::{Entity, EntityVisibleState, GameAction, ViewKind},
         },
         light_grid::{AngleRange, LightArea, LightGrid},
     },
@@ -252,7 +252,7 @@ impl Entity for Player {
         entities: GuardedSlotMap<EntityKey, EntityTracker>,
         light_grid: &mut LightGrid,
         _initial_state: &mut SlotMap<EntityKey, EntityTracker>,
-    ) {
+    ) -> Option<GameAction> {
         match self.state {
             PlayerState::Active => {
                 let motion = self.motion_input.normalized_output() * self.speed * UPDATE_DT;
@@ -319,6 +319,8 @@ impl Entity for Player {
         }
 
         self.confusion = self.confusion.clamp(0.0, 1.0);
+
+        None
     }
 
     fn update_view_area(&mut self, light_grid: &mut LightGrid) {
@@ -342,7 +344,6 @@ impl Entity for Player {
         old_self.environment_history = mem::take(&mut self.environment_history);
 
         self.state = PlayerState::Active;
-        self.motion_input.clear_keys_down();
     }
 
     fn draw_effect_back(&mut self, _texture_atlas: &Texture2D) {

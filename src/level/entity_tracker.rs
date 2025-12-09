@@ -6,7 +6,7 @@ use crate::{
     collections::{history::FrameIndex, slot_guard::GuardedSlotMap},
     level::{
         EntityKey,
-        entity_tracker::entity::{Entity, empty::Empty},
+        entity_tracker::entity::{Entity, GameAction, empty::Empty},
         light_grid::LightGrid,
     },
 };
@@ -29,15 +29,16 @@ impl EntityTracker {
         EntityTracker { inner: inner }
     }
 
+    #[must_use]
     pub fn update(
         &mut self,
         frame: FrameIndex,
         entities: GuardedSlotMap<EntityKey, EntityTracker>,
         light_grid: &mut LightGrid,
         initial_state: &mut SlotMap<EntityKey, EntityTracker>,
-    ) {
+    ) -> Option<GameAction> {
         self.inner
-            .update(frame, entities, light_grid, initial_state);
+            .update(frame, entities, light_grid, initial_state)
     }
 
     pub fn key_down(&mut self, input: KeyCode) {

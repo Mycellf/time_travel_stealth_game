@@ -25,13 +25,14 @@ pub(crate) mod empty;
 pub(crate) mod player;
 
 pub trait Entity: 'static + Debug {
+    #[must_use]
     fn update(
         &mut self,
         frame: FrameIndex,
         entities: GuardedSlotMap<EntityKey, EntityTracker>,
         light_grid: &mut LightGrid,
         initial_state: &mut SlotMap<EntityKey, EntityTracker>,
-    );
+    ) -> Option<GameAction>;
 
     fn update_view_area(&mut self, _light_grid: &mut LightGrid) {}
 
@@ -100,6 +101,12 @@ pub trait Entity: 'static + Debug {
     fn as_elevator(&mut self) -> Option<&mut Elevator> {
         None
     }
+}
+
+#[derive(Clone, Copy, PartialEq, Eq, Debug)]
+pub enum GameAction {
+    SoftReset,
+    HardReset,
 }
 
 #[derive(Clone, Copy, Debug)]

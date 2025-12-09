@@ -5,7 +5,10 @@ use crate::{
     collections::{history::FrameIndex, slot_guard::GuardedSlotMap},
     level::{
         EntityKey,
-        entity_tracker::{EntityTracker, entity::Entity},
+        entity_tracker::{
+            EntityTracker,
+            entity::{Entity, GameAction},
+        },
         light_grid::LightGrid,
     },
 };
@@ -20,7 +23,8 @@ impl Entity for Empty {
         _entities: GuardedSlotMap<EntityKey, EntityTracker>,
         _light_grid: &mut LightGrid,
         _initial_state: &mut SlotMap<EntityKey, EntityTracker>,
-    ) {
+    ) -> Option<GameAction> {
+        None
     }
 
     fn position(&self) -> Point2<f64> {
