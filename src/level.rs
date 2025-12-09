@@ -224,6 +224,14 @@ impl Level {
         self.update();
     }
 
+    pub fn reset(&mut self) {
+        if let Ok(data) = fs::read("resources/level") {
+            self.load(&data);
+        }
+
+        self.load_initial_state();
+    }
+
     pub fn update(&mut self) {
         let mut actions = Vec::new();
 
@@ -244,15 +252,15 @@ impl Level {
             entity.inner.update_view_area(&mut self.light_grid);
         }
 
+        self.frame += 1;
+
         if !actions.is_empty() {
             if actions.contains(&GameAction::HardReset) {
-                todo!();
+                self.reset();
             } else if actions.contains(&GameAction::SoftReset) {
                 self.load_initial_state();
             }
         }
-
-        self.frame += 1;
     }
 
     pub fn draw(&mut self) {

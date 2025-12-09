@@ -126,11 +126,7 @@ impl State {
             Box::new(Elevator::new(point![-128.0, 0.0], ElevatorDirection::East)),
         ]);
 
-        if let Ok(data) = fs::read("resources/level") {
-            level.load(&data);
-        }
-
-        level.load_initial_state();
+        level.reset();
 
         State {
             fullscreen: START_IN_FULLSCREEN,
