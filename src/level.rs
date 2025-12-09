@@ -267,7 +267,10 @@ impl Level {
             entity.inner.update_view_area(&mut self.light_grid);
         }
 
-        self.frame += 1;
+        self.frame = self
+            .frame
+            .checked_add(1)
+            .expect("Game should not run for a galactically long time.");
 
         match actions.iter().max() {
             Some(GameAction::SetFadeOut) => {
