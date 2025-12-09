@@ -6,6 +6,7 @@ use macroquad::{
     texture::{self, DrawTextureParams, Texture2D},
 };
 use nalgebra::{Point2, Vector2, point, vector};
+use serde::{Deserialize, Serialize};
 use slotmap::SlotMap;
 
 use crate::{
@@ -27,7 +28,7 @@ pub const ELEVATOR_DOOR_TEXTURE_OFFSET: Vector2<f32> = vector![-4.0, -8.0];
 pub const ELEVATOR_DOOR_SIZE: Vector2<usize> = vector![4, 16];
 pub const ELEVATOR_DOOR_OFFSET: Vector2<f64> = vector![-2.0, -8.0];
 
-#[derive(Clone, Debug)]
+#[derive(Clone, Serialize, Deserialize, Debug)]
 pub struct ElevatorDoor {
     pub position: Point2<f64>,
 
@@ -39,7 +40,7 @@ pub struct ElevatorDoor {
     pub orientation: ElevatorDoorOrientation,
 }
 
-#[derive(Clone, Copy, PartialEq, Eq, Debug)]
+#[derive(Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Debug)]
 pub enum ElevatorDoorOrientation {
     Vertical,
     Horizontal,
@@ -110,6 +111,7 @@ impl ElevatorDoor {
     }
 }
 
+#[typetag::serde]
 impl Entity for ElevatorDoor {
     fn update(
         &mut self,

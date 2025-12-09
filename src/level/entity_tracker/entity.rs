@@ -5,6 +5,7 @@ use macroquad::{
     texture::Texture2D,
 };
 use nalgebra::{Point2, Vector2};
+use serde::{Deserialize, Serialize};
 use slotmap::SlotMap;
 
 use crate::{
@@ -24,6 +25,7 @@ pub(crate) mod elevator_door;
 pub(crate) mod empty;
 pub(crate) mod player;
 
+#[typetag::serde(tag = "type")]
 pub trait Entity: 'static + Debug {
     /// Called `UPDATE_TPS` times per second.
     #[must_use]
@@ -150,7 +152,7 @@ pub trait Entity: 'static + Debug {
     }
 }
 
-#[derive(Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Debug)]
+#[derive(Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Serialize, Deserialize, Debug)]
 pub enum GameAction {
     SetFadeOut,
     SoftReset,

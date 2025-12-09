@@ -9,6 +9,12 @@ pub struct DirectionalInput {
     pub y_axis: AxialInput,
 }
 
+impl Default for DirectionalInput {
+    fn default() -> Self {
+        Self::new(KeyCode::D, KeyCode::W, KeyCode::A, KeyCode::S)
+    }
+}
+
 impl DirectionalInput {
     pub fn new(right: KeyCode, up: KeyCode, left: KeyCode, down: KeyCode) -> DirectionalInput {
         DirectionalInput {

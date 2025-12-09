@@ -12,3 +12,4 @@ rand = "0.9.2"
 serde = { version = "1.0.228", features = ["derive"] }
 slotmap = { version = "1.0.7", features = ["serde"] }
 toml = "0.9.8"
+typetag = "0.2.21"

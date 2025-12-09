@@ -1,3 +1,4 @@
+use serde::{Deserialize, Serialize};
 use slotmap::SlotMap;
 
 use crate::{
@@ -12,9 +13,10 @@ use crate::{
     },
 };
 
-#[derive(Clone, Copy, Debug)]
+#[derive(Clone, Copy, Serialize, Deserialize, Debug)]
 pub struct Empty;
 
+#[typetag::serde]
 impl Entity for Empty {
     fn update(
         &mut self,

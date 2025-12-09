@@ -8,6 +8,7 @@ use macroquad::{
     texture::{self, DrawTextureParams, Texture2D},
 };
 use nalgebra::{Point2, UnitVector2, Vector2, point, vector};
+use serde::{Deserialize, Serialize};
 use slotmap::{SecondaryMap, SlotMap};
 
 use crate::{
@@ -45,7 +46,7 @@ pub fn rect_of_confusion_effect(paradox_level: f64) -> Rect {
     )
 }
 
-#[derive(Clone, Debug)]
+#[derive(Clone, Serialize, Deserialize, Debug)]
 pub struct Player {
     pub position: Point2<f64>,
     pub size: Vector2<f64>,
@@ -54,20 +55,26 @@ pub struct Player {
     pub view_direction: UnitVector2<f64>,
     pub view_width: f64,
 
+    #[serde(skip)]
     pub motion_input: DirectionalInput,
     pub speed: f64,
 
     pub state: PlayerState,
+    #[serde(skip)]
     pub history: History<PlayerHistoryEntry>,
+    #[serde(skip)]
     pub environment_history: SecondaryMap<EntityKey, History<EntityVisibleState>>,
 
     pub confusion: f64,
     pub paradox_position: Option<(f64, Point2<f64>)>,
 
+    #[serde(skip)]
     pub view_area: Option<LightArea>,
 }
 
-#[derive(Clone, Copy, PartialEq, Eq, Debug)]
+fn none() {}
+
+#[derive(Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Debug)]
 pub enum PlayerState {
     Active,
     Recording,
@@ -244,6 +251,7 @@ impl Player {
     }
 }
 
+#[typetag::serde]
 impl Entity for Player {
     fn update(
         &mut self,

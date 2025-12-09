@@ -38,8 +38,19 @@ fn config() -> Conf {
 
 pub const TEXTURE_ATLAS: &[u8] = include_bytes!("../resources/texture_atlas.png");
 
+/// CREDIT: <https://docs.rs/inventory/0.3.21/inventory/#webassembly-and-constructors> says to do so...
+#[cfg(target_family = "wasm")]
+unsafe extern "C" {
+    fn __wasm_call_ctors();
+}
+
 #[macroquad::main(config)]
 async fn main() {
+    #[cfg(target_family = "wasm")]
+    unsafe {
+        __wasm_call_ctors();
+    }
+
     let mut state = State::new();
 
     let mut mouse_position = point![0.0, 0.0];
@@ -110,7 +121,7 @@ impl State {
                 view_width: 120.0 * PI / 180.0,
 
                 speed: 64.0,
-                motion_input: DirectionalInput::new(KeyCode::D, KeyCode::W, KeyCode::A, KeyCode::S),
+                motion_input: DirectionalInput::default(),
 
                 state: PlayerState::Active,
                 history: History::default(),

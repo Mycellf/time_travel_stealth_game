@@ -6,6 +6,7 @@ use macroquad::{
     texture::{self, DrawTextureParams, Texture2D},
 };
 use nalgebra::{Point2, Scalar, Vector2, point, vector};
+use serde::{Deserialize, Serialize};
 use slotmap::SlotMap;
 
 use crate::{
@@ -33,7 +34,7 @@ pub const ELEVATOR_FLOOR_TEXTURE_SIZE: Vector2<f32> = vector![16.0, 16.0];
 pub const ELEVATOR_WALLS_TEXTURE_POSITION: Point2<f32> = point![24.0, 24.0];
 pub const ELEVATOR_WALLS_TEXTURE_SIZE: Vector2<f32> = vector![24.0, 24.0];
 
-#[derive(Clone, Debug)]
+#[derive(Clone, Serialize, Deserialize, Debug)]
 pub struct Elevator {
     pub position: Point2<f64>,
     pub direction: ElevatorDirection,
@@ -83,7 +84,7 @@ impl Elevator {
     }
 }
 
-#[derive(Clone, Copy, PartialEq, Eq, Debug)]
+#[derive(Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Debug)]
 pub enum ElevatorDirection {
     East,
     North,
@@ -112,6 +113,7 @@ impl ElevatorDirection {
     }
 }
 
+#[typetag::serde]
 impl Entity for Elevator {
     fn update(
         &mut self,
