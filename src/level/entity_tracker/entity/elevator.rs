@@ -17,6 +17,7 @@ use crate::{
             entity::{
                 Entity, GameAction,
                 elevator_door::{ElevatorDoor, ElevatorDoorOrientation},
+                player::PlayerState,
             },
         },
         light_grid::LightGrid,
@@ -159,13 +160,42 @@ impl Entity for Elevator {
             }
         }
 
-        if self.available && door.extent == 16 && !door.open && self.closing_time.is_some() {
-            self.available = false;
+        if self.delay.is_none() && door.extent == 16 && !door.open && self.closing_time.is_some() {
             self.delay = Some(UPDATE_TPS * 3);
         }
 
         if let Some(delay) = &mut self.delay {
-            if *delay == 0 {
+            if !self.available {
+                for key in entities
+                    .iter()
+                    .filter(|(_, entity)| {
+                        entity
+                            .inner
+                            .collision_rect()
+                            .is_some_and(|rect| rect.intersects(&collision_rect))
+                    })
+                    .map(|(key, _)| key)
+                {
+                    if !self.occupants.contains(&key) {
+                        self.broken = true;
+                        self.delay = None;
+
+                        break;
+                    }
+                }
+
+                if self.broken {
+                    for &key in &self.occupants {
+                        if let Some(player) = entities[key].inner.as_player() {
+                            player.state = PlayerState::Dead;
+                            player.confusion = 1.0;
+                        }
+                    }
+                }
+
+                None
+            } else if *delay == 0 {
+                self.available = false;
                 initial_state[key].inner.as_elevator().unwrap().available = self.available;
                 for &key in &self.occupants {
                     let entity = &mut entities[key];

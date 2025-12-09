@@ -339,11 +339,11 @@ impl Entity for Player {
     fn travel_to_beginning(&mut self, past: &mut EntityTracker) {
         let old_self = past.inner.as_player().unwrap();
 
-        old_self.state = PlayerState::Recording;
-        old_self.history = mem::take(&mut self.history);
-        old_self.environment_history = mem::take(&mut self.environment_history);
-
-        self.state = PlayerState::Active;
+        if old_self.state == PlayerState::Active {
+            old_self.state = PlayerState::Recording;
+            old_self.history = mem::take(&mut self.history);
+            old_self.environment_history = mem::take(&mut self.environment_history);
+        }
     }
 
     fn draw_back(&mut self, _texture_atlas: &Texture2D) {
