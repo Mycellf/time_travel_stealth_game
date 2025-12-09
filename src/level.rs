@@ -46,6 +46,7 @@ pub struct Level {
     pub mouse_position: Point2<f64>,
 
     pub frame: FrameIndex,
+    pub fade_out_frame: Option<FrameIndex>,
     pub entities: SlotMap<EntityKey, EntityTracker>,
     pub input_readers: Vec<EntityKey>,
 
@@ -88,6 +89,7 @@ impl Level {
             mouse_position: point![0.0, 0.0],
 
             frame: 0,
+            fade_out_frame: None,
             entities: SlotMap::default(),
             input_readers: Vec::new(),
 
@@ -237,6 +239,7 @@ impl Level {
         }
 
         self.frame = 0;
+        self.fade_out_frame = None;
     }
 
     pub fn step_at_level_start(&mut self) {
@@ -267,6 +270,11 @@ impl Level {
         self.frame += 1;
 
         match actions.iter().max() {
+            Some(GameAction::SetFadeOut) => {
+                if self.fade_out_frame.is_none() {
+                    self.fade_out_frame = Some(self.frame + 16);
+                }
+            }
             Some(GameAction::HardReset) => {
                 self.reset();
                 self.step_at_level_start();
@@ -319,6 +327,14 @@ impl Level {
             .map(|(_, entity)| Some((entity.inner.view_area()?, entity.inner.view_kind()?)))
             .flatten()
             .collect::<Vec<_>>();
+
+        let past_visibility = if let Some(fade_out_frame) = self.fade_out_frame {
+            fade_out_frame.saturating_sub(self.frame)
+        } else {
+            self.frame
+        }
+        .min(16) as f32
+            / 16.0;
 
         // Non-wall Tiles
         {
@@ -428,8 +444,6 @@ impl Level {
             window::clear_background(colors::BLACK);
 
             material::gl_use_material(&self.mask_material);
-
-            let past_visibility = self.frame.clamp(0, 16) as f32 / 16.0;
 
             let mut indecies = (0..view_areas.len()).collect::<Vec<_>>();
             indecies.sort_unstable_by(|&a, &b| {

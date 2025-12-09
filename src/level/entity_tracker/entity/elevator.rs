@@ -249,7 +249,7 @@ impl Entity for Elevator {
                 Some(self.action)
             } else {
                 *delay -= 1;
-                None
+                Some(GameAction::SetFadeOut)
             }
         } else {
             None
