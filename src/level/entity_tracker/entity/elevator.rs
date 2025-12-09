@@ -17,6 +17,7 @@ use crate::{
             entity::{
                 Entity, GameAction,
                 elevator_door::{ElevatorDoor, ElevatorDoorOrientation},
+                empty::Empty,
                 player::PlayerState,
             },
         },
@@ -190,6 +191,10 @@ impl Entity for Elevator {
                             player.state = PlayerState::Dead;
                             player.confusion = 1.0;
                         }
+                    }
+                } else {
+                    for &key in &self.occupants {
+                        entities[key].inner = Box::new(Empty);
                     }
                 }
 

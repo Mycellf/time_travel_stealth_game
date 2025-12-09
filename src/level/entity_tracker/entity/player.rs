@@ -71,7 +71,6 @@ pub struct Player {
 pub enum PlayerState {
     Active,
     Recording,
-    Disabled,
     Dead,
 }
 
@@ -308,14 +307,11 @@ impl Entity for Player {
                     if self.confusion > 1.0 {
                         self.state = PlayerState::Dead;
                     }
-                } else {
-                    self.state = PlayerState::Disabled;
                 }
             }
             PlayerState::Dead => {
                 self.confusion -= (1.0 / Self::RECOVERY_TIME) * UPDATE_DT;
             }
-            PlayerState::Disabled => (),
         }
 
         self.confusion = self.confusion.clamp(0.0, 1.0);
@@ -332,7 +328,7 @@ impl Entity for Player {
                     self.view_width,
                 )),
             )),
-            PlayerState::Disabled | PlayerState::Dead => None,
+            PlayerState::Dead => None,
         };
     }
 
@@ -424,10 +420,6 @@ impl Entity for Player {
     }
 
     fn is_within_view_area(&self, light_grid: &LightGrid, view_area: &LightArea) -> bool {
-        if self.state == PlayerState::Disabled {
-            return false;
-        }
-
         self.edges()
             .into_iter()
             .any(|line| view_area.edge_intersects_line(line))
@@ -440,14 +432,10 @@ impl Entity for Player {
     }
 
     fn visible_state(&self) -> Option<EntityVisibleState> {
-        if self.state == PlayerState::Disabled {
-            None
-        } else {
-            Some(EntityVisibleState::new(
-                self.position,
-                (self.state == PlayerState::Dead) as u64,
-            ))
-        }
+        Some(EntityVisibleState::new(
+            self.position,
+            (self.state == PlayerState::Dead) as u64,
+        ))
     }
 
     fn collision_rect(&self) -> Option<TileRect> {
@@ -464,7 +452,6 @@ impl Entity for Player {
             PlayerState::Recording => Some(ViewKind::Past {
                 confusion: self.confusion,
             }),
-            PlayerState::Disabled => None,
             PlayerState::Dead => None,
         }
     }
