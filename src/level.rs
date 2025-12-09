@@ -309,8 +309,8 @@ impl Level {
             Some(GameAction::HardResetSavePlayerPosition) => {
                 let mut player_position = None;
 
-                for (_, entity) in &mut self.entities {
-                    if let Some(player) = entity.inner.as_player()
+                for &key in &self.input_readers {
+                    if let Some(player) = self.entities[key].inner.as_player()
                         && player.state == PlayerState::Active
                     {
                         player_position = Some(player.position);
@@ -321,8 +321,8 @@ impl Level {
                 self.reset();
 
                 if let Some(player_position) = player_position {
-                    for (_, entity) in &mut self.entities {
-                        if let Some(player) = entity.inner.as_player()
+                    for &key in &self.input_readers {
+                        if let Some(player) = self.entities[key].inner.as_player()
                             && player.state == PlayerState::Active
                         {
                             player.position = player_position;
