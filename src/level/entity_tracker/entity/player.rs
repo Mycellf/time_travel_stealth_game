@@ -1,4 +1,4 @@
-use std::{array, cmp::Ordering, mem};
+use std::{array, cmp::Ordering, f64::consts::PI, mem};
 
 use macroquad::{
     color::{Color, colors},
@@ -70,6 +70,31 @@ pub struct Player {
 
     #[serde(skip)]
     pub view_area: Option<LightArea>,
+}
+
+impl Default for Player {
+    fn default() -> Self {
+        Self {
+            position: point![0.0, 0.0],
+            size: vector![6.0, 6.0],
+
+            mouse_position: point![0.0, 0.0],
+            view_direction: UnitVector2::new_normalize(vector![1.0, 0.0]),
+            view_width: 120.0 * PI / 180.0,
+
+            speed: 64.0,
+            motion_input: DirectionalInput::default(),
+
+            state: PlayerState::Active,
+            history: History::default(),
+            environment_history: SecondaryMap::default(),
+
+            confusion: 0.0,
+            paradox_position: None,
+
+            view_area: None,
+        }
+    }
 }
 
 #[derive(Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Debug)]

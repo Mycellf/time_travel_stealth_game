@@ -7,11 +7,15 @@ use macroquad::{
     shapes, text,
     texture::{self, DrawTextureParams},
 };
-use nalgebra::{Point2, Vector2, point};
+use nalgebra::{Point2, Vector2, point, vector};
 
 use crate::level::{
     Level, TILE_SIZE,
-    entity_tracker::entity::Entity,
+    entity_tracker::entity::{
+        Entity, GameAction,
+        elevator::{Elevator, ElevatorDirection},
+        player::Player,
+    },
     tile::{self, TILE_KINDS, Tile},
 };
 
@@ -50,6 +54,14 @@ impl Command {
             Command::Entity(_) => true,
         }
     }
+
+    pub fn is_single_use(&self) -> bool {
+        match self {
+            Command::Delete => false,
+            Command::Tile(_) => false,
+            Command::Entity(_) => true,
+        }
+    }
 }
 
 impl FromStr for Command {
@@ -73,7 +85,29 @@ impl FromStr for Command {
                     Err(())
                 }
             }
-            Some(&"entity") => Err(()), // TODO:
+            Some(&"entity") => {
+                let entity: Box<dyn Entity> = match words.get(1) {
+                    Some(&"player") => Box::new(Player::default()),
+                    Some(&"elevator") => Box::new(Elevator::new(
+                        point![0.0, 0.0],
+                        match words.get(2) {
+                            Some(&"east") => ElevatorDirection::East,
+                            Some(&"north") => ElevatorDirection::North,
+                            Some(&"west") => ElevatorDirection::West,
+                            Some(&"south") => ElevatorDirection::South,
+                            _ => return Err(()),
+                        },
+                        match words.get(3) {
+                            None | Some(&"loop") => GameAction::SoftReset,
+                            Some(&"entry") => GameAction::HardReset,
+                            _ => return Err(()),
+                        },
+                    )),
+                    _ => return Err(()),
+                };
+
+                Ok(Command::Entity(entity))
+            }
             _ => Err(()),
         }
     }
@@ -189,7 +223,25 @@ impl Level {
                     self.editor.cursor = None;
 
                     self.editor.command = self.editor.command_input.parse().ok();
-                    if self.editor.command.is_none() {
+
+                    if let Some(command) = &self.editor.command {
+                        if command.is_single_use() {
+                            match self.editor.command.take().unwrap() {
+                                Command::Entity(entity) => {
+                                    self.editor.selected_entity = Some(self.initial_state.len());
+                                    self.editor.grabbing = Some(vector![0.0, 0.0]);
+                                    self.initial_state.push(entity);
+                                }
+                                _ => (),
+                            }
+
+                            self.editor.command_input.clear();
+                        } else {
+                            match command {
+                                _ => (),
+                            }
+                        }
+                    } else {
                         if !self.editor.command_input.is_empty() {
                             self.editor.command_input.clear();
                             self.editor.command_input.push_str("invalid command");
