@@ -248,9 +248,12 @@ impl Level {
                 '\r' | '\n' => {
                     self.editor.cursor = None;
 
-                    self.editor
-                        .command_input_history
-                        .push(self.editor.command_input.clone());
+                    if self.editor.command_input_history.last() != Some(&self.editor.command_input)
+                    {
+                        self.editor
+                            .command_input_history
+                            .push(self.editor.command_input.clone());
+                    }
                     self.editor.command_input_history_index =
                         self.editor.command_input_history.len();
 
