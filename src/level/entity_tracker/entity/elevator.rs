@@ -213,7 +213,7 @@ impl Entity for Elevator {
             }
 
             if !was_open && !door.open && !door.blocked {
-                self.closing_time = Some(frame);
+                self.closing_time = Some(frame.saturating_sub(1));
                 let initial = initial_state[key].inner.as_elevator().unwrap();
                 initial.closing_time = self.closing_time;
                 initial.occupants.clone_from(&self.occupants);
