@@ -50,6 +50,13 @@ impl Wire {
 pub struct WireGateTracker {
     pub inner: WireGate,
     pub position: Point2<f64>,
+    pub state: Wire,
+}
+
+impl WireGateTracker {
+    pub fn evaluate(&mut self, wires: &mut SlotMap<WireKey, Wire>) {
+        self.state = self.inner.evaluate(wires);
+    }
 }
 
 #[derive(Clone, Serialize, Deserialize, Debug)]
@@ -73,26 +80,33 @@ pub enum WireGate {
 }
 
 impl WireGate {
-    pub fn evaluate(&self, wires: &mut SlotMap<WireKey, Wire>) {
+    pub fn evaluate(&self, wires: &mut SlotMap<WireKey, Wire>) -> Wire {
         match self {
             WireGate::And { inputs, output } => {
-                wires[*output] = Self::reduce_inputs(wires, inputs, |a, b| a & b);
+                let result = Self::reduce_inputs(wires, inputs, |a, b| a & b);
+                wires[*output] = result.clone();
+                result
             }
             WireGate::Or { inputs, output } => {
-                wires[*output] = Self::reduce_inputs(wires, inputs, |a, b| a | b);
+                let result = Self::reduce_inputs(wires, inputs, |a, b| a | b);
+                wires[*output] = result.clone();
+                result
             }
             WireGate::Not { input, output } => {
                 let input = &wires[*input];
-                wires[*output] = Wire {
+                let result = Wire {
                     data: !input.data,
                     ..*input
                 };
+                wires[*output] = result.clone();
+                result
             }
             WireGate::Split { input, outputs } => {
                 let input = wires[*input].clone();
                 for output in outputs {
                     wires[*output] = input.clone();
                 }
+                input
             }
         }
     }
