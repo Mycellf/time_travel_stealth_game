@@ -263,8 +263,11 @@ impl Level {
                                             .push_str("please specify a directory");
                                     } else {
                                         let level_data = self.save();
-                                        fs::write(&self.path, &level_data).unwrap();
-                                        self.level_data = Some(level_data);
+                                        if fs::write(&self.path, &level_data).is_ok() {
+                                            self.level_data = Some(level_data);
+                                        } else {
+                                            self.editor.command_input.push_str("invalid directory");
+                                        }
                                     }
                                 }
                                 Command::Load(path) => {
