@@ -10,7 +10,7 @@ use macroquad::{
     window,
 };
 use nalgebra::{Point2, Vector2, point, vector};
-use slotmap::{SlotMap, new_key_type};
+use slotmap::{SecondaryMap, SlotMap, new_key_type};
 
 use crate::{
     collections::{
@@ -304,6 +304,33 @@ impl Level {
 
         for (_, entity) in &mut self.entities {
             entity.inner.update_view_area(&mut self.light_grid);
+        }
+
+        let mut stack = self.entities.keys().collect::<Vec<_>>();
+        let mut updates = SecondaryMap::default();
+
+        while let Some(&key) = stack.last() {
+            let entity = &self.entities[key];
+            let input_sources = entity.inner.inputs();
+            let mut inputs = Vec::new();
+            for &key in input_sources {
+                if let Some(&input) = updates.get(key) {
+                    inputs.push(input);
+                } else {
+                    stack.push(key);
+                }
+            }
+
+            if inputs.len() < input_sources.len() {
+                continue;
+            }
+
+            let key = stack.pop().unwrap();
+            let (entity, guard) = SlotGuard::new(&mut self.entities, key);
+
+            let result = entity.inner.evaluate(guard, &inputs);
+
+            updates.insert(key, result);
         }
 
         self.frame = self

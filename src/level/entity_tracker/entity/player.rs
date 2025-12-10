@@ -338,6 +338,9 @@ impl Entity for Player {
                     if self.confusion > 1.0 {
                         self.state = PlayerState::Dead;
                     }
+                } else {
+                    self.confusion = 1.0;
+                    self.state = PlayerState::Dead;
                 }
             }
             PlayerState::Dead => {

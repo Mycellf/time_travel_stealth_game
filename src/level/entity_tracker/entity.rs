@@ -136,6 +136,20 @@ pub trait Entity: 'static + Debug {
     /// `should_recieve_inputs` must return true for inputs to be passed through to this.
     fn mouse_moved(&mut self, _position: Point2<f64>, _delta: Vector2<f64>) {}
 
+    fn inputs(&self) -> &[EntityKey] {
+        &[]
+    }
+
+    fn try_add_input(&mut self, _key: EntityKey) {}
+
+    fn evaluate(
+        &mut self,
+        _entities: GuardedSlotMap<EntityKey, EntityTracker>,
+        inputs: &[bool],
+    ) -> bool {
+        false
+    }
+
     /// If this entity is a `Player`, return Some(self).
     ///
     /// This should only be overridden by something which is or contains a `Player`.

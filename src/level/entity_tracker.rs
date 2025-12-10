@@ -16,12 +16,6 @@ pub(crate) mod entity;
 pub(crate) mod wire_diagram;
 
 #[derive(Serialize, Deserialize, Debug)]
-pub struct EntityTrackerOld {
-    pub inner: Box<dyn Entity>,
-    pub wire: Option<wire_diagram::WireKey>,
-}
-
-#[derive(Serialize, Deserialize, Debug)]
 pub struct EntityTracker {
     pub inner: Box<dyn Entity>,
 }

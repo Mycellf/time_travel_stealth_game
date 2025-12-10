@@ -46,11 +46,18 @@ pub struct Elevator {
     pub available: bool,
     pub broken: bool,
     pub occupants: Vec<EntityKey>,
+    #[serde(skip, default = "bool_true")]
+    pub unlocked: bool,
 
     pub delay: Option<usize>,
     pub closed: bool,
 
     pub action: GameAction,
+    pub input: Option<EntityKey>,
+}
+
+fn bool_true() -> bool {
+    true
 }
 
 impl Elevator {
@@ -65,11 +72,13 @@ impl Elevator {
             available: true,
             broken: false,
             occupants: Vec::new(),
+            unlocked: true,
 
             delay: None,
             closed: false,
 
             action,
+            input: None,
         }
     }
 
@@ -200,6 +209,11 @@ impl Entity for Elevator {
                 door.open = true;
             } else {
                 door.open = frame < closing_time;
+
+                if frame == closing_time && !self.unlocked {
+                    door.open = false;
+                    self.broken = true;
+                }
             }
         } else {
             let was_open = door.open;
@@ -219,11 +233,6 @@ impl Entity for Elevator {
                 initial.occupants.clone_from(&self.occupants);
             }
         }
-
-        // if let Some(wire) = wire {
-        //     wire.set_channel(0, !door.open && door.extent == 16 && !self.broken);
-        //     wire.display_width = 1;
-        // }
 
         if self.delay.is_none()
             && door.extent == 16
@@ -385,6 +394,29 @@ impl Entity for Elevator {
 
     fn should_recieve_inputs(&self) -> bool {
         false
+    }
+
+    fn inputs(&self) -> &[EntityKey] {
+        self.input.as_slice()
+    }
+
+    fn try_add_input(&mut self, key: EntityKey) {
+        if self.input.is_none() {
+            self.input = Some(key);
+        }
+    }
+
+    fn evaluate(
+        &mut self,
+        mut entities: GuardedSlotMap<EntityKey, EntityTracker>,
+        inputs: &[bool],
+    ) -> bool {
+        self.unlocked = inputs.get(0).copied().unwrap_or(true);
+
+        let Some(door) = self.door else { return false };
+        let door = entities[door].inner.as_door().unwrap();
+
+        self.unlocked && !door.open && door.extent == 16 && !self.broken
     }
 
     fn as_elevator(&mut self) -> Option<&mut Elevator> {
