@@ -200,6 +200,22 @@ impl Entity for Elevator {
             }
         }
 
+        let occupied = {
+            let collision_rect = TileRect::from_rect_inclusive(self.outer_collision_rect());
+
+            entities
+                .iter()
+                .filter(|(_, entity)| {
+                    !entity.inner.is_door()
+                        && entity
+                            .inner
+                            .collision_rect()
+                            .is_some_and(|rect| rect.intersects(&collision_rect))
+                })
+                .count()
+                > 0
+        };
+
         let key = *entities.protected_slot();
 
         let door = entities[door].inner.as_door().unwrap();
@@ -208,7 +224,7 @@ impl Entity for Elevator {
                 self.broken = true;
                 door.open = true;
             } else {
-                door.open = frame < closing_time;
+                door.open = frame < closing_time && self.unlocked;
 
                 if frame == closing_time && !self.unlocked {
                     door.open = false;
@@ -217,20 +233,21 @@ impl Entity for Elevator {
             }
         } else {
             let was_open = door.open;
-            door.open = self.occupants.is_empty();
-            if self.hold_open {
-                if door.open {
-                    self.hold_open = false;
-                } else {
-                    door.open = true;
-                }
-            }
+            door.open = self.occupants.is_empty() && self.unlocked;
 
-            if !was_open && !door.open && !door.blocked {
+            if !was_open && !door.open && !door.blocked && self.unlocked {
                 self.closing_time = Some(frame.saturating_sub(1));
                 let initial = initial_state[key].inner.as_elevator().unwrap();
                 initial.closing_time = self.closing_time;
                 initial.occupants.clone_from(&self.occupants);
+            }
+        }
+
+        if self.hold_open {
+            if !occupied {
+                self.hold_open = false;
+            } else {
+                door.open = true;
             }
         }
 
@@ -240,6 +257,7 @@ impl Entity for Elevator {
             && self.closing_time.is_some()
             && !self.broken
             && !self.closed
+            && self.unlocked
         {
             self.delay = Some(UPDATE_TPS * 3);
             self.closed = true;
@@ -351,15 +369,6 @@ impl Entity for Elevator {
         );
     }
 
-    fn draw_effect_back(&mut self, _texture_atlas: &Texture2D) {
-        // shapes::draw_circle(
-        //     self.position.x as f32,
-        //     self.position.y as f32,
-        //     4.0,
-        //     color::WHITE,
-        // );
-    }
-
     fn position(&self) -> Point2<f64> {
         self.position
     }
@@ -403,6 +412,12 @@ impl Entity for Elevator {
     fn try_add_input(&mut self, key: EntityKey) {
         if self.input.is_none() {
             self.input = Some(key);
+        }
+    }
+
+    fn try_remove_input(&mut self, key: EntityKey) {
+        if self.input == Some(key) {
+            self.input = None;
         }
     }
 

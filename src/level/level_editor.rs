@@ -39,7 +39,7 @@ pub struct LevelEditor {
     pub grabbing: Option<Vector2<f64>>,
 }
 
-#[derive(Debug)]
+#[derive(Clone, Debug)]
 pub enum Command {
     Delete,
     Tile(Option<Tile>, Option<Tile>, Option<Tile>),
@@ -48,22 +48,7 @@ pub enum Command {
     Load(Option<String>),
     Clear,
     Shift(TileIndexOffset),
-}
-
-impl Clone for Command {
-    fn clone(&self) -> Self {
-        match self {
-            Self::Delete => Self::Delete,
-            Self::Tile(kind_1, kind_2, kind_3) => {
-                Self::Tile(kind_1.clone(), kind_2.clone(), kind_3.clone())
-            }
-            Self::Entity(entity) => Self::Entity(entity.duplicate()),
-            Self::Save(path) => Self::Save(path.clone()),
-            Self::Load(path) => Self::Load(path.clone()),
-            Self::Clear => Self::Clear,
-            Self::Shift(offset) => Self::Shift(*offset),
-        }
-    }
+    Wire(Option<EntityKey>),
 }
 
 impl Command {
@@ -76,6 +61,7 @@ impl Command {
             Command::Load(_) => false,
             Command::Clear => false,
             Command::Shift(_) => false,
+            Command::Wire(_) => true,
         }
     }
 
@@ -88,6 +74,7 @@ impl Command {
             Command::Load(_) => true,
             Command::Clear => true,
             Command::Shift(_) => true,
+            Command::Wire(_) => false,
         }
     }
 }
@@ -164,6 +151,7 @@ impl FromStr for Command {
 
                 Ok(Command::Shift(vector![get_axis(1)?, get_axis(2)?]))
             }
+            Some(&"wire") => Ok(Command::Wire(None)),
             _ => Err(()),
         }
     }
@@ -507,7 +495,7 @@ impl Level {
             _ => (),
         }
 
-        match self.editor.command {
+        match &mut self.editor.command {
             Some(Command::Delete) => match input {
                 MouseButton::Right => {
                     if let Some(selection) = self.editor.selected_entity {
@@ -517,7 +505,7 @@ impl Level {
                 }
                 _ => (),
             },
-            Some(Command::Tile(tile_1, tile_2, tile_3)) => match input {
+            &mut Some(Command::Tile(tile_1, tile_2, tile_3)) => match input {
                 MouseButton::Left => {
                     self.set_tile_at_mouse_position(tile_1);
                 }
@@ -526,6 +514,29 @@ impl Level {
                 }
                 MouseButton::Middle => {
                     self.set_tile_at_mouse_position(tile_3);
+                }
+                _ => (),
+            },
+            Some(Command::Wire(source)) => match input {
+                MouseButton::Right => {
+                    if let &mut Some(key) = source {
+                        if let Some(selection) = self.editor.selected_entity {
+                            self.hard_reset_state[selection].inner.try_add_input(key);
+                        }
+                        *source = None;
+                    } else {
+                        *source = self.editor.selected_entity;
+                    }
+                }
+                MouseButton::Middle => {
+                    if let &mut Some(key) = source {
+                        if let Some(selection) = self.editor.selected_entity {
+                            self.hard_reset_state[selection].inner.try_remove_input(key);
+                        }
+                        *source = None;
+                    } else {
+                        *source = self.editor.selected_entity;
+                    }
                 }
                 _ => (),
             },
@@ -650,6 +661,22 @@ impl Level {
 
         for (_, entity) in &mut self.hard_reset_state {
             entity.inner.draw_effect_front(&self.texture_atlas);
+        }
+
+        for (_, entity) in &self.hard_reset_state {
+            let end = entity.inner.position();
+            for &key in entity.inner.inputs() {
+                let start = self.hard_reset_state[key].inner.position();
+
+                shapes::draw_line(
+                    start.x as f32,
+                    start.y as f32,
+                    end.x as f32,
+                    end.y as f32,
+                    1.0,
+                    colors::MAGENTA,
+                );
+            }
         }
     }
 }

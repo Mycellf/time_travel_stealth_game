@@ -142,10 +142,12 @@ pub trait Entity: 'static + Debug {
 
     fn try_add_input(&mut self, _key: EntityKey) {}
 
+    fn try_remove_input(&mut self, _key: EntityKey) {}
+
     fn evaluate(
         &mut self,
         _entities: GuardedSlotMap<EntityKey, EntityTracker>,
-        inputs: &[bool],
+        _inputs: &[bool],
     ) -> bool {
         false
     }
@@ -155,6 +157,10 @@ pub trait Entity: 'static + Debug {
     /// This should only be overridden by something which is or contains a `Player`.
     fn as_player(&mut self) -> Option<&mut Player> {
         None
+    }
+
+    fn is_door(&self) -> bool {
+        false
     }
 
     /// If this entity is an `ElevatorDoor`, return Some(self).
@@ -169,6 +175,12 @@ pub trait Entity: 'static + Debug {
     /// This should only be overridden by something which is or contains an `Elevator`.
     fn as_elevator(&mut self) -> Option<&mut Elevator> {
         None
+    }
+}
+
+impl Clone for Box<dyn Entity> {
+    fn clone(&self) -> Self {
+        self.duplicate()
     }
 }
 

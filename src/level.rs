@@ -308,14 +308,19 @@ impl Level {
 
         let mut stack = self.entities.keys().collect::<Vec<_>>();
         let mut updates = SecondaryMap::default();
+        let mut visited = SecondaryMap::default();
 
         while let Some(&key) = stack.last() {
+            visited.insert(key, ());
             let entity = &self.entities[key];
             let input_sources = entity.inner.inputs();
             let mut inputs = Vec::new();
             for &key in input_sources {
                 if let Some(&input) = updates.get(key) {
                     inputs.push(input);
+                } else if visited.contains_key(key) {
+                    // Better than failing or entering an infinite loop
+                    inputs.push(false);
                 } else {
                     stack.push(key);
                 }
@@ -326,6 +331,9 @@ impl Level {
             }
 
             let key = stack.pop().unwrap();
+            if updates.contains_key(key) {
+                continue;
+            }
             let (entity, guard) = SlotGuard::new(&mut self.entities, key);
 
             let result = entity.inner.evaluate(guard, &inputs);

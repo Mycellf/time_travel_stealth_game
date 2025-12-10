@@ -15,7 +15,7 @@ use crate::{
 pub(crate) mod entity;
 pub(crate) mod wire_diagram;
 
-#[derive(Serialize, Deserialize, Debug)]
+#[derive(Clone, Serialize, Deserialize, Debug)]
 pub struct EntityTracker {
     pub inner: Box<dyn Entity>,
 }
@@ -70,14 +70,6 @@ impl EntityTracker {
     pub fn mouse_moved(&mut self, position: Point2<f64>, delta: Vector2<f64>) {
         if self.inner.should_recieve_inputs() {
             self.inner.mouse_moved(position, delta);
-        }
-    }
-}
-
-impl Clone for EntityTracker {
-    fn clone(&self) -> Self {
-        Self {
-            inner: self.inner.duplicate(),
         }
     }
 }
