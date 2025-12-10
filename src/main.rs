@@ -80,6 +80,10 @@ async fn main() {
             }
         }
 
+        while let Some(input) = macroquad::input::get_char_pressed() {
+            state.text_input_event(input);
+        }
+
         state.update(time::get_frame_time() as f64);
 
         state.draw();
@@ -134,6 +138,10 @@ impl State {
         camera::set_camera(&camera);
 
         self.level.draw();
+    }
+
+    fn text_input_event(&mut self, input: char) {
+        self.level.text_input(input);
     }
 
     fn key_down_event(&mut self, input: KeyCode) {

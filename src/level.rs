@@ -64,8 +64,9 @@ pub struct Level {
     pub light_grid: LightGrid,
 
     pub tiles: Vec<TileKindKey>,
-    pub brush: usize,
     pub shift_held: bool,
+
+    pub level_editor_active: bool,
 
     pub occlude_wall_shadows: bool,
 }
@@ -154,8 +155,9 @@ impl Level {
             } else {
                 TILE_KINDS.lock().unwrap().keys().collect()
             },
-            brush: usize::MAX,
             shift_held: false,
+
+            level_editor_active: false,
 
             occlude_wall_shadows: true,
         }
@@ -268,7 +270,10 @@ impl Level {
     }
 
     pub fn update(&mut self) {
-        self.update_game();
+        if self.level_editor_active {
+        } else {
+            self.update_game();
+        }
     }
 
     pub fn update_game(&mut self) {
@@ -342,7 +347,10 @@ impl Level {
     }
 
     pub fn draw(&mut self) {
-        self.draw_game();
+        if self.level_editor_active {
+        } else {
+            self.draw_game();
+        }
     }
 
     pub fn draw_game(&mut self) {
@@ -595,38 +603,42 @@ impl Level {
         }
     }
 
+    pub fn text_input(&mut self, input: char) {
+        if self.level_editor_active {
+            match input {
+                _ => (),
+            }
+        }
+    }
+
     pub fn key_down(&mut self, input: KeyCode) {
         match input {
             KeyCode::LeftShift | KeyCode::RightShift => {
                 self.shift_held = true;
             }
-            KeyCode::Key0 => self.brush = usize::MAX,
-            KeyCode::Key1 => self.brush = 0,
-            KeyCode::Key2 => self.brush = 1,
-            KeyCode::Key3 => self.brush = 2,
-            KeyCode::Key4 => self.brush = 3,
-            KeyCode::Key5 => self.brush = 4,
-            KeyCode::Key6 => self.brush = 5,
-            KeyCode::Key7 => self.brush = 6,
-            KeyCode::Key8 => self.brush = 7,
-            KeyCode::Key9 => self.brush = 8,
-            KeyCode::Period => {
-                if self.shift_held {
-                    fs::write("resources/level", self.save()).unwrap();
+            KeyCode::Key0 | KeyCode::Kp0 if self.shift_held => {
+                self.level_editor_active ^= true;
+
+                if !self.level_editor_active {
+                    self.reset();
+                    self.step_at_level_start();
                 }
             }
             _ => (),
         }
 
-        self.input_readers.retain(|&key| {
-            let Some(entity) = self.entities.get_mut(key) else {
-                return false;
-            };
+        if self.level_editor_active {
+        } else {
+            self.input_readers.retain(|&key| {
+                let Some(entity) = self.entities.get_mut(key) else {
+                    return false;
+                };
 
-            entity.key_down(input);
+                entity.key_down(input);
 
-            true
-        });
+                true
+            });
+        }
     }
 
     pub fn key_up(&mut self, input: KeyCode) {
@@ -637,61 +649,65 @@ impl Level {
             _ => (),
         }
 
-        self.input_readers.retain(|&key| {
-            let Some(entity) = self.entities.get_mut(key) else {
-                return false;
-            };
+        if self.level_editor_active {
+        } else {
+            self.input_readers.retain(|&key| {
+                let Some(entity) = self.entities.get_mut(key) else {
+                    return false;
+                };
 
-            entity.key_up(input);
+                entity.key_up(input);
 
-            true
-        });
+                true
+            });
+        }
     }
 
     pub fn mouse_down(&mut self, input: MouseButton, position: Point2<f64>) {
-        self.input_readers.retain(|&key| {
-            let Some(entity) = self.entities.get_mut(key) else {
-                return false;
-            };
+        if self.level_editor_active {
+        } else {
+            self.input_readers.retain(|&key| {
+                let Some(entity) = self.entities.get_mut(key) else {
+                    return false;
+                };
 
-            entity.mouse_down(input, position);
+                entity.mouse_down(input, position);
 
-            true
-        });
-
-        match input {
-            MouseButton::Left => {
-                let index = position.map(|x| (x.floor() as isize).div_euclid(TILE_SIZE));
-                self.set_tile(index, self.tiles.get(self.brush).map(|&kind| Tile { kind }));
-            }
-            _ => (),
+                true
+            });
         }
     }
 
     pub fn mouse_up(&mut self, input: MouseButton, position: Point2<f64>) {
-        self.input_readers.retain(|&key| {
-            let Some(entity) = self.entities.get_mut(key) else {
-                return false;
-            };
+        if self.level_editor_active {
+        } else {
+            self.input_readers.retain(|&key| {
+                let Some(entity) = self.entities.get_mut(key) else {
+                    return false;
+                };
 
-            entity.mouse_up(input, position);
+                entity.mouse_up(input, position);
 
-            true
-        });
+                true
+            });
+        }
     }
 
     pub fn mouse_moved(&mut self, position: Point2<f64>, delta: Vector2<f64>) {
         self.mouse_position = position;
 
-        self.input_readers.retain(|&key| {
-            let Some(entity) = self.entities.get_mut(key) else {
-                return false;
-            };
+        if self.level_editor_active {
+        } else {
+            self.input_readers.retain(|&key| {
+                let Some(entity) = self.entities.get_mut(key) else {
+                    return false;
+                };
 
-            entity.mouse_moved(position, delta);
+                entity.mouse_moved(position, delta);
 
-            true
-        });
+                true
+            });
+        }
     }
 }
 
