@@ -38,6 +38,7 @@ pub enum Command {
     Tile(Option<Tile>),
     Entity(Box<dyn Entity>),
     Save(Option<String>),
+    Load(Option<String>),
     Clear,
 }
 
@@ -48,6 +49,7 @@ impl Clone for Command {
             Self::Tile(kind) => Self::Tile(kind.clone()),
             Self::Entity(entity) => Self::Entity(entity.duplicate()),
             Self::Save(path) => Self::Save(path.clone()),
+            Self::Load(path) => Self::Load(path.clone()),
             Self::Clear => Self::Clear,
         }
     }
@@ -60,6 +62,7 @@ impl Command {
             Command::Tile(_) => false,
             Command::Entity(_) => true,
             Command::Save(_) => false,
+            Command::Load(_) => false,
             Command::Clear => false,
         }
     }
@@ -70,6 +73,7 @@ impl Command {
             Command::Tile(_) => false,
             Command::Entity(_) => true,
             Command::Save(_) => true,
+            Command::Load(_) => true,
             Command::Clear => true,
         }
     }
@@ -120,6 +124,7 @@ impl FromStr for Command {
                 Ok(Command::Entity(entity))
             }
             Some(&"save") => Ok(Command::Save(words.get(1).map(|&path| path.to_owned()))),
+            Some(&"load") => Ok(Command::Load(words.get(1).map(|&path| path.to_owned()))),
             Some(&"clear") => Ok(Command::Clear),
             _ => Err(()),
         }
@@ -253,6 +258,15 @@ impl Level {
                                     let level_data = self.save();
                                     fs::write(&self.path, &level_data).unwrap();
                                     self.level_data = Some(level_data);
+                                }
+                                Command::Load(path) => {
+                                    if let Some(path) = path {
+                                        self.path = path;
+                                    }
+
+                                    self.level_data = None;
+
+                                    self.reset();
                                 }
                                 Command::Clear => {
                                     self.path = "".to_owned();
