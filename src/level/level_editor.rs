@@ -8,11 +8,12 @@ use macroquad::{
     texture::{self, DrawTextureParams},
 };
 use nalgebra::{Point2, Vector2, point, vector};
+use slotmap::SlotMap;
 
 use crate::{
     collections::tile_grid::{TileGrid, TileIndexOffset},
     level::{
-        Level, TILE_SIZE,
+        EntityKey, Level, TILE_SIZE,
         entity_tracker::{
             EntityTracker,
             entity::{
@@ -34,7 +35,7 @@ pub struct LevelEditor {
     pub command_input_history_index: usize,
 
     pub command: Option<Command>,
-    pub selected_entity: Option<usize>,
+    pub selected_entity: Option<EntityKey>,
     pub grabbing: Option<Vector2<f64>>,
 }
 
@@ -169,7 +170,7 @@ impl Level {
 
     pub fn update_level_editor(&mut self) {
         if let Some((offset, selection)) = self.editor.grabbing.zip(self.editor.selected_entity) {
-            if let Some(position) = self.initial_state[selection].inner.position_mut() {
+            if let Some(position) = self.hard_reset_state[selection].inner.position_mut() {
                 *position = self.mouse_position + offset;
 
                 if self.shift_held {
@@ -186,7 +187,7 @@ impl Level {
                 .as_ref()
                 .is_none_or(|command| command.use_entity_selection())
             {
-                for (i, entity) in self.initial_state.iter().enumerate() {
+                for (key, entity) in &self.hard_reset_state {
                     if let Some(collision_rect) = entity.inner.collision_rect() {
                         if Rect::new(
                             collision_rect.origin.x as f32,
@@ -196,7 +197,7 @@ impl Level {
                         )
                         .contains(self.mouse_position.map(|x| x as f32).into())
                         {
-                            self.editor.selected_entity = Some(i);
+                            self.editor.selected_entity = Some(key);
                             break;
                         }
                     } else {
@@ -204,7 +205,7 @@ impl Level {
                         let distance = (self.mouse_position - position).magnitude();
                         if distance < 24.0 && distance < closest_distance {
                             closest_distance = distance;
-                            self.editor.selected_entity = Some(i);
+                            self.editor.selected_entity = Some(key);
                         }
                     }
                 }
@@ -215,8 +216,8 @@ impl Level {
     pub fn draw_level_editor(&mut self) {
         self.level_editor_draw_level_contents();
 
-        for (i, entity) in self.initial_state.iter().enumerate() {
-            let color = if self.editor.selected_entity == Some(i) {
+        for (key, entity) in &self.hard_reset_state {
+            let color = if self.editor.selected_entity == Some(key) {
                 colors::GREEN
             } else {
                 colors::MAGENTA
@@ -297,9 +298,10 @@ impl Level {
 
                             match self.editor.command.take().unwrap() {
                                 Command::Entity(entity) => {
-                                    self.editor.selected_entity = Some(self.initial_state.len());
+                                    self.editor.selected_entity = Some(
+                                        self.hard_reset_state.insert(EntityTracker::new(entity)),
+                                    );
                                     self.editor.grabbing = Some(vector![0.0, 0.0]);
-                                    self.initial_state.push(EntityTracker::new(entity));
                                 }
                                 Command::Save(path) => {
                                     if let Some(path) = path {
@@ -338,11 +340,11 @@ impl Level {
                                     self.path = "".to_owned();
                                     self.level_data = None;
                                     self.tile_grid = TileGrid::default();
-                                    self.initial_state = Vec::new();
+                                    self.hard_reset_state = SlotMap::default();
                                 }
                                 Command::Shift(offset) => {
                                     self.tile_grid.shift(offset);
-                                    for entity in &mut self.initial_state {
+                                    for (_, entity) in &mut self.hard_reset_state {
                                         if let Some(position) = entity.inner.position_mut() {
                                             *position +=
                                                 offset.map(|x| x as f64 * TILE_SIZE as f64);
@@ -487,8 +489,9 @@ impl Level {
                         .as_ref()
                         .is_none_or(|command| command.use_entity_selection())
                 {
-                    self.editor.grabbing =
-                        Some(self.initial_state[selection].inner.position() - self.mouse_position);
+                    self.editor.grabbing = Some(
+                        self.hard_reset_state[selection].inner.position() - self.mouse_position,
+                    );
                 }
             }
             _ => (),
@@ -498,7 +501,7 @@ impl Level {
             Some(Command::Delete) => match input {
                 MouseButton::Right => {
                     if let Some(selection) = self.editor.selected_entity {
-                        self.initial_state.remove(selection);
+                        self.hard_reset_state.remove(selection);
                         self.editor.selected_entity = None;
                     }
                 }
@@ -581,7 +584,7 @@ impl Level {
         }
 
         // Floor like entities
-        for entity in &mut self.initial_state {
+        for (_, entity) in &mut self.hard_reset_state {
             entity.inner.draw_floor(&self.texture_atlas);
         }
 
@@ -617,25 +620,25 @@ impl Level {
         }
 
         // Wall like entities
-        for entity in &mut self.initial_state {
+        for (_, entity) in &mut self.hard_reset_state {
             entity.inner.draw_wall(&self.texture_atlas);
         }
 
         // Vision occluded entities
-        for entity in &mut self.initial_state {
+        for (_, entity) in &mut self.hard_reset_state {
             entity.inner.draw_back(&self.texture_atlas);
         }
 
         // Always visible entities
-        for entity in &mut self.initial_state {
+        for (_, entity) in &mut self.hard_reset_state {
             entity.inner.draw_effect_back(&self.texture_atlas);
         }
 
-        for entity in &mut self.initial_state {
+        for (_, entity) in &mut self.hard_reset_state {
             entity.inner.draw_front(&self.texture_atlas);
         }
 
-        for entity in &mut self.initial_state {
+        for (_, entity) in &mut self.hard_reset_state {
             entity.inner.draw_effect_front(&self.texture_atlas);
         }
     }

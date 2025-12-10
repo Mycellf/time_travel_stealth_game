@@ -46,10 +46,10 @@ pub struct Level {
     pub path: String,
     pub level_data: Option<Vec<u8>>,
 
-    pub initial_state: Vec<EntityTracker>,
+    pub hard_reset_state: SlotMap<EntityKey, EntityTracker>,
     pub wire_diagram: WireDiagram,
 
-    pub initial_entities: SlotMap<EntityKey, EntityTracker>,
+    pub soft_reset_state: SlotMap<EntityKey, EntityTracker>,
     pub mouse_position: Point2<f64>,
 
     pub frame: FrameIndex,
@@ -67,7 +67,6 @@ pub struct Level {
     pub tile_grid: TileGrid<Option<Tile>>,
     pub light_grid: LightGrid,
 
-    pub tiles: Vec<TileKindKey>,
     pub shift_held: bool,
     pub control_held: bool,
     pub alt_held: bool,
@@ -92,14 +91,37 @@ impl Level {
         );
         texture_atlas.set_filter(FilterMode::Nearest);
 
+        if TILE_KINDS.lock().unwrap().is_empty() {
+            tile::add_tile_kind(TileKind {
+                name: "brick1".to_owned(),
+                pixel_kind: Pixel::Solid,
+                texture_location: point![0, 0],
+            });
+            tile::add_tile_kind(TileKind {
+                name: "brick2".to_owned(),
+                pixel_kind: Pixel::Solid,
+                texture_location: point![1, 0],
+            });
+            tile::add_tile_kind(TileKind {
+                name: "wood".to_owned(),
+                pixel_kind: Pixel::None,
+                texture_location: point![0, 1],
+            });
+            tile::add_tile_kind(TileKind {
+                name: "hourglass".to_owned(),
+                pixel_kind: Pixel::None,
+                texture_location: point![1, 1],
+            });
+        }
+
         Level {
             path,
             level_data: None,
 
-            initial_state: Vec::new(),
+            hard_reset_state: SlotMap::default(),
             wire_diagram: WireDiagram::default(),
 
-            initial_entities: SlotMap::default(),
+            soft_reset_state: SlotMap::default(),
             mouse_position: point![0.0, 0.0],
 
             frame: 0,
@@ -143,33 +165,6 @@ impl Level {
             tile_grid: TileGrid::default(),
             light_grid: LightGrid::default(),
 
-            tiles: if TILE_KINDS.lock().unwrap().is_empty() {
-                drop(TILE_KINDS.lock().unwrap());
-                vec![
-                    tile::add_tile_kind(TileKind {
-                        name: "brick1".to_owned(),
-                        pixel_kind: Pixel::Solid,
-                        texture_location: point![0, 0],
-                    }),
-                    tile::add_tile_kind(TileKind {
-                        name: "brick2".to_owned(),
-                        pixel_kind: Pixel::Solid,
-                        texture_location: point![1, 0],
-                    }),
-                    tile::add_tile_kind(TileKind {
-                        name: "wood".to_owned(),
-                        pixel_kind: Pixel::None,
-                        texture_location: point![0, 1],
-                    }),
-                    tile::add_tile_kind(TileKind {
-                        name: "hourglass".to_owned(),
-                        pixel_kind: Pixel::None,
-                        texture_location: point![1, 1],
-                    }),
-                ]
-            } else {
-                TILE_KINDS.lock().unwrap().keys().collect()
-            },
             shift_held: false,
             control_held: false,
             alt_held: false,
@@ -190,7 +185,7 @@ impl Level {
         self.tile_grid.shrink_to_fit();
         let mut level = bincode::serde::encode_to_vec(&self.tile_grid, config).unwrap();
 
-        level.append(&mut bincode::serde::encode_to_vec(&self.initial_state, config).unwrap());
+        level.append(&mut bincode::serde::encode_to_vec(&self.hard_reset_state, config).unwrap());
 
         level
     }
@@ -213,7 +208,7 @@ impl Level {
         let (initial_state, _) =
             bincode::serde::decode_from_slice(data, bincode::config::standard()).unwrap();
 
-        self.initial_state = initial_state;
+        self.hard_reset_state = initial_state;
         self.tile_grid = tile_grid;
         self.light_grid = LightGrid::default();
 
@@ -244,13 +239,9 @@ impl Level {
     }
 
     pub fn entities_from_initial_state(
-        initial_state: &[EntityTracker],
+        initial_state: &SlotMap<EntityKey, EntityTracker>,
     ) -> SlotMap<EntityKey, EntityTracker> {
-        let mut entities = SlotMap::default();
-
-        for entity in initial_state {
-            entities.insert(entity.clone());
-        }
+        let mut entities = initial_state.clone();
 
         for key in entities.keys().collect::<Vec<_>>() {
             let mut entity = mem::take(&mut entities[key]);
@@ -266,13 +257,13 @@ impl Level {
     pub fn reset(&mut self) {
         self.load_from_level_data();
 
-        self.initial_entities = Self::entities_from_initial_state(&self.initial_state);
+        self.soft_reset_state = Self::entities_from_initial_state(&self.hard_reset_state);
 
         self.load_initial_entities();
     }
 
     pub fn load_initial_entities(&mut self) {
-        self.entities.clone_from(&self.initial_entities);
+        self.entities.clone_from(&self.soft_reset_state);
         self.input_readers.clear();
 
         for (key, entity) in &self.entities {
@@ -308,7 +299,7 @@ impl Level {
                 self.frame,
                 guard,
                 &mut self.light_grid,
-                &mut self.initial_entities,
+                &mut self.soft_reset_state,
                 &mut self.wire_diagram.wires,
             );
 
