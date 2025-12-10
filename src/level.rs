@@ -23,12 +23,14 @@ use crate::{
             EntityTracker,
             entity::{Entity, GameAction, ViewKind, player::PlayerState},
         },
+        level_editor::LevelEditor,
         light_grid::{LightGrid, Pixel},
         tile::{TILE_KINDS, Tile, TileKind, TileKindKey},
     },
 };
 
 pub(crate) mod entity_tracker;
+pub(crate) mod level_editor;
 pub(crate) mod light_grid;
 pub(crate) mod tile;
 
@@ -67,6 +69,7 @@ pub struct Level {
     pub shift_held: bool,
 
     pub level_editor_active: bool,
+    pub editor: LevelEditor,
 
     pub occlude_wall_shadows: bool,
 }
@@ -158,6 +161,7 @@ impl Level {
             shift_held: false,
 
             level_editor_active: false,
+            editor: LevelEditor::default(),
 
             occlude_wall_shadows: true,
         }
@@ -271,6 +275,7 @@ impl Level {
 
     pub fn update(&mut self) {
         if self.level_editor_active {
+            self.update_level_editor();
         } else {
             self.update_game();
         }
@@ -348,6 +353,7 @@ impl Level {
 
     pub fn draw(&mut self) {
         if self.level_editor_active {
+            self.draw_level_editor();
         } else {
             self.draw_game();
         }
@@ -605,9 +611,7 @@ impl Level {
 
     pub fn text_input(&mut self, input: char) {
         if self.level_editor_active {
-            match input {
-                _ => (),
-            }
+            self.level_editor_text_input(input);
         }
     }
 
@@ -624,10 +628,18 @@ impl Level {
                     self.step_at_level_start();
                 }
             }
+            KeyCode::Escape => {
+                if !self.level_editor_active
+                    || self.editor.cursor.is_none() && self.editor.command.is_empty()
+                {
+                    window::miniquad::window::quit();
+                }
+            }
             _ => (),
         }
 
         if self.level_editor_active {
+            self.level_editor_key_down(input);
         } else {
             self.input_readers.retain(|&key| {
                 let Some(entity) = self.entities.get_mut(key) else {
@@ -650,6 +662,7 @@ impl Level {
         }
 
         if self.level_editor_active {
+            self.level_editor_key_up(input);
         } else {
             self.input_readers.retain(|&key| {
                 let Some(entity) = self.entities.get_mut(key) else {
@@ -665,6 +678,7 @@ impl Level {
 
     pub fn mouse_down(&mut self, input: MouseButton, position: Point2<f64>) {
         if self.level_editor_active {
+            self.level_editor_mouse_down(input, position);
         } else {
             self.input_readers.retain(|&key| {
                 let Some(entity) = self.entities.get_mut(key) else {
@@ -680,6 +694,7 @@ impl Level {
 
     pub fn mouse_up(&mut self, input: MouseButton, position: Point2<f64>) {
         if self.level_editor_active {
+            self.level_editor_mouse_up(input, position);
         } else {
             self.input_readers.retain(|&key| {
                 let Some(entity) = self.entities.get_mut(key) else {
@@ -697,6 +712,7 @@ impl Level {
         self.mouse_position = position;
 
         if self.level_editor_active {
+            self.level_editor_mouse_moved(position, delta);
         } else {
             self.input_readers.retain(|&key| {
                 let Some(entity) = self.entities.get_mut(key) else {

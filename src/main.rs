@@ -148,9 +148,6 @@ impl State {
         self.level.key_down(input);
 
         match input {
-            KeyCode::Escape => {
-                window::miniquad::window::quit();
-            }
             KeyCode::F11 => {
                 self.fullscreen ^= true;
 
