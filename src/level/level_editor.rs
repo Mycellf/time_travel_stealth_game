@@ -1,4 +1,4 @@
-use std::str::FromStr;
+use std::{fs, str::FromStr};
 
 use macroquad::{
     color::colors,
@@ -9,14 +9,17 @@ use macroquad::{
 };
 use nalgebra::{Point2, Vector2, point, vector};
 
-use crate::level::{
-    Level, TILE_SIZE,
-    entity_tracker::entity::{
-        Entity, GameAction,
-        elevator::{Elevator, ElevatorDirection},
-        player::Player,
+use crate::{
+    collections::tile_grid::TileGrid,
+    level::{
+        Level, TILE_SIZE,
+        entity_tracker::entity::{
+            Entity, GameAction,
+            elevator::{Elevator, ElevatorDirection},
+            player::Player,
+        },
+        tile::{self, TILE_KINDS, Tile},
     },
-    tile::{self, TILE_KINDS, Tile},
 };
 
 #[derive(Clone, Default, Debug)]
@@ -34,6 +37,8 @@ pub enum Command {
     Delete,
     Tile(Option<Tile>),
     Entity(Box<dyn Entity>),
+    Save(Option<String>),
+    Clear,
 }
 
 impl Clone for Command {
@@ -42,6 +47,8 @@ impl Clone for Command {
             Self::Delete => Self::Delete,
             Self::Tile(kind) => Self::Tile(kind.clone()),
             Self::Entity(entity) => Self::Entity(entity.duplicate()),
+            Self::Save(path) => Self::Save(path.clone()),
+            Self::Clear => Self::Clear,
         }
     }
 }
@@ -52,6 +59,8 @@ impl Command {
             Command::Delete => true,
             Command::Tile(_) => false,
             Command::Entity(_) => true,
+            Command::Save(_) => false,
+            Command::Clear => false,
         }
     }
 
@@ -60,6 +69,8 @@ impl Command {
             Command::Delete => false,
             Command::Tile(_) => false,
             Command::Entity(_) => true,
+            Command::Save(_) => true,
+            Command::Clear => true,
         }
     }
 }
@@ -108,6 +119,8 @@ impl FromStr for Command {
 
                 Ok(Command::Entity(entity))
             }
+            Some(&"save") => Ok(Command::Save(words.get(1).map(|&path| path.to_owned()))),
+            Some(&"clear") => Ok(Command::Clear),
             _ => Err(()),
         }
     }
@@ -231,6 +244,21 @@ impl Level {
                                     self.editor.selected_entity = Some(self.initial_state.len());
                                     self.editor.grabbing = Some(vector![0.0, 0.0]);
                                     self.initial_state.push(entity);
+                                }
+                                Command::Save(path) => {
+                                    if let Some(path) = path {
+                                        self.path = path;
+                                    }
+
+                                    let level_data = self.save();
+                                    fs::write(&self.path, &level_data).unwrap();
+                                    self.level_data = Some(level_data);
+                                }
+                                Command::Clear => {
+                                    self.path = "".to_owned();
+                                    self.level_data = None;
+                                    self.tile_grid = TileGrid::default();
+                                    self.initial_state = Vec::new();
                                 }
                                 _ => (),
                             }
