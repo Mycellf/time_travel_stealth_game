@@ -27,6 +27,9 @@ pub struct LevelEditor {
     pub command_input: String,
     pub cursor: Option<usize>,
 
+    pub command_input_history: Vec<String>,
+    pub command_input_history_index: usize,
+
     pub command: Option<Command>,
     pub selected_entity: Option<usize>,
     pub grabbing: Option<Vector2<f64>>,
@@ -245,6 +248,12 @@ impl Level {
                 '\r' | '\n' => {
                     self.editor.cursor = None;
 
+                    self.editor
+                        .command_input_history
+                        .push(self.editor.command_input.clone());
+                    self.editor.command_input_history_index =
+                        self.editor.command_input_history.len();
+
                     self.editor.command = self.editor.command_input.parse().ok();
 
                     if let Some(command) = &self.editor.command {
@@ -390,6 +399,31 @@ impl Level {
                 }
                 KeyCode::End => {
                     *cursor = self.editor.command_input.len();
+                }
+                KeyCode::Up => {
+                    self.editor.command_input_history_index =
+                        self.editor.command_input_history_index.saturating_sub(1);
+                    self.editor.command_input = self
+                        .editor
+                        .command_input_history
+                        .get(self.editor.command_input_history_index)
+                        .cloned()
+                        .unwrap_or_default();
+                    self.editor.cursor = Some(self.editor.command_input.len());
+                }
+                KeyCode::Down => {
+                    self.editor.command_input_history_index = self
+                        .editor
+                        .command_input_history_index
+                        .saturating_add(1)
+                        .min(self.editor.command_input_history.len());
+                    self.editor.command_input = self
+                        .editor
+                        .command_input_history
+                        .get(self.editor.command_input_history_index)
+                        .cloned()
+                        .unwrap_or_default();
+                    self.editor.cursor = Some(self.editor.command_input.len());
                 }
                 _ => (),
             }
