@@ -22,11 +22,10 @@ use crate::{
         entity_tracker::{
             EntityTracker,
             entity::{GameAction, ViewKind, player::PlayerState},
-            wire_diagram::WireDiagram,
         },
         level_editor::LevelEditor,
         light_grid::{LightGrid, Pixel},
-        tile::{TILE_KINDS, Tile, TileKind, TileKindKey},
+        tile::{TILE_KINDS, Tile, TileKind},
     },
 };
 
@@ -47,7 +46,6 @@ pub struct Level {
     pub level_data: Option<Vec<u8>>,
 
     pub hard_reset_state: SlotMap<EntityKey, EntityTracker>,
-    pub wire_diagram: WireDiagram,
 
     pub soft_reset_state: SlotMap<EntityKey, EntityTracker>,
     pub mouse_position: Point2<f64>,
@@ -119,7 +117,6 @@ impl Level {
             level_data: None,
 
             hard_reset_state: SlotMap::default(),
-            wire_diagram: WireDiagram::default(),
 
             soft_reset_state: SlotMap::default(),
             mouse_position: point![0.0, 0.0],
@@ -300,7 +297,6 @@ impl Level {
                 guard,
                 &mut self.light_grid,
                 &mut self.soft_reset_state,
-                &mut self.wire_diagram.wires,
             );
 
             actions.extend(action);

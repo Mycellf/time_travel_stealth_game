@@ -16,7 +16,6 @@ use crate::{
         entity_tracker::{
             EntityTracker,
             entity::{Entity, EntityVisibleState, GameAction},
-            wire_diagram::Wire,
         },
         light_grid::{LightArea, LightGrid, Pixel},
     },
@@ -120,7 +119,6 @@ impl Entity for ElevatorDoor {
         entities: GuardedSlotMap<EntityKey, EntityTracker>,
         light_grid: &mut LightGrid,
         _initial_state: &mut SlotMap<EntityKey, EntityTracker>,
-        _wire: Option<&mut Wire>,
     ) -> Option<GameAction> {
         let previous_extent = self.extent;
         self.blocked = false;

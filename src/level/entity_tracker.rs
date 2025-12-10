@@ -7,10 +7,7 @@ use crate::{
     collections::{history::FrameIndex, slot_guard::GuardedSlotMap},
     level::{
         EntityKey,
-        entity_tracker::{
-            entity::{Entity, GameAction, empty::Empty},
-            wire_diagram::{Wire, WireKey},
-        },
+        entity_tracker::entity::{Entity, GameAction, empty::Empty},
         light_grid::LightGrid,
     },
 };
@@ -19,9 +16,14 @@ pub(crate) mod entity;
 pub(crate) mod wire_diagram;
 
 #[derive(Serialize, Deserialize, Debug)]
+pub struct EntityTrackerOld {
+    pub inner: Box<dyn Entity>,
+    pub wire: Option<wire_diagram::WireKey>,
+}
+
+#[derive(Serialize, Deserialize, Debug)]
 pub struct EntityTracker {
     pub inner: Box<dyn Entity>,
-    pub wire: Option<WireKey>,
 }
 
 impl Default for EntityTracker {
@@ -32,10 +34,7 @@ impl Default for EntityTracker {
 
 impl EntityTracker {
     pub fn new(inner: Box<dyn Entity>) -> Self {
-        EntityTracker {
-            inner: inner,
-            wire: None,
-        }
+        EntityTracker { inner: inner }
     }
 
     #[must_use]
@@ -45,15 +44,9 @@ impl EntityTracker {
         entities: GuardedSlotMap<EntityKey, EntityTracker>,
         light_grid: &mut LightGrid,
         initial_state: &mut SlotMap<EntityKey, EntityTracker>,
-        wires: &mut SlotMap<WireKey, Wire>,
     ) -> Option<GameAction> {
-        self.inner.update(
-            frame,
-            entities,
-            light_grid,
-            initial_state,
-            self.wire.and_then(|key| wires.get_mut(key)),
-        )
+        self.inner
+            .update(frame, entities, light_grid, initial_state)
     }
 
     pub fn key_down(&mut self, input: KeyCode) {
@@ -91,7 +84,6 @@ impl Clone for EntityTracker {
     fn clone(&self) -> Self {
         Self {
             inner: self.inner.duplicate(),
-            wire: self.wire,
         }
     }
 }

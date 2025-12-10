@@ -15,7 +15,6 @@ use crate::{
         entity_tracker::{
             EntityTracker,
             entity::{elevator::Elevator, elevator_door::ElevatorDoor, player::Player},
-            wire_diagram::Wire,
         },
         light_grid::{LightArea, LightGrid},
     },
@@ -36,7 +35,6 @@ pub trait Entity: 'static + Debug {
         entities: GuardedSlotMap<EntityKey, EntityTracker>,
         light_grid: &mut LightGrid,
         initial_state: &mut SlotMap<EntityKey, EntityTracker>,
-        wire: Option<&mut Wire>,
     ) -> Option<GameAction>;
 
     /// Called for each entity after everything has had `update` called.

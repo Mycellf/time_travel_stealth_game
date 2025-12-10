@@ -9,7 +9,6 @@ use crate::{
         entity_tracker::{
             EntityTracker,
             entity::{Entity, GameAction},
-            wire_diagram::Wire,
         },
         light_grid::LightGrid,
     },
@@ -26,7 +25,6 @@ impl Entity for Empty {
         _entities: GuardedSlotMap<EntityKey, EntityTracker>,
         _light_grid: &mut LightGrid,
         _initial_state: &mut SlotMap<EntityKey, EntityTracker>,
-        _wire: Option<&mut Wire>,
     ) -> Option<GameAction> {
         None
     }
