@@ -644,6 +644,8 @@ impl Level {
                 self.level_editor_active ^= true;
 
                 if !self.level_editor_active {
+                    self.exit_level_editor();
+
                     self.level_data = Some(self.save());
 
                     self.reset();

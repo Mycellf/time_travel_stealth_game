@@ -1,4 +1,4 @@
-use std::{fs, str::FromStr};
+use std::{fs, mem, str::FromStr};
 
 use macroquad::{
     color::colors,
@@ -141,6 +141,14 @@ impl FromStr for Command {
 }
 
 impl Level {
+    pub fn exit_level_editor(&mut self) {
+        self.editor = LevelEditor {
+            command_input_history_index: self.editor.command_input_history.len(),
+            command_input_history: mem::take(&mut self.editor.command_input_history),
+            ..Default::default()
+        };
+    }
+
     pub fn update_level_editor(&mut self) {
         if let Some((offset, selection)) = self.editor.grabbing.zip(self.editor.selected_entity) {
             if let Some(position) = self.initial_state[selection].position_mut() {
