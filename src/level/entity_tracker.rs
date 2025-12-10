@@ -13,7 +13,6 @@ use crate::{
 };
 
 pub(crate) mod entity;
-pub(crate) mod wire_diagram;
 
 #[derive(Clone, Serialize, Deserialize, Debug)]
 pub struct EntityTracker {
