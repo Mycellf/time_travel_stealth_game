@@ -126,7 +126,7 @@ impl FromStr for Command {
                         },
                         match words.get(3) {
                             None | Some(&"loop") => GameAction::SoftReset,
-                            Some(&"entry") => GameAction::HardResetSavePlayerPosition,
+                            Some(&"entry") => GameAction::HardResetKeepPlayer,
                             _ => return Err(()),
                         },
                     )),

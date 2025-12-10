@@ -14,7 +14,7 @@ use slotmap::{SlotMap, new_key_type};
 
 use crate::{
     collections::{
-        history::FrameIndex,
+        history::{FrameIndex, History},
         slot_guard::SlotGuard,
         tile_grid::{TileGrid, TileIndex},
     },
@@ -334,26 +334,31 @@ impl Level {
                 self.reset();
                 self.step_at_level_start();
             }
-            Some(GameAction::HardResetSavePlayerPosition) => {
-                let mut player_position = None;
+            Some(GameAction::HardResetKeepPlayer) => {
+                let mut saved_player = None;
 
                 for &key in &self.input_readers {
                     if let Some(player) = self.entities[key].inner.as_player()
                         && player.state == PlayerState::Active
                     {
-                        player_position = Some(player.position);
+                        let mut player = player.clone();
+
+                        player.history = History::default();
+                        player.environment_history.clear();
+
+                        saved_player = Some(player);
                         break;
                     }
                 }
 
                 self.reset();
 
-                if let Some(player_position) = player_position {
+                if let Some(saved_player) = saved_player {
                     for &key in &self.input_readers {
                         if let Some(player) = self.entities[key].inner.as_player()
                             && player.state == PlayerState::Active
                         {
-                            player.position = player_position;
+                            *player = saved_player;
                             break;
                         }
                     }

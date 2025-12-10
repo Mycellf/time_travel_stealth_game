@@ -164,7 +164,7 @@ pub trait Entity: 'static + Debug {
 pub enum GameAction {
     SetFadeOut,
     SoftReset,
-    HardResetSavePlayerPosition,
+    HardResetKeepPlayer,
     HardReset,
 }
 
