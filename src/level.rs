@@ -71,6 +71,7 @@ pub struct Level {
     pub alt_held: bool,
     pub left_mouse_held: bool,
     pub right_mouse_held: bool,
+    pub middle_mouse_held: bool,
 
     pub level_editor_active: bool,
     pub editor: LevelEditor,
@@ -171,6 +172,7 @@ impl Level {
             alt_held: false,
             left_mouse_held: false,
             right_mouse_held: false,
+            middle_mouse_held: false,
 
             level_editor_active: false,
             editor: LevelEditor::default(),
@@ -712,6 +714,9 @@ impl Level {
             MouseButton::Right => {
                 self.right_mouse_held = true;
             }
+            MouseButton::Middle => {
+                self.middle_mouse_held = true;
+            }
             _ => (),
         }
 
@@ -737,6 +742,9 @@ impl Level {
             }
             MouseButton::Right => {
                 self.right_mouse_held = false;
+            }
+            MouseButton::Middle => {
+                self.middle_mouse_held = false;
             }
             _ => (),
         }

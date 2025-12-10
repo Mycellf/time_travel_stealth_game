@@ -38,7 +38,7 @@ pub struct LevelEditor {
 #[derive(Debug)]
 pub enum Command {
     Delete,
-    Tile(Option<Tile>),
+    Tile(Option<Tile>, Option<Tile>, Option<Tile>),
     Entity(Box<dyn Entity>),
     Save(Option<String>),
     Load(Option<String>),
@@ -49,7 +49,9 @@ impl Clone for Command {
     fn clone(&self) -> Self {
         match self {
             Self::Delete => Self::Delete,
-            Self::Tile(kind) => Self::Tile(kind.clone()),
+            Self::Tile(kind_1, kind_2, kind_3) => {
+                Self::Tile(kind_1.clone(), kind_2.clone(), kind_3.clone())
+            }
             Self::Entity(entity) => Self::Entity(entity.duplicate()),
             Self::Save(path) => Self::Save(path.clone()),
             Self::Load(path) => Self::Load(path.clone()),
@@ -62,7 +64,7 @@ impl Command {
     pub fn use_entity_selection(&self) -> bool {
         match self {
             Command::Delete => true,
-            Command::Tile(_) => false,
+            Command::Tile(..) => false,
             Command::Entity(_) => true,
             Command::Save(_) => false,
             Command::Load(_) => false,
@@ -73,7 +75,7 @@ impl Command {
     pub fn is_single_use(&self) -> bool {
         match self {
             Command::Delete => false,
-            Command::Tile(_) => false,
+            Command::Tile(..) => false,
             Command::Entity(_) => true,
             Command::Save(_) => true,
             Command::Load(_) => true,
@@ -91,17 +93,21 @@ impl FromStr for Command {
         match words.get(0) {
             Some(&"delete") => Ok(Command::Delete),
             Some(&"tile") => {
-                if words.get(1) == Some(&"empty") {
-                    Ok(Command::Tile(None))
-                } else {
-                    for (key, tile) in &*TILE_KINDS.lock().unwrap() {
-                        if words.get(1) == Some(&tile.name.as_str()) {
-                            return Ok(Command::Tile(Some(Tile { kind: key })));
+                let get_tile = |i| {
+                    if matches!(words.get(i), Some(&"empty") | None) {
+                        Ok(None)
+                    } else {
+                        for (key, tile) in &*TILE_KINDS.lock().unwrap() {
+                            if words.get(i) == Some(&tile.name.as_str()) {
+                                return Ok(Some(Tile { kind: key }));
+                            }
                         }
-                    }
 
-                    Err(())
-                }
+                        return Err(());
+                    }
+                };
+
+                Ok(Command::Tile(get_tile(1)?, get_tile(2)?, get_tile(3)?))
             }
             Some(&"entity") => {
                 let entity: Box<dyn Entity> = match words.get(1) {
@@ -463,12 +469,15 @@ impl Level {
                 }
                 _ => (),
             },
-            Some(Command::Tile(tile)) => match input {
+            Some(Command::Tile(tile_1, tile_2, tile_3)) => match input {
                 MouseButton::Left => {
-                    self.set_tile_at_mouse_position(tile);
+                    self.set_tile_at_mouse_position(tile_1);
                 }
                 MouseButton::Right => {
-                    self.set_tile_at_mouse_position(None);
+                    self.set_tile_at_mouse_position(tile_2);
+                }
+                MouseButton::Middle => {
+                    self.set_tile_at_mouse_position(tile_3);
                 }
                 _ => (),
             },
@@ -487,13 +496,17 @@ impl Level {
 
     pub fn level_editor_mouse_moved(&mut self, _position: Point2<f64>, _delta: Vector2<f64>) {
         match self.editor.command {
-            Some(Command::Tile(tile)) => {
+            Some(Command::Tile(tile_1, tile_2, tile_3)) => {
                 if self.left_mouse_held {
-                    self.set_tile_at_mouse_position(tile);
+                    self.set_tile_at_mouse_position(tile_1);
                 }
 
                 if self.right_mouse_held {
-                    self.set_tile_at_mouse_position(None);
+                    self.set_tile_at_mouse_position(tile_2);
+                }
+
+                if self.middle_mouse_held {
+                    self.set_tile_at_mouse_position(tile_3);
                 }
             }
             _ => (),
