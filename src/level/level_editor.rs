@@ -244,6 +244,8 @@ impl Level {
 
                     if let Some(command) = &self.editor.command {
                         if command.is_single_use() {
+                            self.editor.command_input.clear();
+
                             match self.editor.command.take().unwrap() {
                                 Command::Entity(entity) => {
                                     self.editor.selected_entity = Some(self.initial_state.len());
@@ -255,18 +257,30 @@ impl Level {
                                         self.path = path;
                                     }
 
-                                    let level_data = self.save();
-                                    fs::write(&self.path, &level_data).unwrap();
-                                    self.level_data = Some(level_data);
+                                    if self.path.is_empty() {
+                                        self.editor
+                                            .command_input
+                                            .push_str("please specify a directory");
+                                    } else {
+                                        let level_data = self.save();
+                                        fs::write(&self.path, &level_data).unwrap();
+                                        self.level_data = Some(level_data);
+                                    }
                                 }
                                 Command::Load(path) => {
                                     if let Some(path) = path {
                                         self.path = path;
                                     }
 
-                                    self.level_data = None;
+                                    if self.path.is_empty() {
+                                        self.editor
+                                            .command_input
+                                            .push_str("please specify a directory");
+                                    } else {
+                                        self.level_data = None;
 
-                                    self.reset();
+                                        self.reset();
+                                    }
                                 }
                                 Command::Clear => {
                                     self.path = "".to_owned();
@@ -276,8 +290,6 @@ impl Level {
                                 }
                                 _ => (),
                             }
-
-                            self.editor.command_input.clear();
                         } else {
                             match command {
                                 _ => (),
