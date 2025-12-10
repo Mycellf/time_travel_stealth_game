@@ -101,7 +101,7 @@ pub(crate) struct State {
 
 impl State {
     fn new() -> Self {
-        let mut level = Level::new("resources/levels/wire_test".to_owned());
+        let mut level = Level::new("resources/levels/test".to_owned());
 
         level.reset();
         level.step_at_level_start();
