@@ -13,10 +13,13 @@ use crate::{
     collections::tile_grid::TileGrid,
     level::{
         Level, TILE_SIZE,
-        entity_tracker::entity::{
-            Entity, GameAction,
-            elevator::{Elevator, ElevatorDirection},
-            player::Player,
+        entity_tracker::{
+            EntityTracker,
+            entity::{
+                Entity, GameAction,
+                elevator::{Elevator, ElevatorDirection},
+                player::Player,
+            },
         },
         tile::{self, TILE_KINDS, Tile},
     },
@@ -151,7 +154,7 @@ impl Level {
 
     pub fn update_level_editor(&mut self) {
         if let Some((offset, selection)) = self.editor.grabbing.zip(self.editor.selected_entity) {
-            if let Some(position) = self.initial_state[selection].position_mut() {
+            if let Some(position) = self.initial_state[selection].inner.position_mut() {
                 *position = self.mouse_position + offset;
 
                 if self.shift_held {
@@ -169,7 +172,7 @@ impl Level {
                 .is_none_or(|command| command.use_entity_selection())
             {
                 for (i, entity) in self.initial_state.iter().enumerate() {
-                    if let Some(collision_rect) = entity.collision_rect() {
+                    if let Some(collision_rect) = entity.inner.collision_rect() {
                         if Rect::new(
                             collision_rect.origin.x as f32,
                             collision_rect.origin.y as f32,
@@ -182,7 +185,7 @@ impl Level {
                             break;
                         }
                     } else {
-                        let position = entity.position();
+                        let position = entity.inner.position();
                         let distance = (self.mouse_position - position).magnitude();
                         if distance < 24.0 && distance < closest_distance {
                             closest_distance = distance;
@@ -204,7 +207,7 @@ impl Level {
                 colors::MAGENTA
             };
 
-            if let Some(collision_rect) = entity.collision_rect() {
+            if let Some(collision_rect) = entity.inner.collision_rect() {
                 shapes::draw_rectangle_lines(
                     collision_rect.origin.x as f32,
                     collision_rect.origin.y as f32,
@@ -214,7 +217,7 @@ impl Level {
                     color,
                 );
             } else {
-                let position = entity.position();
+                let position = entity.inner.position();
 
                 shapes::draw_rectangle(
                     position.x as f32 - 1.0,
@@ -281,7 +284,7 @@ impl Level {
                                 Command::Entity(entity) => {
                                     self.editor.selected_entity = Some(self.initial_state.len());
                                     self.editor.grabbing = Some(vector![0.0, 0.0]);
-                                    self.initial_state.push(entity);
+                                    self.initial_state.push(EntityTracker::new(entity));
                                 }
                                 Command::Save(path) => {
                                     if let Some(path) = path {
@@ -461,7 +464,7 @@ impl Level {
                         .is_none_or(|command| command.use_entity_selection())
                 {
                     self.editor.grabbing =
-                        Some(self.initial_state[selection].position() - self.mouse_position);
+                        Some(self.initial_state[selection].inner.position() - self.mouse_position);
                 }
             }
             _ => (),
@@ -555,7 +558,7 @@ impl Level {
 
         // Floor like entities
         for entity in &mut self.initial_state {
-            entity.draw_floor(&self.texture_atlas);
+            entity.inner.draw_floor(&self.texture_atlas);
         }
 
         // Wall Tiles
@@ -591,25 +594,25 @@ impl Level {
 
         // Wall like entities
         for entity in &mut self.initial_state {
-            entity.draw_wall(&self.texture_atlas);
+            entity.inner.draw_wall(&self.texture_atlas);
         }
 
         // Vision occluded entities
         for entity in &mut self.initial_state {
-            entity.draw_back(&self.texture_atlas);
+            entity.inner.draw_back(&self.texture_atlas);
         }
 
         // Always visible entities
         for entity in &mut self.initial_state {
-            entity.draw_effect_back(&self.texture_atlas);
+            entity.inner.draw_effect_back(&self.texture_atlas);
         }
 
         for entity in &mut self.initial_state {
-            entity.draw_front(&self.texture_atlas);
+            entity.inner.draw_front(&self.texture_atlas);
         }
 
         for entity in &mut self.initial_state {
-            entity.draw_effect_front(&self.texture_atlas);
+            entity.inner.draw_effect_front(&self.texture_atlas);
         }
     }
 }

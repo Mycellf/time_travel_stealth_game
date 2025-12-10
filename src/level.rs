@@ -21,7 +21,8 @@ use crate::{
     level::{
         entity_tracker::{
             EntityTracker,
-            entity::{Entity, GameAction, ViewKind, player::PlayerState},
+            entity::{GameAction, ViewKind, player::PlayerState},
+            wire::{Wire, WireKey},
         },
         level_editor::LevelEditor,
         light_grid::{LightGrid, Pixel},
@@ -45,7 +46,8 @@ pub struct Level {
     pub path: String,
     pub level_data: Option<Vec<u8>>,
 
-    pub initial_state: Vec<Box<dyn Entity>>,
+    pub initial_state: Vec<EntityTracker>,
+    pub wires: SlotMap<WireKey, Wire>,
 
     pub initial_entities: SlotMap<EntityKey, EntityTracker>,
     pub mouse_position: Point2<f64>,
@@ -95,6 +97,7 @@ impl Level {
             level_data: None,
 
             initial_state: Vec::new(),
+            wires: SlotMap::default(),
 
             initial_entities: SlotMap::default(),
             mouse_position: point![0.0, 0.0],
@@ -241,12 +244,12 @@ impl Level {
     }
 
     pub fn entities_from_initial_state(
-        initial_state: &[Box<dyn Entity>],
+        initial_state: &[EntityTracker],
     ) -> SlotMap<EntityKey, EntityTracker> {
         let mut entities = SlotMap::default();
 
         for entity in initial_state {
-            entities.insert(EntityTracker::new(entity.duplicate()));
+            entities.insert(entity.clone());
         }
 
         for key in entities.keys().collect::<Vec<_>>() {
@@ -306,6 +309,7 @@ impl Level {
                 guard,
                 &mut self.light_grid,
                 &mut self.initial_entities,
+                &mut self.wires,
             );
 
             actions.extend(action);

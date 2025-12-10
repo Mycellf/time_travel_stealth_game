@@ -1,21 +1,27 @@
 use macroquad::input::{KeyCode, MouseButton};
 use nalgebra::{Point2, Vector2};
+use serde::{Deserialize, Serialize};
 use slotmap::SlotMap;
 
 use crate::{
     collections::{history::FrameIndex, slot_guard::GuardedSlotMap},
     level::{
         EntityKey,
-        entity_tracker::entity::{Entity, GameAction, empty::Empty},
+        entity_tracker::{
+            entity::{Entity, GameAction, empty::Empty},
+            wire::{Wire, WireKey},
+        },
         light_grid::LightGrid,
     },
 };
 
 pub(crate) mod entity;
+pub(crate) mod wire;
 
-#[derive(Debug)]
+#[derive(Serialize, Deserialize, Debug)]
 pub struct EntityTracker {
     pub inner: Box<dyn Entity>,
+    pub wire: Option<WireKey>,
 }
 
 impl Default for EntityTracker {
@@ -26,7 +32,10 @@ impl Default for EntityTracker {
 
 impl EntityTracker {
     pub fn new(inner: Box<dyn Entity>) -> Self {
-        EntityTracker { inner: inner }
+        EntityTracker {
+            inner: inner,
+            wire: None,
+        }
     }
 
     #[must_use]
@@ -36,9 +45,15 @@ impl EntityTracker {
         entities: GuardedSlotMap<EntityKey, EntityTracker>,
         light_grid: &mut LightGrid,
         initial_state: &mut SlotMap<EntityKey, EntityTracker>,
+        wires: &mut SlotMap<WireKey, Wire>,
     ) -> Option<GameAction> {
-        self.inner
-            .update(frame, entities, light_grid, initial_state)
+        self.inner.update(
+            frame,
+            entities,
+            light_grid,
+            initial_state,
+            self.wire.and_then(|key| wires.get_mut(key)),
+        )
     }
 
     pub fn key_down(&mut self, input: KeyCode) {
@@ -76,6 +91,7 @@ impl Clone for EntityTracker {
     fn clone(&self) -> Self {
         Self {
             inner: self.inner.duplicate(),
+            wire: self.wire,
         }
     }
 }

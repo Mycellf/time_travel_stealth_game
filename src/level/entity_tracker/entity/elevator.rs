@@ -21,6 +21,7 @@ use crate::{
                 empty::Empty,
                 player::PlayerState,
             },
+            wire::Wire,
         },
         light_grid::LightGrid,
     },
@@ -121,6 +122,7 @@ impl Entity for Elevator {
         mut entities: GuardedSlotMap<EntityKey, EntityTracker>,
         _light_grid: &mut LightGrid,
         initial_state: &mut SlotMap<EntityKey, EntityTracker>,
+        wire: Option<&mut Wire>,
     ) -> Option<GameAction> {
         let Some(door) = self.door else {
             return None;
@@ -176,6 +178,10 @@ impl Entity for Elevator {
                 initial.closing_time = self.closing_time;
                 initial.occupants.clone_from(&self.occupants);
             }
+        }
+
+        if let Some(wire) = wire {
+            wire.set_channel(0, !door.open && door.extent == 16 && !self.broken);
         }
 
         if self.delay.is_none()

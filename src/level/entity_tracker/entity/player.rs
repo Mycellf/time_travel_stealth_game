@@ -23,6 +23,7 @@ use crate::{
         entity_tracker::{
             EntityTracker,
             entity::{Entity, EntityVisibleState, GameAction, ViewKind},
+            wire::Wire,
         },
         light_grid::{AngleRange, LightArea, LightGrid},
     },
@@ -282,6 +283,7 @@ impl Entity for Player {
         entities: GuardedSlotMap<EntityKey, EntityTracker>,
         light_grid: &mut LightGrid,
         _initial_state: &mut SlotMap<EntityKey, EntityTracker>,
+        _wire: Option<&mut Wire>,
     ) -> Option<GameAction> {
         match self.state {
             PlayerState::Active => {
