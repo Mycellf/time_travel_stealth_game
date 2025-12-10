@@ -23,6 +23,7 @@ use crate::{
 pub(crate) mod elevator;
 pub(crate) mod elevator_door;
 pub(crate) mod empty;
+pub(crate) mod logic_gate;
 pub(crate) mod player;
 
 #[typetag::serde(tag = "type")]

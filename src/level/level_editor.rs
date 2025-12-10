@@ -19,6 +19,7 @@ use crate::{
             entity::{
                 Entity, GameAction,
                 elevator::{Elevator, ElevatorDirection},
+                logic_gate::{LogicGate, LogicGateKind},
                 player::Player,
             },
         },
@@ -132,6 +133,17 @@ impl FromStr for Command {
                             _ => return Err(()),
                         },
                     )),
+                    Some(&"gate") => Box::new(LogicGate {
+                        position: point![0.0, 0.0],
+                        kind: match words.get(2) {
+                            Some(&"and") => LogicGateKind::And,
+                            Some(&"or") => LogicGateKind::Or,
+                            Some(&"not") => LogicGateKind::Not,
+                            Some(&"passthrough") => LogicGateKind::Passthrough,
+                            _ => return Err(()),
+                        },
+                        inputs: Vec::new(),
+                    }),
                     _ => return Err(()),
                 };
 
