@@ -67,6 +67,8 @@ pub struct Level {
 
     pub tiles: Vec<TileKindKey>,
     pub shift_held: bool,
+    pub control_held: bool,
+    pub alt_held: bool,
 
     pub level_editor_active: bool,
     pub editor: LevelEditor,
@@ -159,6 +161,8 @@ impl Level {
                 TILE_KINDS.lock().unwrap().keys().collect()
             },
             shift_held: false,
+            control_held: false,
+            alt_held: false,
 
             level_editor_active: false,
             editor: LevelEditor::default(),
@@ -620,6 +624,12 @@ impl Level {
             KeyCode::LeftShift | KeyCode::RightShift => {
                 self.shift_held = true;
             }
+            KeyCode::LeftControl | KeyCode::RightControl => {
+                self.control_held = true;
+            }
+            KeyCode::LeftAlt | KeyCode::RightAlt => {
+                self.alt_held = true;
+            }
             KeyCode::Key0 | KeyCode::Kp0 if self.shift_held => {
                 self.level_editor_active ^= true;
 
@@ -657,6 +667,12 @@ impl Level {
         match input {
             KeyCode::LeftShift | KeyCode::RightShift => {
                 self.shift_held = false;
+            }
+            KeyCode::LeftControl | KeyCode::RightControl => {
+                self.control_held = false;
+            }
+            KeyCode::LeftAlt | KeyCode::RightAlt => {
+                self.alt_held = false;
             }
             _ => (),
         }
