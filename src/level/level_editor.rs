@@ -501,6 +501,10 @@ impl Level {
                     if let Some(selection) = self.editor.selected_entity {
                         self.hard_reset_state.remove(selection);
                         self.editor.selected_entity = None;
+
+                        for (_, entity) in &mut self.hard_reset_state {
+                            entity.inner.try_remove_input(selection);
+                        }
                     }
                 }
                 _ => (),

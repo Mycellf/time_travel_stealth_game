@@ -205,8 +205,8 @@ impl Entity for Elevator {
 
             entities
                 .iter()
-                .filter(|(_, entity)| {
-                    !entity.inner.is_door()
+                .filter(|&(key, entity)| {
+                    Some(key) != self.door
                         && entity
                             .inner
                             .collision_rect()
@@ -222,7 +222,7 @@ impl Entity for Elevator {
         if let Some(closing_time) = self.closing_time {
             if door.blocked || self.broken {
                 self.broken = true;
-                door.open = true;
+                door.open |= self.unlocked;
             } else {
                 door.open = frame < closing_time && self.unlocked;
 

@@ -159,10 +159,6 @@ pub trait Entity: 'static + Debug {
         None
     }
 
-    fn is_door(&self) -> bool {
-        false
-    }
-
     /// If this entity is an `ElevatorDoor`, return Some(self).
     ///
     /// This should only be overridden by something which is or contains an `ElevatorDoor`.

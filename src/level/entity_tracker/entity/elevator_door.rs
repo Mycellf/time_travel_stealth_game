@@ -238,10 +238,6 @@ impl Entity for ElevatorDoor {
         false
     }
 
-    fn is_door(&self) -> bool {
-        true
-    }
-
     fn as_door(&mut self) -> Option<&mut ElevatorDoor> {
         Some(self)
     }
