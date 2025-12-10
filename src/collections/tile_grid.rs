@@ -88,6 +88,10 @@ impl<T: Empty> IndexMut<TileIndex> for TileGrid<T> {
 }
 
 impl<T: Empty> TileGrid<T> {
+    pub fn shift(&mut self, offset: TileIndexOffset) {
+        self.bounds.origin += offset;
+    }
+
     pub fn bounds(&self) -> TileRect {
         self.bounds
     }

@@ -10,7 +10,7 @@ use macroquad::{
 use nalgebra::{Point2, Vector2, point, vector};
 
 use crate::{
-    collections::tile_grid::TileGrid,
+    collections::tile_grid::{TileGrid, TileIndexOffset},
     level::{
         Level, TILE_SIZE,
         entity_tracker::{
@@ -46,6 +46,7 @@ pub enum Command {
     Save(Option<String>),
     Load(Option<String>),
     Clear,
+    Shift(TileIndexOffset),
 }
 
 impl Clone for Command {
@@ -59,6 +60,7 @@ impl Clone for Command {
             Self::Save(path) => Self::Save(path.clone()),
             Self::Load(path) => Self::Load(path.clone()),
             Self::Clear => Self::Clear,
+            Self::Shift(offset) => Self::Shift(*offset),
         }
     }
 }
@@ -72,6 +74,7 @@ impl Command {
             Command::Save(_) => false,
             Command::Load(_) => false,
             Command::Clear => false,
+            Command::Shift(_) => false,
         }
     }
 
@@ -83,6 +86,7 @@ impl Command {
             Command::Save(_) => true,
             Command::Load(_) => true,
             Command::Clear => true,
+            Command::Shift(_) => true,
         }
     }
 }
@@ -106,7 +110,7 @@ impl FromStr for Command {
                             }
                         }
 
-                        return Err(());
+                        Err(())
                     }
                 };
 
@@ -138,6 +142,17 @@ impl FromStr for Command {
             Some(&"save") => Ok(Command::Save(words.get(1).map(|&path| path.to_owned()))),
             Some(&"load") => Ok(Command::Load(words.get(1).map(|&path| path.to_owned()))),
             Some(&"clear") => Ok(Command::Clear),
+            Some(&"shift") => {
+                let get_axis = |i: usize| {
+                    if let Some(&word) = words.get(i) {
+                        word.parse().map_err(|_| ())
+                    } else {
+                        Err(())
+                    }
+                };
+
+                Ok(Command::Shift(vector![get_axis(1)?, get_axis(2)?]))
+            }
             _ => Err(()),
         }
     }
@@ -324,6 +339,15 @@ impl Level {
                                     self.level_data = None;
                                     self.tile_grid = TileGrid::default();
                                     self.initial_state = Vec::new();
+                                }
+                                Command::Shift(offset) => {
+                                    self.tile_grid.shift(offset);
+                                    for entity in &mut self.initial_state {
+                                        if let Some(position) = entity.inner.position_mut() {
+                                            *position +=
+                                                offset.map(|x| x as f64 * TILE_SIZE as f64);
+                                        }
+                                    }
                                 }
                                 _ => (),
                             }
