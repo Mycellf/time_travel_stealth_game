@@ -12,7 +12,7 @@ use slotmap::SlotMap;
 use crate::{
     collections::{history::FrameIndex, slot_guard::GuardedSlotMap, tile_grid::TileRect},
     level::{
-        EntityKey, UPDATE_TPS,
+        EntityKey, UPDATE_DT, UPDATE_TPS,
         entity_tracker::{
             EntityTracker,
             entity::{
@@ -27,7 +27,8 @@ use crate::{
     },
 };
 
-pub const ELEVATOR_SIZE: Vector2<f64> = vector![16.0, 16.0];
+pub const ELEVATOR_SIZE_INNER: Vector2<f64> = vector![16.0, 16.0];
+pub const ELEVATOR_SIZE_OUTER: Vector2<f64> = vector![24.0, 24.0];
 
 pub const ELEVATOR_FLOOR_TEXTURE_POSITION: Point2<f32> = point![8.0, 24.0];
 pub const ELEVATOR_FLOOR_TEXTURE_SIZE: Vector2<f32> = vector![16.0, 16.0];
@@ -73,14 +74,25 @@ impl Elevator {
         }
     }
 
-    pub fn collision_rect(&self) -> Rect {
-        let corner = self.position - ELEVATOR_SIZE / 2.0;
+    pub fn inner_collision_rect(&self) -> Rect {
+        let corner = self.position - ELEVATOR_SIZE_INNER / 2.0;
 
         Rect::new(
             corner.x as f32,
             corner.y as f32,
-            ELEVATOR_SIZE.x as f32,
-            ELEVATOR_SIZE.y as f32,
+            ELEVATOR_SIZE_INNER.x as f32,
+            ELEVATOR_SIZE_INNER.y as f32,
+        )
+    }
+
+    pub fn outer_collision_rect(&self) -> Rect {
+        let corner = self.position - ELEVATOR_SIZE_OUTER / 2.0;
+
+        Rect::new(
+            corner.x as f32,
+            corner.y as f32,
+            ELEVATOR_SIZE_OUTER.x as f32,
+            ELEVATOR_SIZE_OUTER.y as f32,
         )
     }
 }
@@ -128,7 +140,7 @@ impl Entity for Elevator {
             return None;
         };
 
-        let collision_rect = TileRect::from_rect_inclusive(self.collision_rect());
+        let collision_rect = TileRect::from_rect_inclusive(self.inner_collision_rect());
 
         if let Some(_) = self.closing_time {
             for &key in &self.occupants {
@@ -149,6 +161,36 @@ impl Entity for Elevator {
                     })
                     .map(|(key, _)| key),
             );
+        }
+
+        if (self.hold_open || entities[door].inner.as_door().unwrap().blocked)
+            && self.closing_time.is_none()
+            && matches!(
+                self.action,
+                GameAction::HardResetKeepPlayer | GameAction::HardReset
+            )
+        {
+            let collision_rect = TileRect::from_rect_inclusive(self.outer_collision_rect());
+
+            let occupants = entities
+                .iter()
+                .filter(|(_, entity)| {
+                    entity
+                        .inner
+                        .collision_rect()
+                        .is_some_and(|rect| rect.intersects(&collision_rect))
+                })
+                .map(|(key, _)| key)
+                .collect::<Vec<_>>();
+
+            for occupant in occupants {
+                let occupant = &mut entities[occupant];
+                if occupant.inner.is_dead() {
+                    if let Some(position) = occupant.inner.position_mut() {
+                        *position += self.direction.offset::<f64>() * 8.0 * UPDATE_DT;
+                    }
+                }
+            }
         }
 
         let key = *entities.protected_slot();
