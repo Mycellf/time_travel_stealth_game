@@ -158,12 +158,13 @@ pub trait Entity: 'static + Debug {
     }
 }
 
-#[derive(Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Serialize, Deserialize, Debug)]
+#[derive(Clone, PartialEq, Eq, PartialOrd, Ord, Serialize, Deserialize, Debug)]
 pub enum GameAction {
     SetFadeOut,
     SoftReset,
     HardResetKeepPlayer,
     HardReset,
+    LoadLevel(String),
 }
 
 #[derive(Clone, Copy, Debug)]

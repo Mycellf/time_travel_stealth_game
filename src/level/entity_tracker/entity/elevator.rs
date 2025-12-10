@@ -295,7 +295,7 @@ impl Entity for Elevator {
                     }
                 }
 
-                Some(self.action)
+                Some(self.action.clone())
             } else {
                 *delay -= 1;
                 Some(GameAction::SetFadeOut)

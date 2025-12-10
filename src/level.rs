@@ -357,6 +357,13 @@ impl Level {
                 self.load_initial_entities();
                 self.step_at_level_start();
             }
+            Some(GameAction::LoadLevel(path)) => {
+                self.path.clone_from(path);
+                self.level_data = None;
+
+                self.reset();
+                self.step_at_level_start();
+            }
             None => (),
         }
     }

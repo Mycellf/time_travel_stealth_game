@@ -1,4 +1,4 @@
-use std::{fs, mem, str::FromStr};
+use std::{fs, mem, path::Path, str::FromStr};
 
 use macroquad::{
     color::colors,
@@ -132,6 +132,16 @@ impl FromStr for Command {
                         match words.get(3) {
                             None | Some(&"loop") => GameAction::SoftReset,
                             Some(&"entry") => GameAction::HardResetKeepPlayer,
+                            Some(&"exit") => GameAction::LoadLevel(match words.get(4) {
+                                Some(&path) => {
+                                    if !Path::new(path).exists() {
+                                        return Err(());
+                                    }
+
+                                    path.to_owned()
+                                }
+                                None => return Err(()),
+                            }),
                             _ => return Err(()),
                         },
                     )),
