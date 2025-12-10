@@ -9,7 +9,7 @@ use crate::{
         entity_tracker::{
             EntityTracker,
             entity::{Entity, GameAction},
-            wire::Wire,
+            wire_diagram::Wire,
         },
         light_grid::LightGrid,
     },

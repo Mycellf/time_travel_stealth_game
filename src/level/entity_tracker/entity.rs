@@ -15,7 +15,7 @@ use crate::{
         entity_tracker::{
             EntityTracker,
             entity::{elevator::Elevator, elevator_door::ElevatorDoor, player::Player},
-            wire::Wire,
+            wire_diagram::Wire,
         },
         light_grid::{LightArea, LightGrid},
     },

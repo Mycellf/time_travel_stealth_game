@@ -16,7 +16,7 @@ use crate::{
         entity_tracker::{
             EntityTracker,
             entity::{Entity, EntityVisibleState, GameAction},
-            wire::Wire,
+            wire_diagram::Wire,
         },
         light_grid::{LightArea, LightGrid, Pixel},
     },

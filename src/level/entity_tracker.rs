@@ -9,14 +9,14 @@ use crate::{
         EntityKey,
         entity_tracker::{
             entity::{Entity, GameAction, empty::Empty},
-            wire::{Wire, WireKey},
+            wire_diagram::{Wire, WireKey},
         },
         light_grid::LightGrid,
     },
 };
 
 pub(crate) mod entity;
-pub(crate) mod wire;
+pub(crate) mod wire_diagram;
 
 #[derive(Serialize, Deserialize, Debug)]
 pub struct EntityTracker {

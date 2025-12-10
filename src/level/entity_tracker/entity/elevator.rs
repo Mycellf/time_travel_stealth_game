@@ -21,7 +21,7 @@ use crate::{
                 empty::Empty,
                 player::PlayerState,
             },
-            wire::Wire,
+            wire_diagram::Wire,
         },
         light_grid::LightGrid,
     },
@@ -182,6 +182,7 @@ impl Entity for Elevator {
 
         if let Some(wire) = wire {
             wire.set_channel(0, !door.open && door.extent == 16 && !self.broken);
+            wire.display_width = 1;
         }
 
         if self.delay.is_none()

@@ -23,7 +23,7 @@ use crate::{
         entity_tracker::{
             EntityTracker,
             entity::{Entity, EntityVisibleState, GameAction, ViewKind},
-            wire::Wire,
+            wire_diagram::Wire,
         },
         light_grid::{AngleRange, LightArea, LightGrid},
     },
