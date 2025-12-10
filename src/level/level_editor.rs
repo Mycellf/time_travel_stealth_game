@@ -234,6 +234,11 @@ impl Level {
         }
     }
 
+    pub fn set_tile_at_mouse_position(&mut self, tile: Option<Tile>) {
+        let index = (self.mouse_position / TILE_SIZE as f64).map(|x| x.floor() as isize);
+        self.set_tile(index, tile);
+    }
+
     pub fn level_editor_text_input(&mut self, input: char) {
         if let Some(cursor) = &mut self.editor.cursor {
             match input {
@@ -425,15 +430,13 @@ impl Level {
                 MouseButton::Left => {
                     self.set_tile_at_mouse_position(tile);
                 }
+                MouseButton::Right => {
+                    self.set_tile_at_mouse_position(None);
+                }
                 _ => (),
             },
             _ => (),
         }
-    }
-
-    pub fn set_tile_at_mouse_position(&mut self, tile: Option<Tile>) {
-        let index = (self.mouse_position / TILE_SIZE as f64).map(|x| x.floor() as isize);
-        self.set_tile(index, tile);
     }
 
     pub fn level_editor_mouse_up(&mut self, input: MouseButton, _position: Point2<f64>) {
@@ -450,6 +453,10 @@ impl Level {
             Some(Command::Tile(tile)) => {
                 if self.left_mouse_held {
                     self.set_tile_at_mouse_position(tile);
+                }
+
+                if self.right_mouse_held {
+                    self.set_tile_at_mouse_position(None);
                 }
             }
             _ => (),
