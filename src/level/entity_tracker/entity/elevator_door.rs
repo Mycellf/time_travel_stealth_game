@@ -222,6 +222,14 @@ impl Entity for ElevatorDoor {
         (self.extent > 0).then(|| self.collision_rect())
     }
 
+    fn position(&self) -> Point2<f64> {
+        self.position
+    }
+
+    fn position_mut(&mut self) -> Option<&mut Point2<f64>> {
+        Some(&mut self.position)
+    }
+
     fn duplicate(&self) -> Box<dyn Entity> {
         Box::new(self.clone())
     }

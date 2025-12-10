@@ -90,6 +90,12 @@ pub trait Entity: 'static + Debug {
         None
     }
 
+    fn position(&self) -> Point2<f64>;
+
+    fn position_mut(&mut self) -> Option<&mut Point2<f64>> {
+        None
+    }
+
     /// A hack to get cloning entities to work. Typically an implementation looks like this:
     ///
     /// ```

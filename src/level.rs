@@ -69,6 +69,7 @@ pub struct Level {
     pub shift_held: bool,
     pub control_held: bool,
     pub alt_held: bool,
+    pub left_mouse_held: bool,
 
     pub level_editor_active: bool,
     pub editor: LevelEditor,
@@ -167,6 +168,7 @@ impl Level {
             shift_held: false,
             control_held: false,
             alt_held: false,
+            left_mouse_held: false,
 
             level_editor_active: false,
             editor: LevelEditor::default(),
@@ -638,6 +640,8 @@ impl Level {
                 self.level_editor_active ^= true;
 
                 if !self.level_editor_active {
+                    self.level_data = Some(self.save());
+
                     self.reset();
                     self.step_at_level_start();
                 }
@@ -699,6 +703,13 @@ impl Level {
     }
 
     pub fn mouse_down(&mut self, input: MouseButton, position: Point2<f64>) {
+        match input {
+            MouseButton::Left => {
+                self.left_mouse_held = true;
+            }
+            _ => (),
+        }
+
         if self.level_editor_active {
             self.level_editor_mouse_down(input, position);
         } else {
@@ -715,6 +726,13 @@ impl Level {
     }
 
     pub fn mouse_up(&mut self, input: MouseButton, position: Point2<f64>) {
+        match input {
+            MouseButton::Left => {
+                self.left_mouse_held = false;
+            }
+            _ => (),
+        }
+
         if self.level_editor_active {
             self.level_editor_mouse_up(input, position);
         } else {

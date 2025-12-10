@@ -3,6 +3,7 @@ use std::str::FromStr;
 use macroquad::{
     color::colors,
     input::{KeyCode, MouseButton},
+    math::Rect,
     shapes, text,
     texture::{self, DrawTextureParams},
 };
@@ -11,7 +12,7 @@ use nalgebra::{Point2, Vector2, point};
 use crate::level::{
     Level, TILE_SIZE,
     entity_tracker::entity::Entity,
-    tile::{self, TILE_KINDS, TileKindKey},
+    tile::{self, TILE_KINDS, Tile},
 };
 
 #[derive(Clone, Default, Debug)]
@@ -20,12 +21,14 @@ pub struct LevelEditor {
     pub cursor: Option<usize>,
 
     pub command: Option<Command>,
+    pub selected_entity: Option<usize>,
+    pub grabbing: Option<Vector2<f64>>,
 }
 
 #[derive(Debug)]
 pub enum Command {
     Delete,
-    Tile(Option<TileKindKey>),
+    Tile(Option<Tile>),
     Entity(Box<dyn Entity>),
 }
 
@@ -35,6 +38,16 @@ impl Clone for Command {
             Self::Delete => Self::Delete,
             Self::Tile(kind) => Self::Tile(kind.clone()),
             Self::Entity(entity) => Self::Entity(entity.duplicate()),
+        }
+    }
+}
+
+impl Command {
+    pub fn use_entity_selection(&self) -> bool {
+        match self {
+            Command::Delete => true,
+            Command::Tile(_) => false,
+            Command::Entity(_) => true,
         }
     }
 }
@@ -53,24 +66,96 @@ impl FromStr for Command {
                 } else {
                     for (key, tile) in &*TILE_KINDS.lock().unwrap() {
                         if words.get(1) == Some(&tile.name.as_str()) {
-                            return Ok(Command::Tile(Some(key)));
+                            return Ok(Command::Tile(Some(Tile { kind: key })));
                         }
                     }
 
                     Err(())
                 }
             }
-            Some(&"entity") => todo!(),
+            Some(&"entity") => Err(()), // TODO:
             _ => Err(()),
         }
     }
 }
 
 impl Level {
-    pub fn update_level_editor(&mut self) {}
+    pub fn update_level_editor(&mut self) {
+        if let Some((offset, selection)) = self.editor.grabbing.zip(self.editor.selected_entity) {
+            if let Some(position) = self.initial_state[selection].position_mut() {
+                *position = self.mouse_position + offset;
+
+                if self.shift_held {
+                    position.apply(|x| *x = (*x / 4.0).round() * 4.0);
+                }
+            }
+        } else {
+            self.editor.selected_entity = None;
+            let mut closest_distance = f64::INFINITY;
+
+            if self
+                .editor
+                .command
+                .as_ref()
+                .is_none_or(|command| command.use_entity_selection())
+            {
+                for (i, entity) in self.initial_state.iter().enumerate() {
+                    if let Some(collision_rect) = entity.collision_rect() {
+                        if Rect::new(
+                            collision_rect.origin.x as f32,
+                            collision_rect.origin.y as f32,
+                            collision_rect.size.x as f32,
+                            collision_rect.size.y as f32,
+                        )
+                        .contains(self.mouse_position.map(|x| x as f32).into())
+                        {
+                            self.editor.selected_entity = Some(i);
+                            break;
+                        }
+                    } else {
+                        let position = entity.position();
+                        let distance = (self.mouse_position - position).magnitude();
+                        if distance < 24.0 && distance < closest_distance {
+                            closest_distance = distance;
+                            self.editor.selected_entity = Some(i);
+                        }
+                    }
+                }
+            }
+        }
+    }
 
     pub fn draw_level_editor(&mut self) {
         self.level_editor_draw_level_contents();
+
+        for (i, entity) in self.initial_state.iter().enumerate() {
+            let color = if self.editor.selected_entity == Some(i) {
+                colors::GREEN
+            } else {
+                colors::MAGENTA
+            };
+
+            if let Some(collision_rect) = entity.collision_rect() {
+                shapes::draw_rectangle_lines(
+                    collision_rect.origin.x as f32,
+                    collision_rect.origin.y as f32,
+                    collision_rect.size.x as f32,
+                    collision_rect.size.y as f32,
+                    1.0,
+                    color,
+                );
+            } else {
+                let position = entity.position();
+
+                shapes::draw_rectangle(
+                    position.x as f32 - 1.0,
+                    position.y as f32 - 1.0,
+                    2.0,
+                    2.0,
+                    color,
+                );
+            }
+        }
 
         let screen_rect = crate::screen_rect();
 
@@ -105,7 +190,10 @@ impl Level {
 
                     self.editor.command = self.editor.command_input.parse().ok();
                     if self.editor.command.is_none() {
-                        self.editor.command_input.clear();
+                        if !self.editor.command_input.is_empty() {
+                            self.editor.command_input.clear();
+                            self.editor.command_input.push_str("invalid command");
+                        }
                     }
                 }
                 // Backspace
@@ -196,11 +284,68 @@ impl Level {
 
     pub fn level_editor_key_up(&mut self, _input: KeyCode) {}
 
-    pub fn level_editor_mouse_down(&mut self, _input: MouseButton, _position: Point2<f64>) {}
+    pub fn level_editor_mouse_down(&mut self, input: MouseButton, _position: Point2<f64>) {
+        match input {
+            MouseButton::Left => {
+                if let Some(selection) = self.editor.selected_entity
+                    && self.editor.grabbing.is_none()
+                    && self
+                        .editor
+                        .command
+                        .as_ref()
+                        .is_none_or(|command| command.use_entity_selection())
+                {
+                    self.editor.grabbing =
+                        Some(self.initial_state[selection].position() - self.mouse_position);
+                }
+            }
+            _ => (),
+        }
 
-    pub fn level_editor_mouse_up(&mut self, _input: MouseButton, _position: Point2<f64>) {}
+        match self.editor.command {
+            Some(Command::Delete) => match input {
+                MouseButton::Right => {
+                    if let Some(selection) = self.editor.selected_entity {
+                        self.initial_state.remove(selection);
+                        self.editor.selected_entity = None;
+                    }
+                }
+                _ => (),
+            },
+            Some(Command::Tile(tile)) => match input {
+                MouseButton::Left => {
+                    self.set_tile_at_mouse_position(tile);
+                }
+                _ => (),
+            },
+            _ => (),
+        }
+    }
 
-    pub fn level_editor_mouse_moved(&mut self, _position: Point2<f64>, _delta: Vector2<f64>) {}
+    pub fn set_tile_at_mouse_position(&mut self, tile: Option<Tile>) {
+        let index = (self.mouse_position / TILE_SIZE as f64).map(|x| x.floor() as isize);
+        self.set_tile(index, tile);
+    }
+
+    pub fn level_editor_mouse_up(&mut self, input: MouseButton, _position: Point2<f64>) {
+        match input {
+            MouseButton::Left => {
+                self.editor.grabbing = None;
+            }
+            _ => (),
+        }
+    }
+
+    pub fn level_editor_mouse_moved(&mut self, _position: Point2<f64>, _delta: Vector2<f64>) {
+        match self.editor.command {
+            Some(Command::Tile(tile)) => {
+                if self.left_mouse_held {
+                    self.set_tile_at_mouse_position(tile);
+                }
+            }
+            _ => (),
+        }
+    }
 
     pub fn level_editor_draw_level_contents(&mut self) {
         // Non-wall Tiles
