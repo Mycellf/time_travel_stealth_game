@@ -1,3 +1,5 @@
+use std::str::FromStr;
+
 use macroquad::{
     color::colors,
     input::{KeyCode, MouseButton},
@@ -6,12 +8,62 @@ use macroquad::{
 };
 use nalgebra::{Point2, Vector2, point};
 
-use crate::level::{Level, TILE_SIZE, tile};
+use crate::level::{
+    Level, TILE_SIZE,
+    entity_tracker::entity::Entity,
+    tile::{self, TILE_KINDS, TileKindKey},
+};
 
 #[derive(Clone, Default, Debug)]
 pub struct LevelEditor {
-    pub command: String,
+    pub command_input: String,
     pub cursor: Option<usize>,
+
+    pub command: Option<Command>,
+}
+
+#[derive(Debug)]
+pub enum Command {
+    Delete,
+    Tile(Option<TileKindKey>),
+    Entity(Box<dyn Entity>),
+}
+
+impl Clone for Command {
+    fn clone(&self) -> Self {
+        match self {
+            Self::Delete => Self::Delete,
+            Self::Tile(kind) => Self::Tile(kind.clone()),
+            Self::Entity(entity) => Self::Entity(entity.duplicate()),
+        }
+    }
+}
+
+impl FromStr for Command {
+    type Err = ();
+
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        let words = s.split_whitespace().collect::<Vec<_>>();
+
+        match words.get(0) {
+            Some(&"delete") => Ok(Command::Delete),
+            Some(&"tile") => {
+                if words.get(1) == Some(&"empty") {
+                    Ok(Command::Tile(None))
+                } else {
+                    for (key, tile) in &*TILE_KINDS.lock().unwrap() {
+                        if words.get(1) == Some(&tile.name.as_str()) {
+                            return Ok(Command::Tile(Some(key)));
+                        }
+                    }
+
+                    Err(())
+                }
+            }
+            Some(&"entity") => todo!(),
+            _ => Err(()),
+        }
+    }
 }
 
 impl Level {
@@ -22,14 +74,14 @@ impl Level {
 
         let screen_rect = crate::screen_rect();
 
-        if !self.editor.command.is_empty() || self.editor.cursor.is_some() {
+        if !self.editor.command_input.is_empty() || self.editor.cursor.is_some() {
             let mut start = point![screen_rect.x, screen_rect.y + screen_rect.h - 4.0];
 
             if start.y - 32.0 < self.mouse_position.y as f32 {
                 start.y = screen_rect.y + 12.0;
             }
 
-            let text = format!("/{}", self.editor.command);
+            let text = format!("/{}", self.editor.command_input);
 
             let width = text::measure_text(&text, None, 16, 1.0).width;
 
@@ -50,26 +102,33 @@ impl Level {
             match input {
                 '\r' | '\n' => {
                     self.editor.cursor = None;
+
+                    self.editor.command = self.editor.command_input.parse().ok();
+                    if self.editor.command.is_none() {
+                        self.editor.command_input.clear();
+                    }
                 }
                 // Backspace
                 '\u{8}' => {
                     if *cursor > 0 {
                         *cursor = self
                             .editor
-                            .command
+                            .command_input
                             .floor_char_boundary(cursor.saturating_sub(1));
-                        self.editor.command.remove(*cursor);
+                        self.editor.command_input.remove(*cursor);
                     }
                 }
                 // Delete
                 '\u{7f}' => {
-                    if *cursor < self.editor.command.len() {
-                        self.editor.command.remove(*cursor);
+                    if *cursor < self.editor.command_input.len() {
+                        self.editor.command_input.remove(*cursor);
                     }
                 }
                 _ => {
-                    if let Some(cursor) = &mut self.editor.cursor {
-                        self.editor.command.insert(*cursor, input);
+                    if let Some(cursor) = &mut self.editor.cursor
+                        && self.editor.command_input.len() < 1024
+                    {
+                        self.editor.command_input.insert(*cursor, input);
                         *cursor += input.len_utf8();
                     }
                 }
@@ -77,7 +136,7 @@ impl Level {
         } else {
             match input {
                 '/' if self.editor.cursor.is_none() => {
-                    self.editor.command.clear();
+                    self.editor.command_input.clear();
                     self.editor.cursor = Some(0);
                 }
                 _ => (),
@@ -88,8 +147,10 @@ impl Level {
     pub fn level_editor_key_down(&mut self, input: KeyCode) {
         match input {
             KeyCode::Escape => {
-                self.editor.command.clear();
+                self.editor.command_input.clear();
                 self.editor.cursor = None;
+
+                self.editor.command = None;
             }
             _ => (),
         }
@@ -99,12 +160,12 @@ impl Level {
                 KeyCode::Left => loop {
                     *cursor = self
                         .editor
-                        .command
+                        .command_input
                         .floor_char_boundary(cursor.saturating_sub(1));
 
                     if !self.control_held
                         || *cursor == 0
-                        || self.editor.command.as_bytes()[*cursor].is_ascii_whitespace()
+                        || self.editor.command_input.as_bytes()[*cursor].is_ascii_whitespace()
                     {
                         break;
                     }
@@ -112,12 +173,12 @@ impl Level {
                 KeyCode::Right => loop {
                     *cursor = self
                         .editor
-                        .command
+                        .command_input
                         .ceil_char_boundary(cursor.saturating_add(1));
 
                     if !self.control_held
-                        || *cursor >= self.editor.command.len()
-                        || self.editor.command.as_bytes()[*cursor].is_ascii_whitespace()
+                        || *cursor >= self.editor.command_input.len()
+                        || self.editor.command_input.as_bytes()[*cursor].is_ascii_whitespace()
                     {
                         break;
                     }
@@ -126,7 +187,7 @@ impl Level {
                     *cursor = 0;
                 }
                 KeyCode::End => {
-                    *cursor = self.editor.command.len();
+                    *cursor = self.editor.command_input.len();
                 }
                 _ => (),
             }

@@ -13,7 +13,7 @@ pub struct Tile {
 
 impl Tile {
     pub fn get_kind(&self) -> TileKind {
-        TILE_KINDS.lock().unwrap()[self.kind]
+        TILE_KINDS.lock().unwrap()[self.kind].clone()
     }
 }
 
@@ -28,8 +28,9 @@ pub fn add_tile_kind(tile_kind: TileKind) -> TileKindKey {
     TILE_KINDS.lock().unwrap().insert(tile_kind)
 }
 
-#[derive(Clone, Copy, Serialize, Deserialize, Debug)]
+#[derive(Clone, Serialize, Deserialize, Debug)]
 pub struct TileKind {
+    pub name: String,
     pub pixel_kind: Pixel,
     pub texture_location: Point2<usize>,
 }

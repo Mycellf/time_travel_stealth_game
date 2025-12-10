@@ -141,18 +141,22 @@ impl Level {
                 drop(TILE_KINDS.lock().unwrap());
                 vec![
                     tile::add_tile_kind(TileKind {
+                        name: "brick1".to_owned(),
                         pixel_kind: Pixel::Solid,
                         texture_location: point![0, 0],
                     }),
                     tile::add_tile_kind(TileKind {
+                        name: "brick2".to_owned(),
                         pixel_kind: Pixel::Solid,
                         texture_location: point![1, 0],
                     }),
                     tile::add_tile_kind(TileKind {
+                        name: "wood".to_owned(),
                         pixel_kind: Pixel::None,
                         texture_location: point![0, 1],
                     }),
                     tile::add_tile_kind(TileKind {
+                        name: "hourglass".to_owned(),
                         pixel_kind: Pixel::None,
                         texture_location: point![1, 1],
                     }),
@@ -640,7 +644,9 @@ impl Level {
             }
             KeyCode::Escape => {
                 if !self.level_editor_active
-                    || self.editor.cursor.is_none() && self.editor.command.is_empty()
+                    || self.editor.cursor.is_none()
+                        && self.editor.command_input.is_empty()
+                        && self.alt_held
                 {
                     window::miniquad::window::quit();
                 }
