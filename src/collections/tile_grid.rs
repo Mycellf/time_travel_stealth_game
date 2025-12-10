@@ -142,6 +142,10 @@ impl<T: Empty> TileGrid<T> {
         'outer: loop {
             let x = new_bounds.right();
 
+            if new_bounds.size.x == 0 {
+                break;
+            }
+
             for y in self.bounds.top()..self.bounds.bottom() + 1 {
                 if !self[point![x, y]].is_empty() {
                     break 'outer;
@@ -154,6 +158,10 @@ impl<T: Empty> TileGrid<T> {
         // Shrink from bottom
         'outer: loop {
             let y = new_bounds.bottom();
+
+            if new_bounds.size.y == 0 {
+                break;
+            }
 
             for x in self.bounds.left()..self.bounds.right() + 1 {
                 if !self[point![x, y]].is_empty() {
@@ -168,6 +176,10 @@ impl<T: Empty> TileGrid<T> {
         'outer: loop {
             let x = new_bounds.left();
 
+            if new_bounds.size.x == 0 {
+                break;
+            }
+
             for y in self.bounds.top()..self.bounds.bottom() + 1 {
                 if !self[point![x, y]].is_empty() {
                     break 'outer;
@@ -181,6 +193,10 @@ impl<T: Empty> TileGrid<T> {
         // Shrink from top
         'outer: loop {
             let y = new_bounds.top();
+
+            if new_bounds.size.y == 0 {
+                break;
+            }
 
             for x in self.bounds.left()..self.bounds.right() + 1 {
                 if !self[point![x, y]].is_empty() {
