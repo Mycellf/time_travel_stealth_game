@@ -10,7 +10,9 @@ use nalgebra::{Point2, Vector2, point, vector};
 
 use crate::level::{Level, MAX_UPDATES_PER_TICK, UPDATE_DT};
 
+#[allow(dead_code)]
 pub(crate) mod collections;
+#[allow(dead_code)]
 pub(crate) mod input;
 pub(crate) mod level;
 
