@@ -360,7 +360,7 @@ impl Entity for Player {
         }
     }
 
-    fn draw_effect_back(&mut self, _texture_atlas: &Texture2D) {
+    fn draw_overlay_back(&mut self, _texture_atlas: &Texture2D) {
         if let Some((_, paradox_position)) = self.paradox_position
             && self.state == PlayerState::Recording
             && self.confusion > 0.0
@@ -416,7 +416,7 @@ impl Entity for Player {
         );
     }
 
-    fn draw_effect_front(&mut self, texture_atlas: &Texture2D) {
+    fn draw_overlay_front(&mut self, texture_atlas: &Texture2D) {
         match self.state {
             PlayerState::Recording => {
                 if self.confusion > 0.0 {

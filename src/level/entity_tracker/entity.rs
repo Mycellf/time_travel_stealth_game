@@ -61,11 +61,17 @@ pub trait Entity: 'static + Debug {
     /// Not occluded by light. Drawn just in front of `draw_back`.
     fn draw_effect_back(&mut self, _texture_atlas: &Texture2D) {}
 
+    /// Not occluded by light. Drawn just in front of `draw_effect_back`.
+    fn draw_overlay_back(&mut self, _texture_atlas: &Texture2D) {}
+
     /// Not occluded by light. Good for drawing entities that should always be on screen.
     fn draw_front(&mut self, _texture_atlas: &Texture2D) {}
 
     /// Not occluded by light. Drawn just in front of `draw_front`.
     fn draw_effect_front(&mut self, _texture_atlas: &Texture2D) {}
+
+    /// Not occluded by light. Drawn just in front of `draw_effect_front`.
+    fn draw_overlay_front(&mut self, _texture_atlas: &Texture2D) {}
 
     /// The set of tiles an entity would collide with, if applicable.
     fn collision_rect(&self) -> Option<TileRect> {

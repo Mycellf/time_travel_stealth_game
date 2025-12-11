@@ -721,11 +721,19 @@ impl Level {
         }
 
         for (_, entity) in &mut self.hard_reset_state {
+            entity.inner.draw_overlay_back(&self.texture_atlas);
+        }
+
+        for (_, entity) in &mut self.hard_reset_state {
             entity.inner.draw_front(&self.texture_atlas);
         }
 
         for (_, entity) in &mut self.hard_reset_state {
             entity.inner.draw_effect_front(&self.texture_atlas);
+        }
+
+        for (_, entity) in &mut self.hard_reset_state {
+            entity.inner.draw_overlay_front(&self.texture_atlas);
         }
     }
 }

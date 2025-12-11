@@ -610,7 +610,9 @@ impl Entity for Elevator {
                 ..colors::WHITE
             },
         );
+    }
 
+    fn draw_effect_front(&mut self, _texture_atlas: &Texture2D) {
         for spark in &self.sparks {
             shapes::draw_rectangle(
                 spark.position.x.round() as f32,
