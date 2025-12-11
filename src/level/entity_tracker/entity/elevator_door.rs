@@ -125,7 +125,7 @@ impl Entity for ElevatorDoor {
         if self.open {
             self.extent = self.extent.saturating_sub(1);
         } else {
-            if self.extent > 0
+            if self.extent == 16
                 || 'outer: {
                     let collision_rect = self.collision_rect();
 
@@ -144,6 +144,7 @@ impl Entity for ElevatorDoor {
             {
                 self.extent = (self.extent + 1).min(16);
             } else {
+                self.extent = self.extent.saturating_sub(1);
                 self.blocked = true;
             }
         }
