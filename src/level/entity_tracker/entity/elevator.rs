@@ -12,7 +12,7 @@ use slotmap::SlotMap;
 use crate::{
     collections::{history::FrameIndex, slot_guard::GuardedSlotMap, tile_grid::TileRect},
     level::{
-        EntityKey, UPDATE_TPS,
+        EntityKey, UPDATE_DT, UPDATE_TPS,
         entity_tracker::{
             EntityTracker,
             entity::{
@@ -280,13 +280,32 @@ impl Entity for Elevator {
                 } else {
                 }
 
-                let door = Self::get_door(self.door, &mut entities);
-
                 match state {
                     ElevatorRunningState::Active => {
-                        // TODO: Deal with the "dies in the entry elevator" softlock scenario
+                        let intersections = Self::intersections(
+                            entities.iter(),
+                            Self::outer_collision_rect(self.position),
+                        )
+                        .collect::<Vec<_>>();
+
+                        if matches!(
+                            self.action,
+                            GameAction::HardReset | GameAction::HardResetKeepPlayer
+                        ) {
+                            for key in &intersections {
+                                let entity = &mut entities[*key];
+                                if entity.inner.is_dead() {
+                                    if let Some(position) = entity.inner.position_mut() {
+                                        *position +=
+                                            self.direction.offset::<f64>() * 12.0 * UPDATE_DT;
+                                    }
+                                }
+                            }
+                        }
 
                         if !*held_open {
+                            let door = Self::get_door(self.door, &mut entities);
+
                             if door.open != self.powered_on {
                                 door.open = self.powered_on;
                                 door.update_light_grid(light_grid);
@@ -295,12 +314,6 @@ impl Entity for Elevator {
                             let occupants = Self::occupants(
                                 entities.iter(),
                                 Self::inner_collision_rect(self.position),
-                            )
-                            .collect::<Vec<_>>();
-
-                            let intersections = Self::intersections(
-                                entities.iter(),
-                                Self::outer_collision_rect(self.position),
                             )
                             .collect::<Vec<_>>();
 
@@ -322,6 +335,8 @@ impl Entity for Elevator {
                         close_time,
                         expected_occupants,
                     } => {
+                        let door = Self::get_door(self.door, &mut entities);
+
                         if frame < *close_time {
                             if !*held_open {
                                 if door.open != self.powered_on {
