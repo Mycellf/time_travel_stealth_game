@@ -585,7 +585,9 @@ impl Level {
             Some(Command::Wire(source)) => match input {
                 MouseButton::Right => {
                     if let &mut Some(key) = source {
-                        if let Some(selection) = self.editor.selected_entity {
+                        if let Some(selection) = self.editor.selected_entity
+                            && selection != key
+                        {
                             self.hard_reset_state[selection].inner.try_add_input(key);
                         }
                         *source = None;
