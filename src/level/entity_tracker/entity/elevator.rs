@@ -281,7 +281,7 @@ impl Entity for Elevator {
             && !self.closed
             && (self.unlocked || occupied)
         {
-            self.delay = Some(UPDATE_TPS * 3);
+            self.delay = Some(UPDATE_TPS);
             self.closed = true;
         }
 
