@@ -1,4 +1,4 @@
-use std::f64::consts::PI;
+use std::{f64::consts::PI, mem};
 
 use macroquad::{
     color::{Color, colors},
@@ -18,6 +18,8 @@ use crate::{
             entity::{
                 Entity, GameAction,
                 elevator_door::{ElevatorDoor, ElevatorDoorOrientation},
+                empty::Empty,
+                player::PlayerState,
             },
         },
         light_grid::LightGrid,
@@ -58,6 +60,7 @@ pub enum ElevatorState {
     },
     Closing {
         close_time: FrameIndex,
+        expected_occupants: Option<Vec<EntityKey>>,
     },
     Waiting {
         close_time: FrameIndex,
@@ -136,6 +139,16 @@ impl Elevator {
             ElevatorState::Waiting { .. } => false,
             ElevatorState::Used => false,
             ElevatorState::Broken => true,
+        }
+    }
+
+    pub fn is_loop_complete(&self) -> bool {
+        match self.state {
+            ElevatorState::Running { .. } => false,
+            ElevatorState::Closing { .. } => false,
+            ElevatorState::Waiting { .. } => true,
+            ElevatorState::Used => true,
+            ElevatorState::Broken => false,
         }
     }
 
@@ -265,19 +278,20 @@ impl Entity for Elevator {
                         *held_open = false;
                     }
                 } else {
-                    let door = Self::get_door(self.door, &mut entities);
-
-                    if door.open != self.powered_on {
-                        door.open = self.powered_on;
-                        door.update_light_grid(light_grid);
-                    }
                 }
+
+                let door = Self::get_door(self.door, &mut entities);
 
                 match state {
                     ElevatorRunningState::Active => {
                         // TODO: Deal with the "dies in the entry elevator" softlock scenario
 
                         if !*held_open {
+                            if door.open != self.powered_on {
+                                door.open = self.powered_on;
+                                door.update_light_grid(light_grid);
+                            }
+
                             let occupants = Self::occupants(
                                 entities.iter(),
                                 Self::inner_collision_rect(self.position),
@@ -295,7 +309,12 @@ impl Entity for Elevator {
 
                                 door.open = false;
                                 door.update_light_grid(light_grid);
-                                self.state = ElevatorState::Closing { close_time: frame };
+                                self.state = ElevatorState::Closing {
+                                    close_time: frame,
+                                    expected_occupants: None,
+                                };
+
+                                return Some(GameAction::StartFadeOut);
                             }
                         }
                     }
@@ -303,29 +322,88 @@ impl Entity for Elevator {
                         close_time,
                         expected_occupants,
                     } => {
-                        // TODO: Close the door
-
-                        for &mut key in expected_occupants {
-                            if entities[key].inner.is_dead() {
-                                let door = Self::get_door(self.door, &mut entities);
-                                door.open = true;
-                                door.update_light_grid(light_grid);
-                                self.state = ElevatorState::Broken;
-
-                                break;
+                        if frame < *close_time {
+                            if !*held_open {
+                                if door.open != self.powered_on {
+                                    door.open = self.powered_on;
+                                    door.update_light_grid(light_grid);
+                                }
                             }
+
+                            for &mut key in expected_occupants {
+                                if entities[key].inner.is_dead() {
+                                    let door = Self::get_door(self.door, &mut entities);
+                                    door.open = true;
+                                    door.update_light_grid(light_grid);
+                                    self.state = ElevatorState::Broken;
+
+                                    break;
+                                }
+                            }
+                        } else {
+                            door.open = false;
+                            door.update_light_grid(light_grid);
+                            self.state = ElevatorState::Closing {
+                                close_time: frame,
+                                expected_occupants: Some(mem::take(expected_occupants)),
+                            };
                         }
                     }
                 }
             }
-            ElevatorState::Closing { close_time } => {
+            ElevatorState::Closing {
+                close_time,
+                expected_occupants,
+            } => {
                 let door = Self::get_door(self.door, &mut entities);
 
-                if door.extent == 16 {
-                    self.state = ElevatorState::Waiting {
-                        close_time: *close_time,
-                        remaining_time: UPDATE_TPS,
-                    };
+                if door.blocked {
+                    door.open = true;
+                    door.update_light_grid(light_grid);
+                    self.state = ElevatorState::Broken;
+                } else if door.extent == 16 {
+                    if let Some(expected_occupants) = expected_occupants {
+                        let occupants = Self::occupants(
+                            entities.iter(),
+                            Self::inner_collision_rect(self.position),
+                        )
+                        .collect::<Vec<_>>();
+
+                        let broken = occupants
+                            .iter()
+                            .any(|occupant| !expected_occupants.contains(occupant))
+                            || expected_occupants
+                                .iter()
+                                .any(|expected_occupant| !occupants.contains(expected_occupant));
+
+                        if broken {
+                            for &mut expected_occupant in expected_occupants {
+                                if let Some(player) = entities[expected_occupant].inner.as_player()
+                                {
+                                    player.state = PlayerState::Dead;
+                                }
+                            }
+
+                            let door = Self::get_door(self.door, &mut entities);
+
+                            door.open = true;
+                            door.update_light_grid(light_grid);
+                            self.state = ElevatorState::Broken;
+
+                            return None;
+                        }
+
+                        for &mut expected_occupant in expected_occupants {
+                            entities[expected_occupant].inner = Box::new(Empty);
+                        }
+
+                        self.state = ElevatorState::Used;
+                    } else {
+                        self.state = ElevatorState::Waiting {
+                            close_time: *close_time,
+                            remaining_time: UPDATE_TPS,
+                        };
+                    }
                 }
             }
             ElevatorState::Waiting {
@@ -489,7 +567,7 @@ impl Entity for Elevator {
     ) -> bool {
         self.powered_on = inputs.get(0).copied().unwrap_or(true);
 
-        matches!(self.state, ElevatorState::Used)
+        self.is_loop_complete()
     }
 
     fn as_elevator(&mut self) -> Option<&mut Elevator> {

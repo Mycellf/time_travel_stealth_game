@@ -341,13 +341,15 @@ impl Level {
             updates.insert(key, result);
         }
 
+        self.entities.retain(|_, entity| !entity.inner.is_empty());
+
         self.frame = self
             .frame
             .checked_add(1)
             .expect("Game should not run for a galactically long time.");
 
         match actions.iter().max() {
-            Some(GameAction::SetFadeOut) => {
+            Some(GameAction::StartFadeOut) => {
                 if self.fade_out_frame.is_none() {
                     self.fade_out_frame = Some(self.frame + 16);
                 }

@@ -20,12 +20,12 @@ use crate::{
     },
 };
 
+pub(crate) mod button;
 pub(crate) mod elevator;
 pub(crate) mod elevator_door;
 pub(crate) mod empty;
 pub(crate) mod logic_gate;
 pub(crate) mod player;
-pub(crate) mod button;
 
 #[typetag::serde(tag = "type")]
 pub trait Entity: 'static + Debug {
@@ -174,6 +174,13 @@ pub trait Entity: 'static + Debug {
     fn as_elevator(&mut self) -> Option<&mut Elevator> {
         None
     }
+
+    /// If this entity is an `Elevator`, return true.
+    ///
+    /// This should only be overridden by something which is or contains an `Empty`.
+    fn is_empty(&self) -> bool {
+        false
+    }
 }
 
 impl Clone for Box<dyn Entity> {
@@ -184,7 +191,7 @@ impl Clone for Box<dyn Entity> {
 
 #[derive(Clone, PartialEq, Eq, PartialOrd, Ord, Serialize, Deserialize, Debug)]
 pub enum GameAction {
-    SetFadeOut,
+    StartFadeOut,
     SoftReset,
     HardResetKeepPlayer,
     HardReset,

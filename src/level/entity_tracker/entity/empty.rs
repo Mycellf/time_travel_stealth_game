@@ -40,4 +40,8 @@ impl Entity for Empty {
     fn should_recieve_inputs(&self) -> bool {
         false
     }
+
+    fn is_empty(&self) -> bool {
+        true
+    }
 }
