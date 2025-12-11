@@ -139,6 +139,16 @@ impl Elevator {
         }
     }
 
+    pub fn is_marker_bright(&self) -> bool {
+        match self.state {
+            ElevatorState::Running { .. } => self.powered_on,
+            ElevatorState::Closing { .. } => false,
+            ElevatorState::Waiting { .. } => false,
+            ElevatorState::Used => false,
+            ElevatorState::Broken => true,
+        }
+    }
+
     pub fn intersections<'a>(
         entities: impl IntoIterator<Item = (EntityKey, &'a EntityTracker)>,
         rectangle: Rect,
@@ -410,7 +420,7 @@ impl Entity for Elevator {
         self.draw_symbol(
             texture_atlas,
             Color {
-                a: if self.is_door_open() { 0.5 } else { 0.2 },
+                a: if self.is_marker_bright() { 0.5 } else { 0.2 },
                 ..if matches!(self.state, ElevatorState::Broken) {
                     Color::new(1.0, 0.0, 0.0, 1.0)
                 } else {
