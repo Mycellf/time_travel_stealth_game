@@ -444,6 +444,7 @@ impl Entity for Elevator {
                                 if let Some(player) = entities[expected_occupant].inner.as_player()
                                 {
                                     player.state = PlayerState::Dead;
+                                    player.confusion = 1.0;
                                 }
                             }
 
