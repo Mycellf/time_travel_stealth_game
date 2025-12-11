@@ -295,13 +295,25 @@ impl Level {
         }
 
         if !self.editor.command_input.is_empty() || self.editor.cursor.is_some() {
+            const MINIMUM_CURSOR_DISTANCE: f32 = 25.0;
+
+            let text = format!("/{}", self.editor.command_input);
+
             let mut start = point![screen_rect.x, screen_rect.y + screen_rect.h - 4.0];
+
+            let cursor_position = if let Some(cursor) = self.editor.cursor {
+                text::measure_text(&text[..1 + cursor], None, 16, 1.0).width
+            } else {
+                0.0
+            };
+
+            if cursor_position > screen_rect.w - MINIMUM_CURSOR_DISTANCE {
+                start.x = screen_rect.x + screen_rect.w - cursor_position - MINIMUM_CURSOR_DISTANCE;
+            }
 
             if start.y - 32.0 < self.mouse_position.y as f32 {
                 start.y = screen_rect.y + 12.0;
             }
-
-            let text = format!("/{}", self.editor.command_input);
 
             let width = text::measure_text(&text, None, 16, 1.0).width;
 
@@ -309,8 +321,8 @@ impl Level {
 
             text::draw_text(&text, start.x, start.y, 16.0, colors::WHITE);
 
-            if let Some(cursor) = self.editor.cursor {
-                start.x += text::measure_text(&text[..1 + cursor], None, 16, 1.0).width;
+            if self.editor.cursor.is_some() {
+                start.x += cursor_position;
 
                 shapes::draw_rectangle(start.x, start.y - 10.0, 1.0, 12.0, colors::WHITE);
             }
