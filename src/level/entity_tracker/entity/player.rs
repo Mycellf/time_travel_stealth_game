@@ -329,6 +329,7 @@ impl Entity for Player {
             }
             PlayerState::Dead => {
                 self.confusion -= (1.0 / Self::RECOVERY_TIME) * UPDATE_DT;
+                self.position.apply(|x| *x = x.round());
             }
         }
 
@@ -401,6 +402,10 @@ impl Entity for Player {
     }
 
     fn draw_front(&mut self, _texture_atlas: &Texture2D) {
+        if self.is_dead() {
+            self.position.apply(|x| *x = x.round());
+        }
+
         let corner = self.position - self.size / 2.0;
 
         shapes::draw_rectangle(
