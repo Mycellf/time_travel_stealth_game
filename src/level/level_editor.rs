@@ -1,7 +1,7 @@
 use std::{fs, mem, path::Path, str::FromStr};
 
 use macroquad::{
-    color::colors,
+    color::{Color, colors},
     input::{KeyCode, MouseButton},
     math::Rect,
     shapes, text,
@@ -226,6 +226,16 @@ impl Level {
     pub fn draw_level_editor(&mut self) {
         self.level_editor_draw_level_contents();
 
+        for (_, entity) in &self.hard_reset_state {
+            for &key in entity.inner.inputs() {
+                draw_arrow(
+                    self.hard_reset_state[key].inner.position(),
+                    entity.inner.position(),
+                    colors::MAGENTA,
+                );
+            }
+        }
+
         for (key, entity) in &self.hard_reset_state {
             let color = if self.editor.selected_entity == Some(key) {
                 colors::GREEN
@@ -256,6 +266,19 @@ impl Level {
         }
 
         let screen_rect = crate::screen_rect();
+
+        match self.editor.command {
+            Some(Command::Wire(Some(source))) => {
+                if let Some(entity) = self.hard_reset_state.get(source) {
+                    draw_arrow(
+                        entity.inner.position(),
+                        self.mouse_position,
+                        colors::MAGENTA,
+                    );
+                }
+            }
+            _ => (),
+        }
 
         if !self.editor.command_input.is_empty() || self.editor.cursor.is_some() {
             let mut start = point![screen_rect.x, screen_rect.y + screen_rect.h - 4.0];
@@ -678,21 +701,28 @@ impl Level {
         for (_, entity) in &mut self.hard_reset_state {
             entity.inner.draw_effect_front(&self.texture_atlas);
         }
-
-        for (_, entity) in &self.hard_reset_state {
-            let end = entity.inner.position();
-            for &key in entity.inner.inputs() {
-                let start = self.hard_reset_state[key].inner.position();
-
-                shapes::draw_line(
-                    start.x as f32,
-                    start.y as f32,
-                    end.x as f32,
-                    end.y as f32,
-                    1.0,
-                    colors::MAGENTA,
-                );
-            }
-        }
     }
+}
+
+fn draw_arrow(start: Point2<f64>, tip: Point2<f64>, color: Color) {
+    let direction = (tip - start).normalize();
+
+    let end = tip - direction * 6.0;
+
+    shapes::draw_line(
+        start.x as f32,
+        start.y as f32,
+        end.x as f32,
+        end.y as f32,
+        1.0,
+        color,
+    );
+
+    let perpendicular = vector![-direction.y, direction.x];
+
+    let a = (end + perpendicular * 2.0).map(|x| x as f32);
+    let b = (end - perpendicular * 2.0).map(|x| x as f32);
+    let c = (tip - direction * 2.0).map(|x| x as f32);
+
+    shapes::draw_triangle(a.into(), b.into(), c.into(), color);
 }
