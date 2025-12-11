@@ -1,7 +1,7 @@
 use std::f64::consts::PI;
 
 use macroquad::{
-    color::colors,
+    color::{Color, colors},
     math::Rect,
     texture::{self, DrawTextureParams, Texture2D},
 };
@@ -34,6 +34,9 @@ pub const ELEVATOR_FLOOR_TEXTURE_SIZE: Vector2<f32> = vector![16.0, 16.0];
 
 pub const ELEVATOR_WALLS_TEXTURE_POSITION: Point2<f32> = point![24.0, 24.0];
 pub const ELEVATOR_WALLS_TEXTURE_SIZE: Vector2<f32> = vector![24.0, 24.0];
+
+pub const ELEVATOR_SYMBOL_TEXTURE_POSITION: Point2<f32> = point![0.0, 40.0];
+pub const ELEVATOR_SYMBOL_TEXTURE_SIZE: Vector2<f32> = vector![8.0, 8.0];
 
 #[derive(Clone, Serialize, Deserialize, Debug)]
 pub struct Elevator {
@@ -102,6 +105,33 @@ impl Elevator {
             ELEVATOR_SIZE_OUTER.x as f32,
             ELEVATOR_SIZE_OUTER.y as f32,
         )
+    }
+
+    pub fn draw_symbol(&self, texture_atlas: &Texture2D, color: Color) {
+        let position = self.position.map(|x| x as f32) + 17.0 * self.direction.offset::<f32>()
+            - ELEVATOR_SYMBOL_TEXTURE_SIZE / 2.0;
+
+        texture::draw_texture_ex(
+            texture_atlas,
+            position.x,
+            position.y,
+            color,
+            DrawTextureParams {
+                source: Some(Rect::new(
+                    ELEVATOR_SYMBOL_TEXTURE_POSITION.x
+                        + match self.action {
+                            GameAction::HardResetKeepPlayer => 0.0,
+                            GameAction::SoftReset => 8.0,
+                            GameAction::LoadLevel(_) => 16.0,
+                            _ => 0.0,
+                        },
+                    ELEVATOR_SYMBOL_TEXTURE_POSITION.y,
+                    ELEVATOR_SYMBOL_TEXTURE_SIZE.x,
+                    ELEVATOR_SYMBOL_TEXTURE_SIZE.y,
+                )),
+                ..Default::default()
+            },
+        );
     }
 }
 
@@ -365,6 +395,20 @@ impl Entity for Elevator {
                 )),
                 rotation: self.direction.angle() as f32,
                 ..Default::default()
+            },
+        );
+    }
+
+    fn draw_back(&mut self, texture_atlas: &Texture2D) {
+        self.draw_symbol(texture_atlas, colors::WHITE);
+    }
+
+    fn draw_effect_back(&mut self, texture_atlas: &Texture2D) {
+        self.draw_symbol(
+            texture_atlas,
+            Color {
+                a: 0.25,
+                ..colors::WHITE
             },
         );
     }

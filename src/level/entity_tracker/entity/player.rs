@@ -143,22 +143,6 @@ impl Player {
         }
     }
 
-    pub fn draw(&self) {
-        let corner = self.position - self.size / 2.0;
-
-        shapes::draw_rectangle(
-            corner.x as f32,
-            corner.y as f32,
-            self.size.x as f32,
-            self.size.y as f32,
-            if self.state == PlayerState::Dead {
-                Color::new(0.5, 0.0, 0.0, 1.0)
-            } else {
-                Color::new(1.0, 0.0, 0.0, 1.0)
-            },
-        );
-    }
-
     pub fn draw_question_mark(&self, texture_atlas: &Texture2D, confusion: f64, color: Color) {
         let source = rect_of_confusion_effect(confusion);
         let position = self.position.map(|x| x as f32) + CONFUSION_EFFECT_OFFSET;
@@ -376,13 +360,6 @@ impl Entity for Player {
         }
     }
 
-    fn draw_back(&mut self, _texture_atlas: &Texture2D) {
-        match self.state {
-            PlayerState::Dead => self.draw(),
-            _ => (),
-        }
-    }
-
     fn draw_effect_back(&mut self, _texture_atlas: &Texture2D) {
         if let Some((_, paradox_position)) = self.paradox_position
             && self.state == PlayerState::Recording
@@ -424,10 +401,19 @@ impl Entity for Player {
     }
 
     fn draw_front(&mut self, _texture_atlas: &Texture2D) {
-        match self.state {
-            PlayerState::Active | PlayerState::Recording => self.draw(),
-            _ => (),
-        }
+        let corner = self.position - self.size / 2.0;
+
+        shapes::draw_rectangle(
+            corner.x as f32,
+            corner.y as f32,
+            self.size.x as f32,
+            self.size.y as f32,
+            if self.state == PlayerState::Dead {
+                Color::new(0.5, 0.0, 0.0, 1.0)
+            } else {
+                Color::new(1.0, 0.0, 0.0, 1.0)
+            },
+        );
     }
 
     fn draw_effect_front(&mut self, texture_atlas: &Texture2D) {
