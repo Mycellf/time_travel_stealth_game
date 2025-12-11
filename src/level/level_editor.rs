@@ -185,6 +185,8 @@ impl Level {
 
                 if self.shift_held {
                     position.apply(|x| *x = (*x / 4.0).round() * 4.0);
+                } else {
+                    position.apply(|x| *x = x.round());
                 }
             }
         } else {
