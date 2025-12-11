@@ -27,6 +27,8 @@ pub enum LogicGateKind {
     Or,
     Not,
     Passthrough,
+    Toggle { state: bool, active: bool },
+    Hold { state: bool },
 }
 
 #[typetag::serde]
@@ -78,11 +80,29 @@ impl Entity for LogicGate {
         _entities: GuardedSlotMap<EntityKey, EntityTracker>,
         inputs: &[bool],
     ) -> bool {
-        match self.kind {
+        match &mut self.kind {
             LogicGateKind::And => inputs.iter().copied().reduce(|a, b| a && b),
             LogicGateKind::Or => inputs.iter().copied().reduce(|a, b| a || b),
             LogicGateKind::Not => inputs.first().copied().map(|x| !x),
             LogicGateKind::Passthrough => inputs.first().copied(),
+            LogicGateKind::Toggle { state, active } => {
+                if inputs.first().copied().unwrap_or_default() {
+                    if *active {
+                        *active = false;
+                        *state ^= true;
+                    }
+                } else {
+                    *active = true;
+                }
+
+                Some(*state)
+            }
+            LogicGateKind::Hold { state } => {
+                if !*state {
+                    *state = inputs.first().copied().unwrap_or_default();
+                }
+                Some(*state)
+            }
         }
         .unwrap_or_default()
     }

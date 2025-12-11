@@ -252,17 +252,12 @@ impl Entity for Elevator {
                 door.open |= self.unlocked;
             } else {
                 door.open = frame < closing_time && self.unlocked;
-
-                if frame == closing_time && !self.unlocked {
-                    door.open = false;
-                    self.broken = true;
-                }
             }
         } else {
             let was_open = door.open;
             door.open = self.occupants.is_empty() && self.unlocked;
 
-            if !was_open && !door.open && !door.blocked && self.unlocked {
+            if !was_open && !door.open && !door.blocked && (self.unlocked || occupied) {
                 self.closing_time = Some(frame.saturating_sub(1));
                 let initial = initial_state[key].inner.as_elevator().unwrap();
                 initial.closing_time = self.closing_time;
@@ -284,7 +279,7 @@ impl Entity for Elevator {
             && self.closing_time.is_some()
             && !self.broken
             && !self.closed
-            && self.unlocked
+            && (self.unlocked || occupied)
         {
             self.delay = Some(UPDATE_TPS * 3);
             self.closed = true;
@@ -364,7 +359,11 @@ impl Entity for Elevator {
             texture_atlas,
             self.position.x as f32 - ELEVATOR_FLOOR_TEXTURE_SIZE.x / 2.0,
             self.position.y as f32 - ELEVATOR_FLOOR_TEXTURE_SIZE.y / 2.0,
-            colors::WHITE,
+            if self.broken {
+                colors::RED
+            } else {
+                colors::WHITE
+            },
             DrawTextureParams {
                 source: Some(crate::new_texture_rect(
                     ELEVATOR_FLOOR_TEXTURE_POSITION,

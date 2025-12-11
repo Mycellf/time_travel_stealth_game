@@ -18,6 +18,7 @@ use crate::{
             EntityTracker,
             entity::{
                 Entity, GameAction,
+                button::Button,
                 elevator::{Elevator, ElevatorDirection},
                 logic_gate::{LogicGate, LogicGateKind},
                 player::Player,
@@ -140,10 +141,21 @@ impl FromStr for Command {
                             Some(&"or") => LogicGateKind::Or,
                             Some(&"not") => LogicGateKind::Not,
                             Some(&"passthrough") => LogicGateKind::Passthrough,
+                            Some(&"hold") => LogicGateKind::Hold { state: false },
+                            Some(&"hold_on") => LogicGateKind::Hold { state: true },
+                            Some(&"toggle") => LogicGateKind::Toggle {
+                                state: false,
+                                active: true,
+                            },
+                            Some(&"toggle_on") => LogicGateKind::Toggle {
+                                state: true,
+                                active: true,
+                            },
                             _ => return Err(()),
                         },
                         inputs: Vec::new(),
                     }),
+                    Some(&"button") => Box::new(Button::default()),
                     _ => return Err(()),
                 };
 

@@ -25,6 +25,7 @@ pub(crate) mod elevator_door;
 pub(crate) mod empty;
 pub(crate) mod logic_gate;
 pub(crate) mod player;
+pub(crate) mod button;
 
 #[typetag::serde(tag = "type")]
 pub trait Entity: 'static + Debug {
