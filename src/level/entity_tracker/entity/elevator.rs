@@ -234,17 +234,13 @@ impl Entity for Elevator {
         let occupied = {
             let collision_rect = TileRect::from_rect_inclusive(self.outer_collision_rect());
 
-            entities
-                .iter()
-                .filter(|&(key, entity)| {
-                    Some(key) != self.door
-                        && entity
-                            .inner
-                            .collision_rect()
-                            .is_some_and(|rect| rect.intersects(&collision_rect))
-                })
-                .count()
-                > 0
+            entities.iter().any(|(key, entity)| {
+                Some(key) != self.door
+                    && entity
+                        .inner
+                        .collision_rect()
+                        .is_some_and(|rect| rect.intersects(&collision_rect))
+            })
         };
 
         let key = *entities.protected_slot();
