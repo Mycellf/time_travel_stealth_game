@@ -82,7 +82,7 @@ impl ElevatorDoor {
             self.position
                 + Vector2::from(offset)
                     .map(|x| x as f64)
-                    .component_mul(&(ELEVATOR_DOOR_SIZE.map(|x| x as f64) / 2.0))
+                    .component_mul(&(ELEVATOR_DOOR_SIZE.map(|x| x as f64 + 1e-3) / 2.0))
         });
 
         array::from_fn(|i| [corners[i], corners[(i + 1) % corners.len()]])
