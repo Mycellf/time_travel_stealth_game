@@ -409,9 +409,9 @@ impl Entity for Player {
             self.size.x as f32,
             self.size.y as f32,
             if self.state == PlayerState::Dead {
-                Color::new(0.5, 0.0, 0.0, 1.0)
+                Color::from_hex(0x956279)
             } else {
-                Color::new(1.0, 0.0, 0.0, 1.0)
+                Color::from_hex(0xffa7cf)
             },
         );
     }
