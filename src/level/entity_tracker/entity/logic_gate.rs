@@ -31,6 +31,19 @@ pub enum LogicGateKind {
     Hold { state: bool },
 }
 
+impl LogicGateKind {
+    pub fn is_single_input(self) -> bool {
+        match self {
+            LogicGateKind::And => false,
+            LogicGateKind::Or => false,
+            LogicGateKind::Not => true,
+            LogicGateKind::Passthrough => true,
+            LogicGateKind::Toggle { .. } => true,
+            LogicGateKind::Hold { .. } => true,
+        }
+    }
+}
+
 #[typetag::serde]
 impl Entity for LogicGate {
     fn update(
@@ -64,6 +77,10 @@ impl Entity for LogicGate {
     }
 
     fn try_add_input(&mut self, key: EntityKey) {
+        if self.kind.is_single_input() && !self.inputs.is_empty() {
+            return;
+        }
+
         if !self.inputs.contains(&key) {
             self.inputs.push(key);
         }
