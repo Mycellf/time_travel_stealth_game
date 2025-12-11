@@ -359,11 +359,7 @@ impl Entity for Elevator {
             texture_atlas,
             self.position.x as f32 - ELEVATOR_FLOOR_TEXTURE_SIZE.x / 2.0,
             self.position.y as f32 - ELEVATOR_FLOOR_TEXTURE_SIZE.y / 2.0,
-            if self.broken {
-                colors::RED
-            } else {
-                colors::WHITE
-            },
+            colors::WHITE,
             DrawTextureParams {
                 source: Some(crate::new_texture_rect(
                     ELEVATOR_FLOOR_TEXTURE_POSITION,
@@ -392,19 +388,30 @@ impl Entity for Elevator {
     }
 
     fn draw_back(&mut self, texture_atlas: &Texture2D) {
-        self.draw_symbol(texture_atlas, colors::WHITE);
+        self.draw_symbol(
+            texture_atlas,
+            if self.broken {
+                Color::new(1.0, 0.0, 0.0, 1.0)
+            } else {
+                colors::WHITE
+            },
+        );
     }
 
     fn draw_effect_back(&mut self, texture_atlas: &Texture2D) {
         self.draw_symbol(
             texture_atlas,
             Color {
-                a: if self.closed || !self.unlocked || self.broken {
+                a: if self.closed || !self.unlocked {
                     0.2
                 } else {
                     0.5
                 },
-                ..colors::WHITE
+                ..if self.broken {
+                    Color::new(1.0, 0.0, 0.0, 1.0)
+                } else {
+                    colors::WHITE
+                }
             },
         );
     }
