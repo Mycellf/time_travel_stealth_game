@@ -12,14 +12,12 @@ use slotmap::SlotMap;
 use crate::{
     collections::{history::FrameIndex, slot_guard::GuardedSlotMap, tile_grid::TileRect},
     level::{
-        EntityKey, UPDATE_DT, UPDATE_TPS,
+        EntityKey, UPDATE_TPS,
         entity_tracker::{
             EntityTracker,
             entity::{
                 Entity, GameAction,
                 elevator_door::{ElevatorDoor, ElevatorDoorOrientation},
-                empty::Empty,
-                player::PlayerState,
             },
         },
         light_grid::LightGrid,
@@ -42,25 +40,79 @@ pub const ELEVATOR_SYMBOL_TEXTURE_SIZE: Vector2<f32> = vector![8.0, 8.0];
 pub struct Elevator {
     pub position: Point2<f64>,
     pub direction: ElevatorDirection,
-    pub door: Option<EntityKey>,
-
-    pub closing_time: Option<FrameIndex>,
-    pub hold_open: bool,
-    pub available: bool,
-    pub broken: bool,
-    pub occupants: Vec<EntityKey>,
-    #[serde(skip, default = "bool_true")]
-    pub unlocked: bool,
-
-    pub delay: Option<usize>,
-    pub closed: bool,
-
     pub action: GameAction,
     pub input: Option<EntityKey>,
+    pub powered_on: bool,
+
+    #[serde(skip)]
+    pub door: Option<EntityKey>,
+    #[serde(skip)]
+    pub state: ElevatorState,
 }
 
-fn bool_true() -> bool {
-    true
+#[derive(Clone, Debug)]
+pub enum ElevatorState {
+    Running {
+        held_open: bool,
+        state: ElevatorRunningState,
+    },
+    Closing {
+        close_time: FrameIndex,
+    },
+    Waiting {
+        close_time: FrameIndex,
+        remaining_time: usize,
+    },
+    Used,
+    Broken,
+}
+
+#[derive(Clone, Default, Debug)]
+pub enum ElevatorRunningState {
+    #[default]
+    Active,
+    Recording {
+        close_time: FrameIndex,
+        expected_occupants: Vec<EntityKey>,
+    },
+}
+
+impl Default for ElevatorState {
+    fn default() -> Self {
+        Self::Running {
+            held_open: true,
+            state: ElevatorRunningState::default(),
+        }
+    }
+}
+
+#[derive(Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Debug)]
+pub enum ElevatorDirection {
+    East,
+    North,
+    West,
+    South,
+}
+
+impl ElevatorDirection {
+    pub fn offset<T: From<i8> + Scalar>(self) -> Vector2<T> {
+        match self {
+            ElevatorDirection::East => vector![1, 0],
+            ElevatorDirection::North => vector![0, -1],
+            ElevatorDirection::West => vector![-1, 0],
+            ElevatorDirection::South => vector![0, 1],
+        }
+        .map(|x| x.into())
+    }
+
+    pub fn angle(self) -> f64 {
+        match self {
+            ElevatorDirection::East => 0.0,
+            ElevatorDirection::North => PI * 1.5,
+            ElevatorDirection::West => PI,
+            ElevatorDirection::South => PI * 0.5,
+        }
+    }
 }
 
 impl Elevator {
@@ -68,25 +120,69 @@ impl Elevator {
         Self {
             position,
             direction,
-            door: None,
-
-            closing_time: None,
-            hold_open: true,
-            available: true,
-            broken: false,
-            occupants: Vec::new(),
-            unlocked: true,
-
-            delay: None,
-            closed: false,
-
             action,
             input: None,
+            powered_on: true,
+
+            door: None,
+            state: ElevatorState::default(),
         }
     }
 
-    pub fn inner_collision_rect(&self) -> Rect {
-        let corner = self.position - ELEVATOR_SIZE_INNER / 2.0;
+    pub fn is_door_open(&self) -> bool {
+        match self.state {
+            ElevatorState::Running { held_open, .. } => held_open || self.powered_on,
+            ElevatorState::Closing { .. } => false,
+            ElevatorState::Waiting { .. } => false,
+            ElevatorState::Used => false,
+            ElevatorState::Broken => true,
+        }
+    }
+
+    pub fn intersections<'a>(
+        entities: impl IntoIterator<Item = (EntityKey, &'a EntityTracker)>,
+        rectangle: Rect,
+    ) -> impl Iterator<Item = EntityKey> {
+        Self::intersections_by(entities, rectangle, TileRect::intersects)
+    }
+
+    pub fn occupants<'a>(
+        entities: impl IntoIterator<Item = (EntityKey, &'a EntityTracker)>,
+        rectangle: Rect,
+    ) -> impl Iterator<Item = EntityKey> {
+        Self::intersections_by(entities, rectangle, TileRect::contains)
+    }
+
+    fn intersections_by<'a>(
+        entities: impl IntoIterator<Item = (EntityKey, &'a EntityTracker)>,
+        rectangle: Rect,
+        mut function: impl FnMut(&TileRect, &TileRect) -> bool,
+    ) -> impl Iterator<Item = EntityKey> {
+        let collision_rect = TileRect::from_rect_inclusive(rectangle);
+
+        entities
+            .into_iter()
+            .filter(move |&(_, entity)| {
+                entity
+                    .inner
+                    .collision_rect()
+                    .is_some_and(|rect| function(&collision_rect, &rect))
+            })
+            .map(|(key, _)| key)
+    }
+
+    pub fn get_door<'a>(
+        key: Option<EntityKey>,
+        entities: &'a mut GuardedSlotMap<EntityKey, EntityTracker>,
+    ) -> &'a mut ElevatorDoor {
+        entities[key.expect("Elevators should have a door")]
+            .inner
+            .as_door()
+            .expect("The door should be a door")
+    }
+
+    pub fn inner_collision_rect(position: Point2<f64>) -> Rect {
+        let corner = position - ELEVATOR_SIZE_INNER / 2.0;
 
         Rect::new(
             corner.x as f32,
@@ -96,8 +192,8 @@ impl Elevator {
         )
     }
 
-    pub fn outer_collision_rect(&self) -> Rect {
-        let corner = self.position - ELEVATOR_SIZE_OUTER / 2.0;
+    pub fn outer_collision_rect(position: Point2<f64>) -> Rect {
+        let corner = position - ELEVATOR_SIZE_OUTER / 2.0;
 
         Rect::new(
             corner.x as f32,
@@ -136,222 +232,134 @@ impl Elevator {
     }
 }
 
-#[derive(Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Debug)]
-pub enum ElevatorDirection {
-    East,
-    North,
-    West,
-    South,
-}
-
-impl ElevatorDirection {
-    pub fn offset<T: From<i8> + Scalar>(self) -> Vector2<T> {
-        match self {
-            ElevatorDirection::East => vector![1, 0],
-            ElevatorDirection::North => vector![0, -1],
-            ElevatorDirection::West => vector![-1, 0],
-            ElevatorDirection::South => vector![0, 1],
-        }
-        .map(|x| x.into())
-    }
-
-    pub fn angle(self) -> f64 {
-        match self {
-            ElevatorDirection::East => 0.0,
-            ElevatorDirection::North => PI * 1.5,
-            ElevatorDirection::West => PI,
-            ElevatorDirection::South => PI * 0.5,
-        }
-    }
-}
-
 #[typetag::serde]
 impl Entity for Elevator {
     fn update(
         &mut self,
         frame: FrameIndex,
         mut entities: GuardedSlotMap<EntityKey, EntityTracker>,
-        _light_grid: &mut LightGrid,
+        light_grid: &mut LightGrid,
         initial_state: &mut SlotMap<EntityKey, EntityTracker>,
     ) -> Option<GameAction> {
-        let Some(door) = self.door else {
-            return None;
-        };
+        match &mut self.state {
+            ElevatorState::Running { held_open, state } => {
+                if *held_open {
+                    let empty = Self::intersections(
+                        entities.iter(),
+                        Self::outer_collision_rect(self.position),
+                    )
+                    .next()
+                    .is_none();
 
-        let collision_rect = TileRect::from_rect_inclusive(self.inner_collision_rect());
-
-        if let Some(_) = self.closing_time {
-            for &key in &self.occupants {
-                if entities[key].inner.is_dead() {
-                    self.broken = true;
-                }
-            }
-        } else {
-            self.occupants.clear();
-            self.occupants.extend(
-                entities
-                    .iter()
-                    .filter(|(_, entity)| {
-                        entity
-                            .inner
-                            .collision_rect()
-                            .is_some_and(|rect| rect.intersects(&collision_rect))
-                    })
-                    .map(|(key, _)| key),
-            );
-        }
-
-        if (self.hold_open || entities[door].inner.as_door().unwrap().blocked)
-            && self.closing_time.is_none()
-            && matches!(
-                self.action,
-                GameAction::HardResetKeepPlayer | GameAction::HardReset
-            )
-        {
-            let collision_rect = TileRect::from_rect_inclusive(self.outer_collision_rect());
-
-            let occupants = entities
-                .iter()
-                .filter(|(_, entity)| {
-                    entity
-                        .inner
-                        .collision_rect()
-                        .is_some_and(|rect| rect.intersects(&collision_rect))
-                })
-                .map(|(key, _)| key)
-                .collect::<Vec<_>>();
-
-            for occupant in occupants {
-                let occupant = &mut entities[occupant];
-                if occupant.inner.is_dead() {
-                    if let Some(position) = occupant.inner.position_mut() {
-                        *position += self.direction.offset::<f64>() * 8.0 * UPDATE_DT;
-                    }
-                }
-            }
-        }
-
-        let occupied = {
-            let collision_rect = TileRect::from_rect_inclusive(self.outer_collision_rect());
-
-            entities.iter().any(|(key, entity)| {
-                Some(key) != self.door
-                    && entity
-                        .inner
-                        .collision_rect()
-                        .is_some_and(|rect| rect.intersects(&collision_rect))
-            })
-        };
-
-        let key = *entities.protected_slot();
-
-        let door = entities[door].inner.as_door().unwrap();
-        if let Some(closing_time) = self.closing_time {
-            if door.blocked || self.broken {
-                self.broken = true;
-                door.open |= self.unlocked;
-            } else {
-                door.open = frame < closing_time && self.unlocked;
-            }
-        } else {
-            let was_open = door.open;
-            door.open = self.occupants.is_empty() && self.unlocked;
-
-            if !was_open && !door.open && !door.blocked && (self.unlocked || occupied) {
-                self.closing_time = Some(frame.saturating_sub(1));
-                let initial = initial_state[key].inner.as_elevator().unwrap();
-                initial.closing_time = self.closing_time;
-                initial.occupants.clone_from(&self.occupants);
-            }
-        }
-
-        if self.hold_open {
-            if !occupied {
-                self.hold_open = false;
-            } else {
-                door.open = true;
-            }
-        }
-
-        if self.delay.is_none()
-            && door.extent == 16
-            && !door.open
-            && self.closing_time.is_some()
-            && !self.broken
-            && !self.closed
-            && (self.unlocked || occupied)
-        {
-            self.delay = Some(UPDATE_TPS);
-            self.closed = true;
-        }
-
-        if let Some(delay) = &mut self.delay {
-            if !self.available {
-                self.delay = None;
-
-                let actual_occupants = entities
-                    .iter()
-                    .filter(|(_, entity)| {
-                        entity
-                            .inner
-                            .collision_rect()
-                            .is_some_and(|rect| rect.intersects(&collision_rect))
-                    })
-                    .map(|(key, _)| key)
-                    .collect::<Vec<_>>();
-
-                self.broken |= 'verify_contents: {
-                    // Check for extra occupants
-                    for &key in &actual_occupants {
-                        if !self.occupants.contains(&key) {
-                            break 'verify_contents true;
-                        }
-                    }
-
-                    // Check for missing occupants
-                    for &key in &self.occupants {
-                        if !actual_occupants.contains(&key) {
-                            break 'verify_contents true;
-                        }
-                    }
-
-                    false
-                };
-
-                if self.broken {
-                    for &key in &self.occupants {
-                        if let Some(player) = entities[key].inner.as_player() {
-                            player.state = PlayerState::Dead;
-                            player.confusion = 1.0;
-                        }
+                    if empty {
+                        *held_open = false;
                     }
                 } else {
-                    for &key in &self.occupants {
-                        entities[key].inner = Box::new(Empty);
+                    let door = Self::get_door(self.door, &mut entities);
+
+                    if door.open != self.powered_on {
+                        door.open = self.powered_on;
+                        door.update_light_grid(light_grid);
                     }
                 }
 
-                None
-            } else if *delay == 0 {
-                self.available = false;
-                initial_state[key].inner.as_elevator().unwrap().available = self.available;
-                if self.action == GameAction::SoftReset {
-                    for &key in &self.occupants {
-                        let entity = &mut entities[key];
-                        entity.inner.travel_to_beginning(&mut initial_state[key]);
+                match state {
+                    ElevatorRunningState::Active => {
+                        // TODO: Deal with the "dies in the entry elevator" softlock scenario
 
-                        initial_state.insert(entity.clone());
+                        if !*held_open {
+                            let occupants = Self::occupants(
+                                entities.iter(),
+                                Self::inner_collision_rect(self.position),
+                            )
+                            .collect::<Vec<_>>();
+
+                            let intersections = Self::intersections(
+                                entities.iter(),
+                                Self::outer_collision_rect(self.position),
+                            )
+                            .collect::<Vec<_>>();
+
+                            if !occupants.is_empty() && occupants == intersections {
+                                let door = Self::get_door(self.door, &mut entities);
+
+                                door.open = false;
+                                door.update_light_grid(light_grid);
+                                self.state = ElevatorState::Closing { close_time: frame };
+                            }
+                        }
+                    }
+                    ElevatorRunningState::Recording {
+                        close_time,
+                        expected_occupants,
+                    } => {
+                        // TODO: Close the door
+
+                        for &mut key in expected_occupants {
+                            if entities[key].inner.is_dead() {
+                                let door = Self::get_door(self.door, &mut entities);
+                                door.open = true;
+                                door.update_light_grid(light_grid);
+                                self.state = ElevatorState::Broken;
+
+                                break;
+                            }
+                        }
                     }
                 }
-
-                Some(self.action.clone())
-            } else {
-                *delay -= 1;
-                Some(GameAction::SetFadeOut)
             }
-        } else {
-            None
+            ElevatorState::Closing { close_time } => {
+                let door = Self::get_door(self.door, &mut entities);
+
+                if door.extent == 16 {
+                    self.state = ElevatorState::Waiting {
+                        close_time: *close_time,
+                        remaining_time: UPDATE_TPS,
+                    };
+                }
+            }
+            ElevatorState::Waiting {
+                close_time,
+                remaining_time,
+            } => {
+                if *remaining_time > 0 {
+                    *remaining_time = remaining_time.saturating_sub(1);
+                } else {
+                    let occupants =
+                        Self::occupants(entities.iter(), Self::inner_collision_rect(self.position))
+                            .collect::<Vec<_>>();
+
+                    if matches!(self.action, GameAction::SoftReset) {
+                        for &key in &occupants {
+                            let entity = &mut entities[key];
+                            entity.inner.travel_to_beginning(&mut initial_state[key]);
+                            initial_state.insert(entity.clone());
+                        }
+
+                        let next_state = initial_state[*entities.protected_slot()]
+                            .inner
+                            .as_elevator()
+                            .expect("Initial state of elevator should be an elevator");
+
+                        next_state.state = ElevatorState::Running {
+                            held_open: true,
+                            state: ElevatorRunningState::Recording {
+                                close_time: *close_time,
+                                expected_occupants: occupants,
+                            },
+                        };
+                    }
+
+                    self.state = ElevatorState::Used;
+
+                    return Some(self.action.clone());
+                }
+            }
+            ElevatorState::Used => (),
+            ElevatorState::Broken => (),
         }
+
+        None
     }
 
     fn draw_floor(&mut self, texture_atlas: &Texture2D) {
@@ -390,7 +398,7 @@ impl Entity for Elevator {
     fn draw_back(&mut self, texture_atlas: &Texture2D) {
         self.draw_symbol(
             texture_atlas,
-            if self.broken {
+            if matches!(self.state, ElevatorState::Broken) {
                 Color::new(1.0, 0.0, 0.0, 1.0)
             } else {
                 colors::WHITE
@@ -402,12 +410,8 @@ impl Entity for Elevator {
         self.draw_symbol(
             texture_atlas,
             Color {
-                a: if (self.closed || !self.unlocked) && !self.broken {
-                    0.2
-                } else {
-                    0.5
-                },
-                ..if self.broken {
+                a: if self.is_door_open() { 0.5 } else { 0.2 },
+                ..if matches!(self.state, ElevatorState::Broken) {
                     Color::new(1.0, 0.0, 0.0, 1.0)
                 } else {
                     colors::WHITE
@@ -470,15 +474,12 @@ impl Entity for Elevator {
 
     fn evaluate(
         &mut self,
-        mut entities: GuardedSlotMap<EntityKey, EntityTracker>,
+        _entities: GuardedSlotMap<EntityKey, EntityTracker>,
         inputs: &[bool],
     ) -> bool {
-        self.unlocked = inputs.get(0).copied().unwrap_or(true);
+        self.powered_on = inputs.get(0).copied().unwrap_or(true);
 
-        let Some(door) = self.door else { return false };
-        let door = entities[door].inner.as_door().unwrap();
-
-        self.unlocked && !door.open && door.extent == 16 && !self.broken
+        matches!(self.state, ElevatorState::Used)
     }
 
     fn as_elevator(&mut self) -> Option<&mut Elevator> {

@@ -51,7 +51,7 @@ impl ElevatorDoor {
 
         let start_position = (self.position + self.offset()).map(|x| x.floor() as isize);
 
-        let air = if self.extent == 0 || self.open {
+        let air = if self.open {
             Pixel::None
         } else {
             Pixel::Transparent
@@ -212,10 +212,6 @@ impl Entity for ElevatorDoor {
 
     fn visible_state(&self) -> Option<EntityVisibleState> {
         Some(EntityVisibleState::new(self.position, self.extent as u64))
-    }
-
-    fn collision_rect(&self) -> Option<TileRect> {
-        (self.extent > 0).then(|| self.collision_rect())
     }
 
     fn position(&self) -> Point2<f64> {
