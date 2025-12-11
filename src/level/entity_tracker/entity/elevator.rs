@@ -402,7 +402,7 @@ impl Entity for Elevator {
         self.draw_symbol(
             texture_atlas,
             Color {
-                a: if self.closed || !self.unlocked {
+                a: if (self.closed || !self.unlocked) && !self.broken {
                     0.2
                 } else {
                     0.5
