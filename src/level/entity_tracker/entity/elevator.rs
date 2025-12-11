@@ -1,11 +1,15 @@
-use std::{f64::consts::PI, mem};
+use std::{
+    f64::consts::{PI, TAU},
+    mem,
+};
 
 use macroquad::{
     color::{Color, colors},
     math::Rect,
+    shapes,
     texture::{self, DrawTextureParams, Texture2D},
 };
-use nalgebra::{Point2, Scalar, Vector2, point, vector};
+use nalgebra::{Point2, Scalar, UnitComplex, Vector2, point, vector};
 use serde::{Deserialize, Serialize};
 use slotmap::SlotMap;
 
@@ -50,6 +54,18 @@ pub struct Elevator {
     pub door: Option<EntityKey>,
     #[serde(skip)]
     pub state: ElevatorState,
+    #[serde(skip)]
+    pub sparks: Vec<Spark>,
+}
+
+#[derive(Clone, Copy, Debug)]
+pub struct Spark {
+    pub position: Point2<f64>,
+    pub velocity: Vector2<f64>,
+    pub color: bool,
+    pub age: u16,
+    pub flight_time: u16,
+    pub max_age: u16,
 }
 
 #[derive(Clone, Debug)]
@@ -67,6 +83,7 @@ pub enum ElevatorState {
         remaining_time: usize,
     },
     Used,
+    Explode,
     Broken,
 }
 
@@ -129,6 +146,7 @@ impl Elevator {
 
             door: None,
             state: ElevatorState::default(),
+            sparks: Vec::new(),
         }
     }
 
@@ -138,6 +156,7 @@ impl Elevator {
             ElevatorState::Closing { .. } => false,
             ElevatorState::Waiting { .. } => false,
             ElevatorState::Used => false,
+            ElevatorState::Explode => true,
             ElevatorState::Broken => true,
         }
     }
@@ -148,17 +167,19 @@ impl Elevator {
             ElevatorState::Closing { .. } => false,
             ElevatorState::Waiting { .. } => true,
             ElevatorState::Used => true,
+            ElevatorState::Explode => false,
             ElevatorState::Broken => false,
         }
     }
 
-    pub fn is_marker_bright(&self) -> bool {
+    pub fn is_symbol_bright(&self) -> bool {
         match self.state {
             ElevatorState::Running { .. } => self.powered_on,
             ElevatorState::Closing { .. } => false,
             ElevatorState::Waiting { .. } => false,
             ElevatorState::Used => false,
-            ElevatorState::Broken => true,
+            ElevatorState::Explode => false,
+            ElevatorState::Broken => false,
         }
     }
 
@@ -252,6 +273,33 @@ impl Elevator {
                 ..Default::default()
             },
         );
+    }
+
+    pub fn add_spark(&mut self) {
+        const SPARK_VELOCITY: f64 = 128.0;
+
+        let max_age = macroquad::rand::gen_range(UPDATE_TPS as u16 * 1 / 2, UPDATE_TPS as u16 * 1);
+
+        self.sparks.push(Spark {
+            position: self.position
+                + vector![
+                    macroquad::rand::gen_range(-ELEVATOR_SIZE_INNER.x, ELEVATOR_SIZE_INNER.x - 1.0),
+                    macroquad::rand::gen_range(-ELEVATOR_SIZE_INNER.y, ELEVATOR_SIZE_INNER.y - 1.0),
+                ] / 2.0,
+            velocity: UnitComplex::new(macroquad::rand::gen_range(0.0, TAU))
+                * vector![
+                    macroquad::rand::gen_range(SPARK_VELOCITY / 2.0, SPARK_VELOCITY),
+                    0.0,
+                ],
+            color: false,
+            age: 0,
+            flight_time: max_age
+                - macroquad::rand::gen_range(
+                    UPDATE_TPS as u16 * 1 / 20,
+                    UPDATE_TPS as u16 * 1 / 10,
+                ),
+            max_age,
+        })
     }
 }
 
@@ -350,7 +398,7 @@ impl Entity for Elevator {
                                     let door = Self::get_door(self.door, &mut entities);
                                     door.open = true;
                                     door.update_light_grid(light_grid);
-                                    self.state = ElevatorState::Broken;
+                                    self.state = ElevatorState::Explode;
 
                                     break;
                                 }
@@ -375,7 +423,7 @@ impl Entity for Elevator {
                 if door.blocked {
                     door.open = true;
                     door.update_light_grid(light_grid);
-                    self.state = ElevatorState::Broken;
+                    self.state = ElevatorState::Explode;
                 } else if door.extent == 16 {
                     if let Some(expected_occupants) = expected_occupants {
                         let occupants = Self::occupants(
@@ -403,7 +451,7 @@ impl Entity for Elevator {
 
                             door.open = true;
                             door.update_light_grid(light_grid);
-                            self.state = ElevatorState::Broken;
+                            self.state = ElevatorState::Explode;
 
                             return None;
                         }
@@ -459,7 +507,58 @@ impl Entity for Elevator {
                 }
             }
             ElevatorState::Used => (),
-            ElevatorState::Broken => (),
+            ElevatorState::Explode => {
+                for _ in 0..macroquad::rand::gen_range(40, 60) {
+                    self.add_spark();
+                }
+
+                self.state = ElevatorState::Broken;
+            }
+            ElevatorState::Broken => {
+                const SPARKS_PER_SECOND: usize = 2;
+
+                if macroquad::rand::gen_range(1, UPDATE_TPS) <= SPARKS_PER_SECOND {
+                    self.add_spark();
+                }
+
+                self.sparks.retain_mut(|spark| {
+                    const SPARK_DRAG: f64 = 0.95;
+                    const SPARK_BOUNCE_ELASTICITY: f64 = 0.85;
+
+                    if spark.age < spark.flight_time {
+                        let old_position = spark.position.x;
+                        spark.position.x += spark.velocity.x * UPDATE_DT;
+                        if light_grid[spark.position.map(|x| x.round() as isize)].blocks_motion() {
+                            spark.position.x = old_position;
+
+                            spark.velocity.x *= -SPARK_BOUNCE_ELASTICITY;
+                            spark.velocity.y *= SPARK_BOUNCE_ELASTICITY;
+                        }
+
+                        let old_position = spark.position.y;
+                        spark.position.y += spark.velocity.y * UPDATE_DT;
+                        if light_grid[spark.position.map(|x| x.round() as isize)].blocks_motion() {
+                            spark.position.y = old_position;
+
+                            spark.velocity.y *= -SPARK_BOUNCE_ELASTICITY;
+                            spark.velocity.x *= SPARK_BOUNCE_ELASTICITY;
+                        }
+
+                        spark.velocity *= SPARK_DRAG;
+                    } else {
+                        spark.velocity = vector![0.0, 0.0];
+                    }
+
+                    if macroquad::rand::gen_range(0, spark.max_age)
+                        < (spark.max_age - spark.age) / 5
+                    {
+                        spark.color ^= true;
+                    }
+
+                    spark.age = spark.age.saturating_add(1);
+                    spark.age < spark.max_age
+                })
+            }
         }
 
         None
@@ -499,28 +598,31 @@ impl Entity for Elevator {
     }
 
     fn draw_back(&mut self, texture_atlas: &Texture2D) {
-        self.draw_symbol(
-            texture_atlas,
-            if matches!(self.state, ElevatorState::Broken) {
-                Color::new(1.0, 0.0, 0.0, 1.0)
-            } else {
-                colors::WHITE
-            },
-        );
+        self.draw_symbol(texture_atlas, colors::WHITE);
     }
 
     fn draw_effect_back(&mut self, texture_atlas: &Texture2D) {
         self.draw_symbol(
             texture_atlas,
             Color {
-                a: if self.is_marker_bright() { 0.5 } else { 0.2 },
-                ..if matches!(self.state, ElevatorState::Broken) {
-                    Color::new(1.0, 0.0, 0.0, 1.0)
-                } else {
-                    colors::WHITE
-                }
+                a: if self.is_symbol_bright() { 0.5 } else { 0.2 },
+                ..colors::WHITE
             },
         );
+
+        for spark in &self.sparks {
+            shapes::draw_rectangle(
+                spark.position.x.round() as f32,
+                spark.position.y.round() as f32,
+                1.0,
+                1.0,
+                if spark.color {
+                    Color::new(1.0, 1.0, 0.5, 1.0)
+                } else {
+                    Color::new(0.0, 1.0, 1.0, 1.0)
+                },
+            );
+        }
     }
 
     fn position(&self) -> Point2<f64> {
