@@ -236,3 +236,13 @@ pub fn screen_pixel_size() -> Vector2<u32> {
     (window::screen_dpi_scale() * vector![window::screen_width(), window::screen_height()])
         .map(|x| x as u32)
 }
+
+pub fn new_texture_rect(origin: Point2<f32>, size: Vector2<f32>) -> Rect {
+    const EPSILON: f32 = 1e-4;
+    Rect::new(
+        origin.x + EPSILON,
+        origin.y + EPSILON,
+        size.x - 2.0 * EPSILON,
+        size.y - 2.0 * EPSILON,
+    )
+}

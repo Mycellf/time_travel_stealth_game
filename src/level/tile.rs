@@ -4,7 +4,11 @@ use macroquad::math::Rect;
 use nalgebra::Point2;
 use serde::{Deserialize, Serialize};
 
-use crate::{collections::small_map::SmallMap, level::light_grid::Pixel, new_small_key_type};
+use crate::{
+    collections::small_map::SmallMap,
+    level::{TILE_SIZE, light_grid::Pixel},
+    new_small_key_type,
+};
 
 #[derive(Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Debug)]
 pub struct Tile {
@@ -37,17 +41,11 @@ pub struct TileKind {
 
 impl TileKind {
     pub fn texture_location_f32(&self) -> Point2<f32> {
-        self.texture_location
-            .map(|x| x as f32 * super::TILE_SIZE as f32)
+        self.texture_location.map(|x| x as f32 * TILE_SIZE as f32)
     }
 
     pub fn texture_rect(&self) -> Rect {
         let location = self.texture_location_f32();
-        Rect::new(
-            location.x,
-            location.y,
-            super::TILE_SIZE as f32,
-            super::TILE_SIZE as f32,
-        )
+        crate::new_texture_rect(location, [TILE_SIZE as f32; 2].into())
     }
 }

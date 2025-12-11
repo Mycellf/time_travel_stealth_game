@@ -2,7 +2,6 @@ use std::{array, f32::consts::PI};
 
 use macroquad::{
     color::colors,
-    math::Rect,
     texture::{self, DrawTextureParams, Texture2D},
 };
 use nalgebra::{Point2, Vector2, point, vector};
@@ -172,11 +171,9 @@ impl Entity for ElevatorDoor {
             position.y,
             colors::WHITE,
             DrawTextureParams {
-                source: Some(Rect::new(
-                    ELEVATOR_DOOR_TEXTURE_POSITION.x,
-                    ELEVATOR_DOOR_TEXTURE_POSITION.y + hidden,
-                    ELEVATOR_DOOR_TEXTURE_SIZE.x,
-                    ELEVATOR_DOOR_TEXTURE_SIZE.y - hidden,
+                source: Some(crate::new_texture_rect(
+                    ELEVATOR_DOOR_TEXTURE_POSITION + vector![0.0, hidden],
+                    ELEVATOR_DOOR_TEXTURE_SIZE - vector![0.0, hidden],
                 )),
                 rotation,
                 pivot: Some(self.position.map(|x| x as f32).into()),
@@ -190,11 +187,9 @@ impl Entity for ElevatorDoor {
             position.y + hidden,
             colors::WHITE,
             DrawTextureParams {
-                source: Some(Rect::new(
-                    ELEVATOR_DOOR_TEXTURE_POSITION.x,
-                    ELEVATOR_DOOR_TEXTURE_POSITION.y + hidden,
-                    ELEVATOR_DOOR_TEXTURE_SIZE.x,
-                    ELEVATOR_DOOR_TEXTURE_SIZE.y - hidden,
+                source: Some(crate::new_texture_rect(
+                    ELEVATOR_DOOR_TEXTURE_POSITION + vector![0.0, hidden],
+                    ELEVATOR_DOOR_TEXTURE_SIZE - vector![0.0, hidden],
                 )),
                 flip_x: true,
                 flip_y: true,

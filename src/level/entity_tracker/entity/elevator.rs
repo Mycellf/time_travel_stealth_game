@@ -117,17 +117,18 @@ impl Elevator {
             position.y,
             color,
             DrawTextureParams {
-                source: Some(Rect::new(
-                    ELEVATOR_SYMBOL_TEXTURE_POSITION.x
-                        + match self.action {
-                            GameAction::HardResetKeepPlayer => 0.0,
-                            GameAction::SoftReset => 8.0,
-                            GameAction::LoadLevel(_) => 16.0,
-                            _ => 0.0,
-                        },
-                    ELEVATOR_SYMBOL_TEXTURE_POSITION.y,
-                    ELEVATOR_SYMBOL_TEXTURE_SIZE.x,
-                    ELEVATOR_SYMBOL_TEXTURE_SIZE.y,
+                source: Some(crate::new_texture_rect(
+                    ELEVATOR_SYMBOL_TEXTURE_POSITION
+                        + vector![
+                            match self.action {
+                                GameAction::HardResetKeepPlayer => 0.0,
+                                GameAction::SoftReset => 8.0,
+                                GameAction::LoadLevel(_) => 16.0,
+                                _ => 0.0,
+                            },
+                            0.0
+                        ],
+                    ELEVATOR_SYMBOL_TEXTURE_SIZE,
                 )),
                 ..Default::default()
             },
@@ -369,11 +370,9 @@ impl Entity for Elevator {
             self.position.y as f32 - ELEVATOR_FLOOR_TEXTURE_SIZE.y / 2.0,
             colors::WHITE,
             DrawTextureParams {
-                source: Some(Rect::new(
-                    ELEVATOR_FLOOR_TEXTURE_POSITION.x,
-                    ELEVATOR_FLOOR_TEXTURE_POSITION.y,
-                    ELEVATOR_FLOOR_TEXTURE_SIZE.x,
-                    ELEVATOR_FLOOR_TEXTURE_SIZE.y,
+                source: Some(crate::new_texture_rect(
+                    ELEVATOR_FLOOR_TEXTURE_POSITION,
+                    ELEVATOR_FLOOR_TEXTURE_SIZE,
                 )),
                 ..Default::default()
             },
@@ -387,11 +386,9 @@ impl Entity for Elevator {
             self.position.y as f32 - ELEVATOR_WALLS_TEXTURE_SIZE.y / 2.0,
             colors::WHITE,
             DrawTextureParams {
-                source: Some(Rect::new(
-                    ELEVATOR_WALLS_TEXTURE_POSITION.x,
-                    ELEVATOR_WALLS_TEXTURE_POSITION.y,
-                    ELEVATOR_WALLS_TEXTURE_SIZE.x,
-                    ELEVATOR_WALLS_TEXTURE_SIZE.y,
+                source: Some(crate::new_texture_rect(
+                    ELEVATOR_WALLS_TEXTURE_POSITION,
+                    ELEVATOR_WALLS_TEXTURE_SIZE,
                 )),
                 rotation: self.direction.angle() as f32,
                 ..Default::default()
