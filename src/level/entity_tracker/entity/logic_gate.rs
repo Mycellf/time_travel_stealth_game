@@ -221,14 +221,21 @@ impl Entity for LogicGate {
         if matches!(self.kind, LogicGateKind::End) {
             None
         } else {
-            Some(if self.powered {
-                let transition = 1.0
-                    - self.time_powered.min(UPDATE_TPS as u16 * 2) as f32
-                        / (UPDATE_TPS as f32 * 2.0);
-                Color::new(1.0, 1.0, 0.5 - 0.5 * transition, 1.0)
-            } else {
-                Color::new(0.2, 0.2, 0.2, 1.0)
-            })
+            Some(power_color(self.powered, self.time_powered as usize))
         }
+    }
+}
+
+pub fn power_color(powered: bool, time_powered: usize) -> Color {
+    if powered {
+        let transition = time_powered.min(UPDATE_TPS * 5) as f32 / (UPDATE_TPS as f32 * 5.0);
+        Color::new(
+            transition,
+            0.9 + 0.1 * 2.0 * (transition - 0.5).abs(),
+            1.0 - 0.5 * transition,
+            1.0,
+        )
+    } else {
+        Color::new(0.2, 0.2, 0.2, 1.0)
     }
 }

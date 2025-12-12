@@ -23,6 +23,7 @@ use crate::{
                 Entity, GameAction,
                 elevator_door::{ElevatorDoor, ElevatorDoorOrientation},
                 empty::Empty,
+                logic_gate,
                 player::PlayerState,
             },
         },
@@ -50,7 +51,9 @@ pub struct Elevator {
     pub input: Option<EntityKey>,
 
     #[serde(skip)]
-    pub powered_on: Option<bool>,
+    pub powered: Option<bool>,
+    #[serde(skip)]
+    pub time_powered: u16,
     #[serde(skip)]
     pub door: Option<EntityKey>,
     #[serde(skip)]
@@ -143,8 +146,9 @@ impl Elevator {
             direction,
             action,
             input: None,
-            powered_on: None,
 
+            powered: None,
+            time_powered: 0,
             door: None,
             state: ElevatorState::default(),
             sparks: Vec::new(),
@@ -153,9 +157,7 @@ impl Elevator {
 
     pub fn is_door_open(&self) -> bool {
         match self.state {
-            ElevatorState::Running { held_open, .. } => {
-                held_open || self.powered_on.unwrap_or(true)
-            }
+            ElevatorState::Running { held_open, .. } => held_open || self.powered.unwrap_or(true),
             ElevatorState::Closing { .. } => false,
             ElevatorState::Waiting { .. } => false,
             ElevatorState::Used => false,
@@ -177,7 +179,7 @@ impl Elevator {
 
     pub fn is_symbol_bright(&self) -> bool {
         match self.state {
-            ElevatorState::Running { .. } => self.powered_on.unwrap_or(true),
+            ElevatorState::Running { .. } => self.powered.unwrap_or(true),
             ElevatorState::Closing { .. } => false,
             ElevatorState::Waiting { .. } => false,
             ElevatorState::Used => false,
@@ -279,10 +281,12 @@ impl Elevator {
     }
 
     pub fn color_of_symbol(&self, alpha: f32) -> Color {
-        match self.powered_on {
-            Some(true) => Color::new(1.0, 1.0, 0.5, 1.0),
+        match self.powered {
+            Some(true) if self.is_symbol_bright() => {
+                logic_gate::power_color(true, self.time_powered as usize)
+            }
             None if matches!(self.action, GameAction::LoadLevel(_)) => colors::WHITE,
-            Some(false) | None => Color::new(1.0, 1.0, 1.0, alpha),
+            _ => Color::new(1.0, 1.0, 1.0, alpha),
         }
     }
 
@@ -323,6 +327,12 @@ impl Entity for Elevator {
         light_grid: &mut LightGrid,
         initial_state: &mut SlotMap<EntityKey, EntityTracker>,
     ) -> Option<GameAction> {
+        if self.powered.unwrap_or(true) {
+            self.time_powered = self.time_powered.saturating_add(1);
+        } else {
+            self.time_powered = 0;
+        }
+
         match &mut self.state {
             ElevatorState::Running { held_open, state } => {
                 if *held_open {
@@ -365,8 +375,8 @@ impl Entity for Elevator {
                         if !*held_open {
                             let door = Self::get_door(self.door, &mut entities);
 
-                            if door.open != self.powered_on.unwrap_or(true) {
-                                door.open = self.powered_on.unwrap_or(true);
+                            if door.open != self.powered.unwrap_or(true) {
+                                door.open = self.powered.unwrap_or(true);
                                 door.update_light_grid(light_grid);
                             }
 
@@ -398,8 +408,8 @@ impl Entity for Elevator {
 
                         if frame < *close_time {
                             if !*held_open {
-                                if door.open != self.powered_on.unwrap_or(true) {
-                                    door.open = self.powered_on.unwrap_or(true);
+                                if door.open != self.powered.unwrap_or(true) {
+                                    door.open = self.powered.unwrap_or(true);
                                     door.update_light_grid(light_grid);
                                 }
                             }
@@ -693,7 +703,7 @@ impl Entity for Elevator {
         _entities: GuardedSlotMap<EntityKey, EntityTracker>,
         inputs: &[bool],
     ) -> bool {
-        self.powered_on = inputs.get(0).copied();
+        self.powered = inputs.get(0).copied();
 
         self.is_loop_complete()
     }
