@@ -938,7 +938,7 @@ pub const MASK_FRAGMENT_SHADER: &str = r#"
     uniform sampler2D Texture;
 
     void main() {
-        if (texture2D(Texture, uv) == vec4(0.0, 0.0, 0.0, 0.0)) {
+        if (texture2D(Texture, uv).a == 0.0) {
             gl_FragColor = vec4(0.0, 0.0, 0.0, 1.0);
         } else {
             discard;
