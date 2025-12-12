@@ -513,64 +513,62 @@ impl Level {
             entity.inner.draw_floor(&self.texture_atlas);
         }
 
+        if self.occlude_wall_shadows {
+            camera::push_camera_state();
+            camera::set_camera(&self.wall_texture);
+            window::clear_background(colors::BLANK);
+        }
+
+        // Wall Tiles
         {
-            if self.occlude_wall_shadows {
-                camera::push_camera_state();
-                camera::set_camera(&self.wall_texture);
-                window::clear_background(colors::BLANK);
-            }
+            let tile_kinds = tile::TILE_KINDS.lock().unwrap();
 
-            // Wall Tiles
-            {
-                let tile_kinds = tile::TILE_KINDS.lock().unwrap();
+            let bounds = self.tile_grid.bounds();
+            for x in bounds.left()..bounds.right() + 1 {
+                for y in bounds.top()..bounds.bottom() + 1 {
+                    let Some(tile) = self.tile_grid[point![x, y]] else {
+                        continue;
+                    };
 
-                let bounds = self.tile_grid.bounds();
-                for x in bounds.left()..bounds.right() + 1 {
-                    for y in bounds.top()..bounds.bottom() + 1 {
-                        let Some(tile) = self.tile_grid[point![x, y]] else {
-                            continue;
-                        };
+                    let kind = &tile_kinds[tile.kind];
 
-                        let kind = &tile_kinds[tile.kind];
-
-                        if !kind.pixel_kind.blocks_light() {
-                            continue;
-                        }
-
-                        texture::draw_texture_ex(
-                            &self.texture_atlas,
-                            x as f32 * TILE_SIZE as f32,
-                            y as f32 * TILE_SIZE as f32,
-                            colors::WHITE,
-                            DrawTextureParams {
-                                source: Some(kind.texture_rect()),
-                                ..Default::default()
-                            },
-                        );
+                    if !kind.pixel_kind.blocks_light() {
+                        continue;
                     }
+
+                    texture::draw_texture_ex(
+                        &self.texture_atlas,
+                        x as f32 * TILE_SIZE as f32,
+                        y as f32 * TILE_SIZE as f32,
+                        colors::WHITE,
+                        DrawTextureParams {
+                            source: Some(kind.texture_rect()),
+                            ..Default::default()
+                        },
+                    );
                 }
             }
+        }
 
-            // Wall like entities
-            for (_, entity) in &mut self.entities {
-                entity.inner.draw_wall(&self.texture_atlas);
-            }
+        // Wall like entities
+        for (_, entity) in &mut self.entities {
+            entity.inner.draw_wall(&self.texture_atlas);
+        }
 
-            if self.occlude_wall_shadows {
-                camera::set_camera(&self.default_texture);
+        if self.occlude_wall_shadows {
+            camera::set_camera(&self.default_texture);
 
-                texture::draw_texture_ex(
-                    &self.wall_texture.render_target.as_ref().unwrap().texture,
-                    screen_rect.x,
-                    screen_rect.y,
-                    colors::WHITE,
-                    DrawTextureParams {
-                        dest_size: Some(screen_rect.size()),
-                        ..Default::default()
-                    },
-                );
-                camera::pop_camera_state();
-            }
+            texture::draw_texture_ex(
+                &self.wall_texture.render_target.as_ref().unwrap().texture,
+                screen_rect.x + screen_rect.w / 2.0 - screen_rect.h,
+                screen_rect.y,
+                colors::WHITE,
+                DrawTextureParams {
+                    dest_size: Some([screen_rect.h * 2.0, screen_rect.h].into()),
+                    ..Default::default()
+                },
+            );
+            camera::pop_camera_state();
         }
 
         // Vision occluded entities
@@ -578,18 +576,9 @@ impl Level {
             entity.inner.draw_back(&self.texture_atlas);
         }
 
-        camera::pop_camera_state();
+        Self::draw_pixel_perfect_camera(&self.default_texture);
 
-        texture::draw_texture_ex(
-            &self.default_texture.render_target.as_ref().unwrap().texture,
-            screen_rect.x,
-            screen_rect.y,
-            colors::WHITE,
-            DrawTextureParams {
-                dest_size: Some(screen_rect.size()),
-                ..Default::default()
-            },
-        );
+        camera::pop_camera_state();
 
         // Vision mask
         camera::push_camera_state();
@@ -629,11 +618,11 @@ impl Level {
 
             texture::draw_texture_ex(
                 &self.wall_texture.render_target.as_ref().unwrap().texture,
-                screen_rect.x,
+                screen_rect.x + screen_rect.w / 2.0 - screen_rect.h,
                 screen_rect.y,
                 colors::WHITE,
                 DrawTextureParams {
-                    dest_size: Some(screen_rect.size()),
+                    dest_size: Some([screen_rect.h * 2.0, screen_rect.h].into()),
                     ..Default::default()
                 },
             );
@@ -686,18 +675,7 @@ impl Level {
             entity.inner.draw_overlay_back(&self.texture_atlas);
         }
 
-        camera::set_default_camera();
-
-        texture::draw_texture_ex(
-            &self.default_texture.render_target.as_ref().unwrap().texture,
-            0.0,
-            0.0,
-            colors::WHITE,
-            DrawTextureParams {
-                dest_size: Some([window::screen_width(), window::screen_height()].into()),
-                ..Default::default()
-            },
-        );
+        Self::draw_pixel_perfect_camera(&self.default_texture);
 
         camera::pop_camera_state();
 
@@ -720,20 +698,24 @@ impl Level {
 
         Self::draw_wires(&self.entities, None);
 
+        Self::draw_pixel_perfect_camera(&self.default_texture);
+
+        camera::pop_camera_state();
+    }
+
+    pub fn draw_pixel_perfect_camera(camera: &Camera2D) {
         camera::set_default_camera();
 
         texture::draw_texture_ex(
-            &self.default_texture.render_target.as_ref().unwrap().texture,
-            0.0,
+            &camera.render_target.as_ref().unwrap().texture,
+            window::screen_width() / 2.0 - window::screen_height(),
             0.0,
             colors::WHITE,
             DrawTextureParams {
-                dest_size: Some([window::screen_width(), window::screen_height()].into()),
+                dest_size: Some([window::screen_height() * 2.0, window::screen_height()].into()),
                 ..Default::default()
             },
         );
-
-        camera::pop_camera_state();
     }
 
     pub fn draw_wires(entities: &SlotMap<EntityKey, EntityTracker>, hidden_color: Option<Color>) {
@@ -766,6 +748,7 @@ impl Level {
     pub fn new_render_target(size: Vector2<u32>) -> Camera2D {
         let mut camera = Camera2D::from_display_rect(crate::screen_rect());
         camera.zoom.y *= -1.0;
+        camera.zoom.x = camera.zoom.y * size.y as f32 / size.x as f32;
 
         camera.render_target = Some(texture::render_target(size.x, size.y));
         camera
@@ -782,6 +765,7 @@ impl Level {
         let mut new_zoom = Camera2D::from_display_rect(crate::screen_rect()).zoom;
         new_zoom.y *= -1.0;
         camera.zoom = new_zoom;
+        camera.zoom.x = camera.zoom.y * size.y as f32 / size.x as f32;
 
         let render_target = camera.render_target.as_mut().unwrap();
         if size != Vector2::from(render_target.texture.size()).map(|x| x as u32) {

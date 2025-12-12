@@ -245,11 +245,7 @@ pub fn smooth_screen_pixel_size() -> Vector2<u32> {
 }
 
 pub fn screen_pixel_size() -> Vector2<u32> {
-    (vector![
-        State::SCREEN_HEIGHT * window::screen_width() / window::screen_height(),
-        State::SCREEN_HEIGHT,
-    ])
-    .map(|x| x.ceil() as u32)
+    (vector![State::SCREEN_HEIGHT * 2.0, State::SCREEN_HEIGHT,]).map(|x| x.ceil() as u32)
 }
 
 pub fn new_texture_rect(origin: Point2<f32>, size: Vector2<f32>) -> Rect {
