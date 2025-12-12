@@ -28,7 +28,7 @@ fn config() -> Conf {
 
 pub const TEXTURE_ATLAS: &[u8] = include_bytes!("../resources/texture_atlas.png");
 
-/// CREDIT: <https://docs.rs/inventory/0.3.21/inventory/#webassembly-and-constructors> says to do so...
+// CREDIT: <https://docs.rs/inventory/0.3.21/inventory/#webassembly-and-constructors> says to do so...
 #[cfg(target_family = "wasm")]
 unsafe extern "C" {
     fn __wasm_call_ctors();
