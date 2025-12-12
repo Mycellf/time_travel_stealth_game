@@ -88,11 +88,11 @@ impl Display for SaveLevelError {
         match self {
             SaveLevelError::Unsupported => {
                 if cfg!(target_family = "wasm") {
-                    write!(f, "Saving is unsupported: using web version",)
+                    write!(f, "Saving is unsupported with the web version",)
                 } else {
                     write!(
                         f,
-                        "Saving is unsupported: no \"resources/levels\" directory",
+                        "Saving is unsupported without a \"resources/levels\" directory",
                     )
                 }
             }
