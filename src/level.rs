@@ -335,6 +335,8 @@ impl Level {
             for &key in input_sources {
                 if let Some(&input) = updates.get(key) {
                     inputs.push(input);
+                } else if let Some(output) = self.entities[key].inner.asynchronous_output() {
+                    inputs.push(output);
                 } else if visited.contains_key(key) {
                     // Better than failing or entering an infinite loop
                     inputs.push(false);

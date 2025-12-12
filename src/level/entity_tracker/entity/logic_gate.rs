@@ -65,6 +65,7 @@ pub enum LogicGateKind {
     Hold { state: bool },
     Start,
     End,
+    Delay { state: bool },
 }
 
 impl LogicGateKind {
@@ -78,6 +79,7 @@ impl LogicGateKind {
             LogicGateKind::Hold { .. } => true,
             LogicGateKind::Start => true,
             LogicGateKind::End => true,
+            LogicGateKind::Delay { .. } => true,
         }
     }
 }
@@ -111,7 +113,7 @@ impl Entity for LogicGate {
                 LogicGateKind::Passthrough => vector![3.0, 0.0],
                 LogicGateKind::Toggle { .. } => vector![4.0, 0.0],
                 LogicGateKind::Hold { .. } => vector![5.0, 0.0],
-                LogicGateKind::Start | LogicGateKind::End => return,
+                LogicGateKind::Start | LogicGateKind::End | LogicGateKind::Delay { .. } => return,
             });
 
         let position = self.position.map(|x| x as f32) - LOGIC_GATE_TEXTURE_SIZE / 2.0;
@@ -150,6 +152,13 @@ impl Entity for LogicGate {
 
     fn inputs(&self) -> &[EntityKey] {
         &self.inputs
+    }
+
+    fn asynchronous_output(&self) -> Option<bool> {
+        match self.kind {
+            LogicGateKind::Delay { state } => Some(state),
+            _ => None,
+        }
     }
 
     fn try_add_input(&mut self, key: EntityKey) {
@@ -198,6 +207,13 @@ impl Entity for LogicGate {
                 }
                 Some(*state)
             }
+            LogicGateKind::Delay { state } => {
+                let old_state = *state;
+
+                *state = inputs.first().copied().unwrap_or_default();
+
+                Some(old_state)
+            }
         }
         .unwrap_or_default();
 
@@ -215,7 +231,10 @@ impl Entity for LogicGate {
             LogicGateKind::And => 9.0,
             LogicGateKind::Or => 9.0,
             LogicGateKind::Not => 6.0,
-            LogicGateKind::Passthrough | LogicGateKind::Start | LogicGateKind::End => 0.0,
+            LogicGateKind::Passthrough
+            | LogicGateKind::Start
+            | LogicGateKind::End
+            | LogicGateKind::Delay { .. } => 0.0,
             LogicGateKind::Toggle { .. } => 6.0,
             LogicGateKind::Hold { .. } => {
                 return vector![wire_end.x.clamp(-4.0, 4.0), wire_end.y.clamp(-9.0, 9.0)];

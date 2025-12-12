@@ -104,7 +104,7 @@ pub(crate) struct State {
 
 impl State {
     fn new() -> Self {
-        let mut level = Level::new("test".to_owned());
+        let mut level = Level::new("start".to_owned());
 
         level.reset().expect("Default level should be valid");
         level.step_at_level_start();

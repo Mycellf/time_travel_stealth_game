@@ -149,6 +149,11 @@ pub trait Entity: 'static + Debug {
         &[]
     }
 
+    /// Must return the same thing as evaluate when called before it.
+    fn asynchronous_output(&self) -> Option<bool> {
+        None
+    }
+
     fn try_add_input(&mut self, _key: EntityKey) {}
 
     fn try_remove_input(&mut self, _key: EntityKey) {}

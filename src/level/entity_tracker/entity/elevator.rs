@@ -688,6 +688,10 @@ impl Entity for Elevator {
         self.input.as_slice()
     }
 
+    fn asynchronous_output(&self) -> Option<bool> {
+        Some(self.is_loop_complete())
+    }
+
     fn try_add_input(&mut self, key: EntityKey) {
         if self.input.is_none() {
             self.input = Some(key);

@@ -148,6 +148,8 @@ impl FromStr for Command {
                             },
                             Some(&"start") => LogicGateKind::Start,
                             Some(&"end") => LogicGateKind::End,
+                            Some(&"delay") => LogicGateKind::Delay { state: false },
+                            Some(&"delay_on") => LogicGateKind::Delay { state: true },
                             _ => return Err(()),
                         },
                         inputs: Vec::new(),
