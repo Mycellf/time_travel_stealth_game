@@ -249,7 +249,7 @@ pub fn screen_pixel_size() -> Vector2<u32> {
 }
 
 pub fn new_texture_rect(origin: Point2<f32>, size: Vector2<f32>) -> Rect {
-    const EPSILON: f32 = 1e-2;
+    const EPSILON: f32 = 0.0;
     Rect::new(
         origin.x + EPSILON,
         origin.y + EPSILON,
