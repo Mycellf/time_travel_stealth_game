@@ -84,6 +84,10 @@ impl LogicGateKind {
     }
 }
 
+impl LogicGate {
+    pub const ANIMATION_STEP: u16 = (u16::MAX as usize * 10 / UPDATE_TPS) as u16;
+}
+
 #[typetag::serde]
 impl Entity for LogicGate {
     fn update(
@@ -93,12 +97,10 @@ impl Entity for LogicGate {
         _light_grid: &mut LightGrid,
         _initial_state: &mut SlotMap<EntityKey, EntityTracker>,
     ) -> Option<GameAction> {
-        const STEP: u16 = (u16::MAX as usize * 10 / UPDATE_TPS) as u16;
-
         self.animation_state = if self.powered.unwrap_or(false) {
-            self.animation_state.saturating_add(STEP)
+            self.animation_state.saturating_add(Self::ANIMATION_STEP)
         } else {
-            self.animation_state.saturating_sub(STEP)
+            self.animation_state.saturating_sub(Self::ANIMATION_STEP)
         };
 
         None

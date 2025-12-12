@@ -23,7 +23,7 @@ use crate::{
                 Entity, GameAction,
                 elevator_door::{ElevatorDoor, ElevatorDoorOrientation},
                 empty::Empty,
-                logic_gate,
+                logic_gate::{self, LogicGate},
                 player::PlayerState,
             },
         },
@@ -330,12 +330,12 @@ impl Entity for Elevator {
         light_grid: &mut LightGrid,
         initial_state: &mut SlotMap<EntityKey, EntityTracker>,
     ) -> Option<GameAction> {
-        const STEP: u16 = (u16::MAX as usize * 10 / UPDATE_TPS) as u16;
-
         self.animation_state = if self.powered.unwrap_or(false) {
-            self.animation_state.saturating_add(STEP)
+            self.animation_state
+                .saturating_add(LogicGate::ANIMATION_STEP)
         } else {
-            self.animation_state.saturating_sub(STEP)
+            self.animation_state
+                .saturating_sub(LogicGate::ANIMATION_STEP)
         };
 
         match &mut self.state {
