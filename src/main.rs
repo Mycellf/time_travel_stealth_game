@@ -105,7 +105,7 @@ impl State {
     fn new() -> Self {
         let mut level = Level::new("test".to_owned());
 
-        level.reset().unwrap();
+        level.reset().expect("Default level should be valid");
         level.step_at_level_start();
 
         State {

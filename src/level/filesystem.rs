@@ -18,7 +18,7 @@ pub const STORED_LEVELS: Dir = include_dir!("resources/levels");
 
 impl Default for FileSystem {
     fn default() -> Self {
-        if Path::new(LEVELS_DIRECTORY).exists() {
+        if !cfg!(target_family = "wasm") && Path::new(LEVELS_DIRECTORY).exists() {
             FileSystem::Direct {
                 root: PathBuf::from(LEVELS_DIRECTORY),
             }
@@ -86,10 +86,16 @@ pub enum SaveLevelError {
 impl Display for SaveLevelError {
     fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
         match self {
-            SaveLevelError::Unsupported => write!(
-                f,
-                "Saving is unsupported without access to a \"resources/levels\" directory",
-            ),
+            SaveLevelError::Unsupported => {
+                if cfg!(target_family = "wasm") {
+                    write!(f, "Saving is unsupported: using web version",)
+                } else {
+                    write!(
+                        f,
+                        "Saving is unsupported: no \"resources/levels\" directory",
+                    )
+                }
+            }
             SaveLevelError::IoError(error) => write!(f, "{error}"),
         }
     }
