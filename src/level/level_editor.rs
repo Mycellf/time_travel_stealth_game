@@ -20,7 +20,7 @@ use crate::{
                 Entity, GameAction,
                 button::Button,
                 elevator::{Elevator, ElevatorDirection},
-                logic_gate::{LogicGate, LogicGateKind},
+                logic_gate::{LogicGate, LogicGateDirection, LogicGateKind},
                 player::Player,
             },
         },
@@ -151,9 +151,20 @@ impl FromStr for Command {
                                 state: true,
                                 active: true,
                             },
+                            Some(&"start") => LogicGateKind::Start,
+                            Some(&"end") => LogicGateKind::End,
                             _ => return Err(()),
                         },
                         inputs: Vec::new(),
+                        direction: match words.get(3) {
+                            Some(&"east") | None => LogicGateDirection::East,
+                            Some(&"north") => LogicGateDirection::North,
+                            Some(&"west") => LogicGateDirection::West,
+                            Some(&"south") => LogicGateDirection::South,
+                            _ => return Err(()),
+                        },
+                        powered: false,
+                        time_powered: 0,
                     }),
                     Some(&"button") => Box::new(Button::default()),
                     _ => return Err(()),
@@ -239,16 +250,6 @@ impl Level {
 
     pub fn draw_level_editor(&mut self) {
         self.level_editor_draw_level_contents();
-
-        for (_, entity) in &self.hard_reset_state {
-            for &key in entity.inner.inputs() {
-                draw_arrow(
-                    self.hard_reset_state[key].inner.position(),
-                    entity.inner.position(),
-                    colors::MAGENTA,
-                );
-            }
-        }
 
         for (key, entity) in &self.hard_reset_state {
             let color = if self.editor.selected_entity == Some(key) {
@@ -721,6 +722,8 @@ impl Level {
         for (_, entity) in &mut self.hard_reset_state {
             entity.inner.draw_effect_back(&self.texture_atlas);
         }
+
+        Self::draw_wires(&self.hard_reset_state, true);
 
         for (_, entity) in &mut self.hard_reset_state {
             entity.inner.draw_overlay_back(&self.texture_atlas);

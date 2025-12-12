@@ -1,10 +1,11 @@
 use std::fmt::Debug;
 
 use macroquad::{
+    color::Color,
     input::{KeyCode, MouseButton},
     texture::Texture2D,
 };
-use nalgebra::{Point2, Vector2};
+use nalgebra::{Point2, Vector2, vector};
 use serde::{Deserialize, Serialize};
 use slotmap::SlotMap;
 
@@ -158,6 +159,14 @@ pub trait Entity: 'static + Debug {
         _inputs: &[bool],
     ) -> bool {
         false
+    }
+
+    fn offset_of_wire(&self, _wire_end: Vector2<f64>) -> Vector2<f64> {
+        vector![0.0, 0.0]
+    }
+
+    fn power_color(&self) -> Option<Color> {
+        None
     }
 
     /// If this entity is a `Player`, return Some(self).

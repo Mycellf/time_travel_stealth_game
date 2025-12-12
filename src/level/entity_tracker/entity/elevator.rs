@@ -48,8 +48,9 @@ pub struct Elevator {
     pub direction: ElevatorDirection,
     pub action: GameAction,
     pub input: Option<EntityKey>,
-    pub powered_on: bool,
 
+    #[serde(skip)]
+    pub powered_on: Option<bool>,
     #[serde(skip)]
     pub door: Option<EntityKey>,
     #[serde(skip)]
@@ -142,7 +143,7 @@ impl Elevator {
             direction,
             action,
             input: None,
-            powered_on: true,
+            powered_on: None,
 
             door: None,
             state: ElevatorState::default(),
@@ -152,7 +153,9 @@ impl Elevator {
 
     pub fn is_door_open(&self) -> bool {
         match self.state {
-            ElevatorState::Running { held_open, .. } => held_open || self.powered_on,
+            ElevatorState::Running { held_open, .. } => {
+                held_open || self.powered_on.unwrap_or(true)
+            }
             ElevatorState::Closing { .. } => false,
             ElevatorState::Waiting { .. } => false,
             ElevatorState::Used => false,
@@ -174,7 +177,7 @@ impl Elevator {
 
     pub fn is_symbol_bright(&self) -> bool {
         match self.state {
-            ElevatorState::Running { .. } => self.powered_on,
+            ElevatorState::Running { .. } => self.powered_on.unwrap_or(true),
             ElevatorState::Closing { .. } => false,
             ElevatorState::Waiting { .. } => false,
             ElevatorState::Used => false,
@@ -275,6 +278,14 @@ impl Elevator {
         );
     }
 
+    pub fn color_of_symbol(&self, alpha: f32) -> Color {
+        match self.powered_on {
+            Some(true) => Color::new(1.0, 1.0, 0.5, 1.0),
+            None if matches!(self.action, GameAction::LoadLevel(_)) => colors::WHITE,
+            Some(false) | None => Color::new(1.0, 1.0, 1.0, alpha),
+        }
+    }
+
     pub fn add_spark(&mut self) {
         const SPARK_VELOCITY: f64 = 128.0;
 
@@ -354,8 +365,8 @@ impl Entity for Elevator {
                         if !*held_open {
                             let door = Self::get_door(self.door, &mut entities);
 
-                            if door.open != self.powered_on {
-                                door.open = self.powered_on;
+                            if door.open != self.powered_on.unwrap_or(true) {
+                                door.open = self.powered_on.unwrap_or(true);
                                 door.update_light_grid(light_grid);
                             }
 
@@ -387,8 +398,8 @@ impl Entity for Elevator {
 
                         if frame < *close_time {
                             if !*held_open {
-                                if door.open != self.powered_on {
-                                    door.open = self.powered_on;
+                                if door.open != self.powered_on.unwrap_or(true) {
+                                    door.open = self.powered_on.unwrap_or(true);
                                     door.update_light_grid(light_grid);
                                 }
                             }
@@ -599,16 +610,13 @@ impl Entity for Elevator {
     }
 
     fn draw_back(&mut self, texture_atlas: &Texture2D) {
-        self.draw_symbol(texture_atlas, colors::WHITE);
+        self.draw_symbol(texture_atlas, self.color_of_symbol(1.0));
     }
 
     fn draw_effect_back(&mut self, texture_atlas: &Texture2D) {
         self.draw_symbol(
             texture_atlas,
-            Color {
-                a: if self.is_symbol_bright() { 0.5 } else { 0.2 },
-                ..colors::WHITE
-            },
+            self.color_of_symbol(if self.is_symbol_bright() { 0.5 } else { 0.2 }),
         );
     }
 
@@ -685,12 +693,18 @@ impl Entity for Elevator {
         _entities: GuardedSlotMap<EntityKey, EntityTracker>,
         inputs: &[bool],
     ) -> bool {
-        self.powered_on = inputs.get(0).copied().unwrap_or(true);
+        self.powered_on = inputs.get(0).copied();
 
         self.is_loop_complete()
     }
 
     fn as_elevator(&mut self) -> Option<&mut Elevator> {
         Some(self)
+    }
+
+    fn offset_of_wire(&self, wire_end: Vector2<f64>) -> Vector2<f64> {
+        const DISTANCE: f64 = 12.0;
+
+        wire_end.map(|x| x.clamp(-DISTANCE, DISTANCE))
     }
 }

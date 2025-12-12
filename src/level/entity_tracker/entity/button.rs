@@ -139,4 +139,10 @@ impl Entity for Button {
 
         self.pressed
     }
+
+    fn offset_of_wire(&self, wire_end: Vector2<f64>) -> Vector2<f64> {
+        const DISTANCE: f64 = 5.0;
+
+        wire_end.map(|x| x.clamp(-DISTANCE, DISTANCE))
+    }
 }

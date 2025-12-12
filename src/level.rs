@@ -6,6 +6,7 @@ use macroquad::{
     input::{KeyCode, MouseButton},
     material,
     prelude::{Material, MaterialParams, PipelineParams, ShaderSource},
+    shapes,
     texture::{self, DrawTextureParams, FilterMode, Image, Texture2D},
     window,
 };
@@ -626,6 +627,8 @@ impl Level {
             entity.inner.draw_effect_back(&self.texture_atlas);
         }
 
+        Self::draw_wires(&self.entities, false);
+
         for (_, entity) in &mut self.entities {
             entity.inner.draw_overlay_back(&self.texture_atlas);
         }
@@ -640,6 +643,36 @@ impl Level {
 
         for (_, entity) in &mut self.entities {
             entity.inner.draw_overlay_front(&self.texture_atlas);
+        }
+    }
+
+    pub fn draw_wires(entities: &SlotMap<EntityKey, EntityTracker>, show_hidden: bool) {
+        for (_, entity) in entities {
+            for &key in entity.inner.inputs() {
+                let input = &entities[key];
+                let color = input.inner.power_color();
+
+                if !show_hidden && color.is_none() {
+                    continue;
+                }
+
+                let color = color.unwrap_or(colors::MAROON);
+
+                let offset = entity.inner.position() - input.inner.position();
+                let start = input.inner.position() + input.inner.offset_of_wire(offset);
+
+                let offset = start - entity.inner.position();
+                let end = entity.inner.position() + entity.inner.offset_of_wire(offset);
+
+                shapes::draw_line(
+                    start.x as f32,
+                    start.y as f32,
+                    end.x as f32,
+                    end.y as f32,
+                    2.0,
+                    color,
+                );
+            }
         }
     }
 

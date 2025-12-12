@@ -1,11 +1,17 @@
-use nalgebra::Point2;
+use std::f64::consts::PI;
+
+use macroquad::{
+    color::Color,
+    texture::{self, DrawTextureParams, Texture2D},
+};
+use nalgebra::{Point2, Vector2, point, vector};
 use serde::{Deserialize, Serialize};
 use slotmap::SlotMap;
 
 use crate::{
     collections::{history::FrameIndex, slot_guard::GuardedSlotMap},
     level::{
-        EntityKey,
+        EntityKey, UPDATE_TPS,
         entity_tracker::{
             EntityTracker,
             entity::{Entity, GameAction},
@@ -14,11 +20,39 @@ use crate::{
     },
 };
 
+pub const LOGIC_GATE_TEXTURE_START: Point2<f32> = point![32.0, 48.0];
+pub const LOGIC_GATE_TEXTURE_SIZE: Vector2<f32> = vector![16.0, 16.0];
+
 #[derive(Clone, Serialize, Deserialize, Debug)]
 pub struct LogicGate {
     pub position: Point2<f64>,
     pub kind: LogicGateKind,
     pub inputs: Vec<EntityKey>,
+    pub direction: LogicGateDirection,
+    #[serde(skip)]
+    pub powered: bool,
+    #[serde(skip)]
+    pub time_powered: u16,
+}
+
+#[derive(Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Default, Debug)]
+pub enum LogicGateDirection {
+    #[default]
+    East,
+    North,
+    West,
+    South,
+}
+
+impl LogicGateDirection {
+    pub fn angle(self) -> f64 {
+        match self {
+            LogicGateDirection::East => 0.0,
+            LogicGateDirection::North => PI * 1.5,
+            LogicGateDirection::West => PI,
+            LogicGateDirection::South => PI * 0.5,
+        }
+    }
 }
 
 #[derive(Clone, Copy, Serialize, Deserialize, Debug)]
@@ -29,6 +63,8 @@ pub enum LogicGateKind {
     Passthrough,
     Toggle { state: bool, active: bool },
     Hold { state: bool },
+    Start,
+    End,
 }
 
 impl LogicGateKind {
@@ -40,6 +76,8 @@ impl LogicGateKind {
             LogicGateKind::Passthrough => true,
             LogicGateKind::Toggle { .. } => true,
             LogicGateKind::Hold { .. } => true,
+            LogicGateKind::Start => true,
+            LogicGateKind::End => true,
         }
     }
 }
@@ -53,7 +91,43 @@ impl Entity for LogicGate {
         _light_grid: &mut LightGrid,
         _initial_state: &mut SlotMap<EntityKey, EntityTracker>,
     ) -> Option<GameAction> {
+        if self.powered {
+            self.time_powered = self.time_powered.saturating_add(1);
+        } else {
+            self.time_powered = 0;
+        }
+
         None
+    }
+
+    fn draw_effect_back(&mut self, texture_atlas: &Texture2D) {
+        let texture_position = LOGIC_GATE_TEXTURE_START
+            + LOGIC_GATE_TEXTURE_SIZE.component_mul(&match self.kind {
+                LogicGateKind::And => vector![0.0, 0.0],
+                LogicGateKind::Or => vector![1.0, 0.0],
+                LogicGateKind::Not => vector![2.0, 0.0],
+                LogicGateKind::Passthrough => vector![3.0, 0.0],
+                LogicGateKind::Toggle { active, .. } => vector![4.0, active as u8 as f32],
+                LogicGateKind::Hold { .. } => vector![5.0, 0.0],
+                LogicGateKind::Start | LogicGateKind::End => return,
+            });
+
+        let position = self.position.map(|x| x as f32) - LOGIC_GATE_TEXTURE_SIZE / 2.0;
+
+        texture::draw_texture_ex(
+            texture_atlas,
+            position.x,
+            position.y,
+            self.power_color().unwrap(),
+            DrawTextureParams {
+                source: Some(crate::new_texture_rect(
+                    texture_position,
+                    LOGIC_GATE_TEXTURE_SIZE,
+                )),
+                rotation: self.direction.angle() as f32,
+                ..Default::default()
+            },
+        );
     }
 
     fn position(&self) -> Point2<f64> {
@@ -97,11 +171,13 @@ impl Entity for LogicGate {
         _entities: GuardedSlotMap<EntityKey, EntityTracker>,
         inputs: &[bool],
     ) -> bool {
-        match &mut self.kind {
+        self.powered = match &mut self.kind {
             LogicGateKind::And => inputs.iter().copied().reduce(|a, b| a && b),
             LogicGateKind::Or => inputs.iter().copied().reduce(|a, b| a || b),
             LogicGateKind::Not => inputs.first().copied().map(|x| !x),
-            LogicGateKind::Passthrough => inputs.first().copied(),
+            LogicGateKind::Passthrough | LogicGateKind::Start | LogicGateKind::End => {
+                inputs.first().copied()
+            }
             LogicGateKind::Toggle { state, active } => {
                 if inputs.first().copied().unwrap_or_default() {
                     if *active {
@@ -121,6 +197,38 @@ impl Entity for LogicGate {
                 Some(*state)
             }
         }
-        .unwrap_or_default()
+        .unwrap_or_default();
+
+        self.powered
+    }
+
+    fn offset_of_wire(&self, wire_end: Vector2<f64>) -> Vector2<f64> {
+        let distance = match self.kind {
+            LogicGateKind::And => 10.0,
+            LogicGateKind::Or => 10.0,
+            LogicGateKind::Not => 6.0,
+            LogicGateKind::Passthrough | LogicGateKind::Start | LogicGateKind::End => 0.0,
+            LogicGateKind::Toggle { .. } => 7.0,
+            LogicGateKind::Hold { .. } => {
+                return vector![wire_end.x.clamp(-8.0, 8.0), wire_end.y.clamp(-10.0, 10.0)];
+            }
+        };
+
+        wire_end.map(|x| x.clamp(-distance, distance))
+    }
+
+    fn power_color(&self) -> Option<Color> {
+        if matches!(self.kind, LogicGateKind::End) {
+            None
+        } else {
+            Some(if self.powered {
+                let transition = 1.0
+                    - self.time_powered.min(UPDATE_TPS as u16 * 2) as f32
+                        / (UPDATE_TPS as f32 * 2.0);
+                Color::new(1.0, 1.0, 0.5 - 0.5 * transition, 1.0)
+            } else {
+                Color::new(0.2, 0.2, 0.2, 1.0)
+            })
+        }
     }
 }
