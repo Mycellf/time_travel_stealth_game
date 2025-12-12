@@ -218,7 +218,7 @@ impl Entity for LogicGate {
             LogicGateKind::Passthrough | LogicGateKind::Start | LogicGateKind::End => 0.0,
             LogicGateKind::Toggle { .. } => 6.0,
             LogicGateKind::Hold { .. } => {
-                return vector![wire_end.x.clamp(-8.0, 8.0), wire_end.y.clamp(-10.0, 10.0)];
+                return vector![wire_end.x.clamp(-4.0, 4.0), wire_end.y.clamp(-9.0, 9.0)];
             }
         };
 
