@@ -727,6 +727,7 @@ impl Level {
         let size = crate::screen_pixel_size();
         if size != Vector2::from(render_target.texture.size()).map(|x| x as u32) {
             *render_target = texture::render_target(size.x, size.y);
+            render_target.texture.set_filter(FilterMode::Nearest);
         }
     }
 

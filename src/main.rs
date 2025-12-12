@@ -21,6 +21,7 @@ pub const START_IN_FULLSCREEN: bool = true;
 fn config() -> Conf {
     Conf {
         window_title: "Time Travel Stealth Game".to_owned(),
+        high_dpi: true,
         fullscreen: START_IN_FULLSCREEN,
         ..Default::default()
     }
