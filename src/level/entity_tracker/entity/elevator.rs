@@ -53,6 +53,8 @@ pub struct Elevator {
     #[serde(skip)]
     pub powered: Option<bool>,
     #[serde(skip)]
+    pub was_powered: Option<bool>,
+    #[serde(skip, default = "logic_gate::default_time_powered")]
     pub time_powered: u16,
     #[serde(skip)]
     pub door: Option<EntityKey>,
@@ -148,7 +150,8 @@ impl Elevator {
             input: None,
 
             powered: None,
-            time_powered: 0,
+            was_powered: None,
+            time_powered: u16::MAX,
             door: None,
             state: ElevatorState::default(),
             sparks: Vec::new(),
@@ -179,7 +182,7 @@ impl Elevator {
 
     pub fn is_symbol_bright(&self) -> bool {
         match self.state {
-            ElevatorState::Running { .. } => self.powered.unwrap_or(true),
+            ElevatorState::Running { .. } => true,
             ElevatorState::Closing { .. } => false,
             ElevatorState::Waiting { .. } => false,
             ElevatorState::Used => false,
@@ -282,8 +285,8 @@ impl Elevator {
 
     pub fn color_of_symbol(&self, alpha: f32) -> Color {
         match self.powered {
-            Some(true) if self.is_symbol_bright() => {
-                logic_gate::power_color(true, self.time_powered as usize)
+            Some(powered) if self.is_symbol_bright() => {
+                logic_gate::power_color(powered, self.time_powered as usize)
             }
             None if matches!(self.action, GameAction::LoadLevel(_)) => colors::WHITE,
             _ => Color::new(1.0, 1.0, 1.0, alpha),
@@ -327,10 +330,13 @@ impl Entity for Elevator {
         light_grid: &mut LightGrid,
         initial_state: &mut SlotMap<EntityKey, EntityTracker>,
     ) -> Option<GameAction> {
-        if self.powered.unwrap_or(true) {
+        if self.powered == self.was_powered {
             self.time_powered = self.time_powered.saturating_add(1);
         } else {
-            self.time_powered = 0;
+            if self.was_powered.is_some() {
+                self.time_powered = 0;
+            }
+            self.was_powered = self.powered;
         }
 
         match &mut self.state {

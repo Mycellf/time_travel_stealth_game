@@ -32,7 +32,13 @@ pub struct LogicGate {
     #[serde(skip)]
     pub powered: bool,
     #[serde(skip)]
+    pub was_powered: bool,
+    #[serde(skip, default = "default_time_powered")]
     pub time_powered: u16,
+}
+
+pub fn default_time_powered() -> u16 {
+    u16::MAX
 }
 
 #[derive(Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Default, Debug)]
@@ -91,9 +97,10 @@ impl Entity for LogicGate {
         _light_grid: &mut LightGrid,
         _initial_state: &mut SlotMap<EntityKey, EntityTracker>,
     ) -> Option<GameAction> {
-        if self.powered {
+        if self.powered == self.was_powered {
             self.time_powered = self.time_powered.saturating_add(1);
         } else {
+            self.was_powered = self.powered;
             self.time_powered = 0;
         }
 
@@ -204,13 +211,13 @@ impl Entity for LogicGate {
 
     fn offset_of_wire(&self, wire_end: Vector2<f64>) -> Vector2<f64> {
         let distance = match self.kind {
-            LogicGateKind::And => 10.0,
-            LogicGateKind::Or => 10.0,
-            LogicGateKind::Not => 6.0,
+            LogicGateKind::And => 9.0,
+            LogicGateKind::Or => 9.0,
+            LogicGateKind::Not => 5.0,
             LogicGateKind::Passthrough | LogicGateKind::Start | LogicGateKind::End => 0.0,
-            LogicGateKind::Toggle { .. } => 7.0,
+            LogicGateKind::Toggle { .. } => 6.0,
             LogicGateKind::Hold { .. } => {
-                return vector![wire_end.x.clamp(-8.0, 8.0), wire_end.y.clamp(-10.0, 10.0)];
+                return vector![wire_end.x.clamp(-7.0, 7.0), wire_end.y.clamp(-9.0, 9.0)];
             }
         };
 
@@ -227,15 +234,15 @@ impl Entity for LogicGate {
 }
 
 pub fn power_color(powered: bool, time_powered: usize) -> Color {
-    if powered {
-        let time_powered = time_powered as f32 / UPDATE_TPS as f32;
-        let transition = match time_powered {
-            ..0.1 => 0.0,
-            0.1..0.6 => (time_powered - 0.1) / 0.5,
-            0.6.. => 1.0,
-            _ => 0.0,
-        };
+    let time_powered = time_powered as f32 / UPDATE_TPS as f32;
+    let transition = match time_powered {
+        ..0.1 => 0.0,
+        0.1..0.6 => (time_powered - 0.1) / 0.5,
+        0.6.. => 1.0,
+        _ => 0.0,
+    };
 
+    if powered {
         Color::new(
             transition,
             0.9 + 0.1 * 2.0 * (transition - 0.5).abs(),
@@ -243,6 +250,8 @@ pub fn power_color(powered: bool, time_powered: usize) -> Color {
             1.0,
         )
     } else {
-        Color::new(0.2, 0.2, 0.2, 1.0)
+        let brightness = 0.4 - 0.2 * transition;
+
+        Color::new(brightness, brightness, brightness, 1.0)
     }
 }
