@@ -59,6 +59,8 @@ pub struct Level {
     pub input_readers: Vec<EntityKey>,
 
     pub texture_atlas: Texture2D,
+    pub default_texture: Camera2D,
+
     pub mask_texture: Camera2D,
     pub mask_material: Material,
 
@@ -131,7 +133,9 @@ impl Level {
             input_readers: Vec::new(),
 
             texture_atlas,
-            mask_texture: Self::new_render_target(),
+            default_texture: Self::new_render_target(crate::screen_pixel_size()),
+
+            mask_texture: Self::new_render_target(crate::smooth_screen_pixel_size()),
             mask_material: material::load_material(
                 ShaderSource::Glsl {
                     vertex: DEFAULT_VERTEX_SHADER,
@@ -147,7 +151,7 @@ impl Level {
             )
             .unwrap(),
 
-            wall_texture: Self::new_render_target(),
+            wall_texture: Self::new_render_target(crate::screen_pixel_size()),
             wall_mask_material: material::load_material(
                 ShaderSource::Glsl {
                     vertex: DEFAULT_VERTEX_SHADER,
@@ -444,9 +448,10 @@ impl Level {
     }
 
     pub fn draw_game(&mut self) {
-        Self::update_render_target(&mut self.mask_texture);
+        Self::update_render_target(&mut self.default_texture, crate::screen_pixel_size());
+        Self::update_render_target(&mut self.mask_texture, crate::smooth_screen_pixel_size());
         if self.occlude_wall_shadows {
-            Self::update_render_target(&mut self.wall_texture);
+            Self::update_render_target(&mut self.wall_texture, crate::screen_pixel_size());
         }
 
         // Trace vision
@@ -464,6 +469,13 @@ impl Level {
         }
         .min(16) as f32
             / 16.0;
+
+        let screen_rect = crate::screen_rect();
+
+        camera::push_camera_state();
+        camera::set_camera(&self.default_texture);
+
+        window::clear_background(colors::BLACK);
 
         // Non-wall Tiles
         {
@@ -545,15 +557,15 @@ impl Level {
             }
 
             if self.occlude_wall_shadows {
-                camera::set_default_camera();
+                camera::set_camera(&self.default_texture);
 
                 texture::draw_texture_ex(
                     &self.wall_texture.render_target.as_ref().unwrap().texture,
-                    0.0,
-                    0.0,
+                    screen_rect.x,
+                    screen_rect.y,
                     colors::WHITE,
                     DrawTextureParams {
-                        dest_size: Some([window::screen_width(), window::screen_height()].into()),
+                        dest_size: Some(screen_rect.size()),
                         ..Default::default()
                     },
                 );
@@ -565,6 +577,19 @@ impl Level {
         for (_, entity) in &mut self.entities {
             entity.inner.draw_back(&self.texture_atlas);
         }
+
+        camera::pop_camera_state();
+
+        texture::draw_texture_ex(
+            &self.default_texture.render_target.as_ref().unwrap().texture,
+            screen_rect.x,
+            screen_rect.y,
+            colors::WHITE,
+            DrawTextureParams {
+                dest_size: Some(screen_rect.size()),
+                ..Default::default()
+            },
+        );
 
         // Vision mask
         camera::push_camera_state();
@@ -601,8 +626,6 @@ impl Level {
 
         if self.occlude_wall_shadows {
             material::gl_use_material(&self.wall_mask_material);
-
-            let screen_rect = crate::screen_rect();
 
             texture::draw_texture_ex(
                 &self.wall_texture.render_target.as_ref().unwrap().texture,
@@ -649,22 +672,43 @@ impl Level {
                 ..Default::default()
             },
         );
-        camera::pop_camera_state();
+
+        camera::set_camera(&self.default_texture);
+
+        window::clear_background(colors::BLANK);
 
         // Always visible entities
         for (_, entity) in &mut self.entities {
             entity.inner.draw_effect_back(&self.texture_atlas);
         }
 
-        Self::draw_wires(&self.entities, None);
-
         for (_, entity) in &mut self.entities {
             entity.inner.draw_overlay_back(&self.texture_atlas);
         }
 
+        camera::set_default_camera();
+
+        texture::draw_texture_ex(
+            &self.default_texture.render_target.as_ref().unwrap().texture,
+            0.0,
+            0.0,
+            colors::WHITE,
+            DrawTextureParams {
+                dest_size: Some([window::screen_width(), window::screen_height()].into()),
+                ..Default::default()
+            },
+        );
+
+        camera::pop_camera_state();
+
         for (_, entity) in &mut self.entities {
             entity.inner.draw_front(&self.texture_atlas);
         }
+
+        camera::push_camera_state();
+        camera::set_camera(&self.default_texture);
+
+        window::clear_background(colors::BLANK);
 
         for (_, entity) in &mut self.entities {
             entity.inner.draw_effect_front(&self.texture_atlas);
@@ -673,6 +717,23 @@ impl Level {
         for (_, entity) in &mut self.entities {
             entity.inner.draw_overlay_front(&self.texture_atlas);
         }
+
+        Self::draw_wires(&self.entities, None);
+
+        camera::set_default_camera();
+
+        texture::draw_texture_ex(
+            &self.default_texture.render_target.as_ref().unwrap().texture,
+            0.0,
+            0.0,
+            colors::WHITE,
+            DrawTextureParams {
+                dest_size: Some([window::screen_width(), window::screen_height()].into()),
+                ..Default::default()
+            },
+        );
+
+        camera::pop_camera_state();
     }
 
     pub fn draw_wires(entities: &SlotMap<EntityKey, EntityTracker>, hidden_color: Option<Color>) {
@@ -702,11 +763,10 @@ impl Level {
         }
     }
 
-    pub fn new_render_target() -> Camera2D {
+    pub fn new_render_target(size: Vector2<u32>) -> Camera2D {
         let mut camera = Camera2D::from_display_rect(crate::screen_rect());
         camera.zoom.y *= -1.0;
 
-        let size = crate::screen_pixel_size();
         camera.render_target = Some(texture::render_target(size.x, size.y));
         camera
             .render_target
@@ -718,13 +778,12 @@ impl Level {
         camera
     }
 
-    pub fn update_render_target(camera: &mut Camera2D) {
+    pub fn update_render_target(camera: &mut Camera2D, size: Vector2<u32>) {
         let mut new_zoom = Camera2D::from_display_rect(crate::screen_rect()).zoom;
         new_zoom.y *= -1.0;
         camera.zoom = new_zoom;
 
         let render_target = camera.render_target.as_mut().unwrap();
-        let size = crate::screen_pixel_size();
         if size != Vector2::from(render_target.texture.size()).map(|x| x as u32) {
             *render_target = texture::render_target(size.x, size.y);
             render_target.texture.set_filter(FilterMode::Nearest);

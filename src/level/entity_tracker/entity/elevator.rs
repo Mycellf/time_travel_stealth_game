@@ -286,7 +286,10 @@ impl Elevator {
         if self.powered.is_some() && is_bright {
             logic_gate::power_color(self.animation_state)
         } else {
-            Color::new(1.0, 1.0, 1.0, if is_bright { 0.5 } else { 0.2 })
+            // HACK: Adjusted for the wierd alpha effect we get from using a render target.
+            // Roughly follows (desired alpha) ** 0.317906
+            let brightness = if is_bright { 0.8 } else { 0.6 };
+            Color::new(1.0, 1.0, 1.0, brightness)
         }
     }
 

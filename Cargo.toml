@@ -7,7 +7,7 @@ edition = "2024"
 bincode = { version = "2.0.1", features = ["serde"] }
 earcut = "0.4.4"
 include_dir = "0.7.4"
-macroquad = "0.4.14"
+macroquad = "=0.4.13"
 nalgebra = { version = "0.34.1", features = ["convert-glam027", "serde", "serde-serialize"] }
 serde = { version = "1.0.228", features = ["derive"] }
 slotmap = { version = "1.0.7", features = ["serde"] }

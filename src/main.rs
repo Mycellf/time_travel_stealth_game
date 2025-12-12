@@ -233,13 +233,27 @@ pub fn screen_to_world_scale_factor() -> f32 {
     State::SCREEN_HEIGHT / window::screen_height()
 }
 
+pub fn smooth_screen_pixel_size() -> Vector2<u32> {
+    const SCALE: f32 = if cfg!(target_family = "wasm") {
+        0.5
+    } else {
+        1.0
+    };
+
+    (window::screen_dpi_scale() * vector![window::screen_width(), window::screen_height()] * SCALE)
+        .map(|x| x.ceil() as u32)
+}
+
 pub fn screen_pixel_size() -> Vector2<u32> {
-    (window::screen_dpi_scale() * vector![window::screen_width(), window::screen_height()])
-        .map(|x| x as u32)
+    (vector![
+        State::SCREEN_HEIGHT * window::screen_width() / window::screen_height(),
+        State::SCREEN_HEIGHT,
+    ])
+    .map(|x| x.ceil() as u32)
 }
 
 pub fn new_texture_rect(origin: Point2<f32>, size: Vector2<f32>) -> Rect {
-    const EPSILON: f32 = 1e-4;
+    const EPSILON: f32 = 1e-2;
     Rect::new(
         origin.x + EPSILON,
         origin.y + EPSILON,

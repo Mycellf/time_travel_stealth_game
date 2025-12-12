@@ -102,7 +102,7 @@ impl Entity for LogicGate {
         None
     }
 
-    fn draw_effect_back(&mut self, texture_atlas: &Texture2D) {
+    fn draw_overlay_front(&mut self, texture_atlas: &Texture2D) {
         let texture_position = LOGIC_GATE_TEXTURE_START
             + LOGIC_GATE_TEXTURE_SIZE.component_mul(&match self.kind {
                 LogicGateKind::And => vector![0.0, 0.0],
