@@ -53,9 +53,7 @@ pub struct Elevator {
     #[serde(skip)]
     pub powered: Option<bool>,
     #[serde(skip)]
-    pub was_powered: Option<bool>,
-    #[serde(skip, default = "logic_gate::default_time_powered")]
-    pub time_powered: u16,
+    pub animation_state: u16,
     #[serde(skip)]
     pub door: Option<EntityKey>,
     #[serde(skip)]
@@ -150,8 +148,7 @@ impl Elevator {
             input: None,
 
             powered: None,
-            was_powered: None,
-            time_powered: u16::MAX,
+            animation_state: 0,
             door: None,
             state: ElevatorState::default(),
             sparks: Vec::new(),
@@ -285,9 +282,7 @@ impl Elevator {
 
     pub fn color_of_symbol(&self, alpha: f32) -> Color {
         match self.powered {
-            Some(powered) if self.is_symbol_bright() => {
-                logic_gate::power_color(powered, self.time_powered as usize)
-            }
+            Some(_) if self.is_symbol_bright() => logic_gate::power_color(self.animation_state),
             None if matches!(self.action, GameAction::LoadLevel(_)) => colors::WHITE,
             _ => Color::new(1.0, 1.0, 1.0, alpha),
         }
@@ -330,14 +325,13 @@ impl Entity for Elevator {
         light_grid: &mut LightGrid,
         initial_state: &mut SlotMap<EntityKey, EntityTracker>,
     ) -> Option<GameAction> {
-        if self.powered == self.was_powered {
-            self.time_powered = self.time_powered.saturating_add(1);
+        const STEP: u16 = (u16::MAX as usize * 10 / UPDATE_TPS) as u16;
+
+        self.animation_state = if self.powered.unwrap_or(false) {
+            self.animation_state.saturating_add(STEP)
         } else {
-            if self.was_powered.is_some() {
-                self.time_powered = 0;
-            }
-            self.was_powered = self.powered;
-        }
+            self.animation_state.saturating_sub(STEP)
+        };
 
         match &mut self.state {
             ElevatorState::Running { held_open, state } => {

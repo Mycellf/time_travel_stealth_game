@@ -32,13 +32,7 @@ pub struct LogicGate {
     #[serde(skip)]
     pub powered: bool,
     #[serde(skip)]
-    pub was_powered: bool,
-    #[serde(skip, default = "default_time_powered")]
-    pub time_powered: u16,
-}
-
-pub fn default_time_powered() -> u16 {
-    u16::MAX
+    pub animation_state: u16,
 }
 
 #[derive(Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Default, Debug)]
@@ -97,12 +91,13 @@ impl Entity for LogicGate {
         _light_grid: &mut LightGrid,
         _initial_state: &mut SlotMap<EntityKey, EntityTracker>,
     ) -> Option<GameAction> {
-        if self.powered == self.was_powered {
-            self.time_powered = self.time_powered.saturating_add(1);
+        const STEP: u16 = (u16::MAX as usize * 10 / UPDATE_TPS) as u16;
+
+        self.animation_state = if self.powered {
+            self.animation_state.saturating_add(STEP)
         } else {
-            self.was_powered = self.powered;
-            self.time_powered = 0;
-        }
+            self.animation_state.saturating_sub(STEP)
+        };
 
         None
     }
@@ -228,30 +223,13 @@ impl Entity for LogicGate {
         if matches!(self.kind, LogicGateKind::End) {
             None
         } else {
-            Some(power_color(self.powered, self.time_powered as usize))
+            Some(power_color(self.animation_state))
         }
     }
 }
 
-pub fn power_color(powered: bool, time_powered: usize) -> Color {
-    let time_powered = time_powered as f32 / UPDATE_TPS as f32;
-    let transition = match time_powered {
-        ..0.1 => 0.0,
-        0.1..0.6 => (time_powered - 0.1) / 0.5,
-        0.6.. => 1.0,
-        _ => 0.0,
-    };
+pub fn power_color(animation_state: u16) -> Color {
+    let t = animation_state as f32 / u16::MAX as f32;
 
-    if powered {
-        Color::new(
-            transition,
-            0.9 + 0.1 * 2.0 * (transition - 0.5).abs(),
-            1.0 - 0.5 * transition,
-            1.0,
-        )
-    } else {
-        let brightness = 0.4 - 0.2 * transition;
-
-        Color::new(brightness, brightness, brightness, 1.0)
-    }
+    Color::new(0.2 + 0.8 * t, 0.2 + 0.8 * t, 0.2 + 0.3 * t, 1.0)
 }
