@@ -214,7 +214,7 @@ impl Entity for LogicGate {
         let distance = match self.kind {
             LogicGateKind::And => 9.0,
             LogicGateKind::Or => 9.0,
-            LogicGateKind::Not => 5.0,
+            LogicGateKind::Not => 6.0,
             LogicGateKind::Passthrough | LogicGateKind::Start | LogicGateKind::End => 0.0,
             LogicGateKind::Toggle { .. } => 6.0,
             LogicGateKind::Hold { .. } => {
