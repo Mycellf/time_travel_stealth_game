@@ -791,7 +791,9 @@ impl Level {
             KeyCode::LeftAlt | KeyCode::RightAlt => {
                 self.alt_held = true;
             }
-            KeyCode::Key0 | KeyCode::Kp0 if self.shift_held => {
+            KeyCode::Key0 | KeyCode::Kp0 | KeyCode::F3
+                if self.shift_held || input == KeyCode::F3 =>
+            {
                 self.level_editor_active ^= true;
 
                 if !self.level_editor_active {
