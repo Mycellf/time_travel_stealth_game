@@ -627,7 +627,7 @@ impl Level {
             entity.inner.draw_effect_back(&self.texture_atlas);
         }
 
-        Self::draw_wires(&self.entities, false);
+        Self::draw_wires(&self.entities, None);
 
         for (_, entity) in &mut self.entities {
             entity.inner.draw_overlay_back(&self.texture_atlas);
@@ -646,17 +646,14 @@ impl Level {
         }
     }
 
-    pub fn draw_wires(entities: &SlotMap<EntityKey, EntityTracker>, show_hidden: bool) {
+    pub fn draw_wires(entities: &SlotMap<EntityKey, EntityTracker>, hidden_color: Option<Color>) {
         for (_, entity) in entities {
             for &key in entity.inner.inputs() {
                 let input = &entities[key];
-                let color = input.inner.power_color();
 
-                if !show_hidden && color.is_none() {
+                let Some(color) = input.inner.power_color().or(hidden_color) else {
                     continue;
-                }
-
-                let color = color.unwrap_or(colors::MAROON);
+                };
 
                 let offset = entity.inner.position() - input.inner.position();
                 let start = input.inner.position() + input.inner.offset_of_wire(offset);

@@ -723,7 +723,7 @@ impl Level {
             entity.inner.draw_effect_back(&self.texture_atlas);
         }
 
-        Self::draw_wires(&self.hard_reset_state, true);
+        Self::draw_wires(&self.hard_reset_state, Some(colors::MAROON));
 
         for (_, entity) in &mut self.hard_reset_state {
             entity.inner.draw_overlay_back(&self.texture_atlas);
