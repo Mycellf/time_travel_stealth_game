@@ -56,7 +56,9 @@ pub struct Player {
     pub view_width: f64,
 
     #[serde(skip)]
-    pub motion_input: DirectionalInput,
+    pub wasd_motion_input: DirectionalInput,
+    #[serde(skip, default = "arrow_inputs")]
+    pub arrows_motion_input: DirectionalInput,
     pub speed: f64,
 
     pub state: PlayerState,
@@ -72,6 +74,10 @@ pub struct Player {
     pub view_area: Option<LightArea>,
 }
 
+pub fn arrow_inputs() -> DirectionalInput {
+    DirectionalInput::new(KeyCode::Right, KeyCode::Up, KeyCode::Left, KeyCode::Down)
+}
+
 impl Default for Player {
     fn default() -> Self {
         Self {
@@ -83,7 +89,8 @@ impl Default for Player {
             view_width: 120.0 * PI / 180.0,
 
             speed: 64.0,
-            motion_input: DirectionalInput::default(),
+            wasd_motion_input: DirectionalInput::default(),
+            arrows_motion_input: arrow_inputs(),
 
             state: PlayerState::Active,
             history: History::default(),
@@ -269,7 +276,13 @@ impl Entity for Player {
     ) -> Option<GameAction> {
         match self.state {
             PlayerState::Active => {
-                let motion = self.motion_input.normalized_output() * self.speed * UPDATE_DT;
+                let input = if self.arrows_motion_input.raw_output() == vector![0, 0] {
+                    &self.wasd_motion_input
+                } else {
+                    &self.arrows_motion_input
+                };
+
+                let motion = input.normalized_output() * self.speed * UPDATE_DT;
 
                 self.move_along_axis::<0>(light_grid, motion.x);
                 self.move_along_axis::<1>(light_grid, motion.y);
@@ -497,11 +510,13 @@ impl Entity for Player {
     }
 
     fn key_down(&mut self, input: KeyCode) {
-        self.motion_input.key_down(input);
+        self.wasd_motion_input.key_down(input);
+        self.arrows_motion_input.key_down(input);
     }
 
     fn key_up(&mut self, input: KeyCode) {
-        self.motion_input.key_up(input);
+        self.wasd_motion_input.key_up(input);
+        self.arrows_motion_input.key_up(input);
     }
 
     fn mouse_moved(&mut self, position: Point2<f64>, _delta: Vector2<f64>) {

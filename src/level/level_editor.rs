@@ -4,7 +4,8 @@ use macroquad::{
     color::{Color, colors},
     input::{KeyCode, MouseButton},
     math::Rect,
-    shapes, text,
+    shapes,
+    text::{self, TextParams},
     texture::{self, DrawTextureParams},
 };
 use nalgebra::{Point2, Vector2, point, vector};
@@ -314,7 +315,17 @@ impl Level {
 
             shapes::draw_rectangle(start.x, start.y - 5.0, width, 6.0, colors::BLACK);
 
-            text::draw_text(&text, start.x, start.y, 8.0, colors::WHITE);
+            text::draw_text_ex(
+                &text,
+                start.x,
+                start.y,
+                TextParams {
+                    font_size: 16,
+                    font_scale: 0.5,
+                    color: colors::WHITE,
+                    ..Default::default()
+                },
+            );
 
             if self.editor.cursor.is_some() {
                 start.x += cursor_position;
