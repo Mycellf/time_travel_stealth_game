@@ -703,6 +703,14 @@ impl Entity for Elevator {
         _entities: GuardedSlotMap<EntityKey, EntityTracker>,
         inputs: &[bool],
     ) -> bool {
+        if self.powered.is_none() {
+            self.animation_state = if inputs.get(0).copied().unwrap_or(false) {
+                u16::MAX
+            } else {
+                0
+            };
+        }
+
         self.powered = inputs.get(0).copied();
 
         self.is_loop_complete()

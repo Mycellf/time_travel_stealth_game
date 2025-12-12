@@ -30,7 +30,7 @@ pub struct LogicGate {
     pub inputs: Vec<EntityKey>,
     pub direction: LogicGateDirection,
     #[serde(skip)]
-    pub powered: bool,
+    pub powered: Option<bool>,
     #[serde(skip)]
     pub animation_state: u16,
 }
@@ -93,7 +93,7 @@ impl Entity for LogicGate {
     ) -> Option<GameAction> {
         const STEP: u16 = (u16::MAX as usize * 10 / UPDATE_TPS) as u16;
 
-        self.animation_state = if self.powered {
+        self.animation_state = if self.powered.unwrap_or(false) {
             self.animation_state.saturating_add(STEP)
         } else {
             self.animation_state.saturating_sub(STEP)
@@ -109,7 +109,7 @@ impl Entity for LogicGate {
                 LogicGateKind::Or => vector![1.0, 0.0],
                 LogicGateKind::Not => vector![2.0, 0.0],
                 LogicGateKind::Passthrough => vector![3.0, 0.0],
-                LogicGateKind::Toggle { active, .. } => vector![4.0, active as u8 as f32],
+                LogicGateKind::Toggle { .. } => vector![4.0, 0.0],
                 LogicGateKind::Hold { .. } => vector![5.0, 0.0],
                 LogicGateKind::Start | LogicGateKind::End => return,
             });
@@ -173,7 +173,7 @@ impl Entity for LogicGate {
         _entities: GuardedSlotMap<EntityKey, EntityTracker>,
         inputs: &[bool],
     ) -> bool {
-        self.powered = match &mut self.kind {
+        let powered = match &mut self.kind {
             LogicGateKind::And => inputs.iter().copied().reduce(|a, b| a && b),
             LogicGateKind::Or => inputs.iter().copied().reduce(|a, b| a || b),
             LogicGateKind::Not => inputs.first().copied().map(|x| !x),
@@ -201,7 +201,13 @@ impl Entity for LogicGate {
         }
         .unwrap_or_default();
 
-        self.powered
+        if self.powered.is_none() {
+            self.animation_state = if powered { u16::MAX } else { 0 };
+        }
+
+        self.powered = Some(powered);
+
+        powered
     }
 
     fn offset_of_wire(&self, wire_end: Vector2<f64>) -> Vector2<f64> {

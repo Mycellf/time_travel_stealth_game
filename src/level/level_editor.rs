@@ -163,7 +163,7 @@ impl FromStr for Command {
                             Some(&"south") => LogicGateDirection::South,
                             _ => return Err(()),
                         },
-                        powered: false,
+                        powered: None,
                         animation_state: 0,
                     }),
                     Some(&"button") => Box::new(Button::default()),
