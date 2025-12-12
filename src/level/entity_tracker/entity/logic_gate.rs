@@ -219,7 +219,14 @@ impl Entity for LogicGate {
         }
         .unwrap_or_default();
 
-        if self.powered.is_none() {
+        if let Some(was_powered) = self.powered {
+            if was_powered != powered {
+                match self.animation_state {
+                    0 | u16::MAX => (),
+                    _ => self.animation_state = if was_powered { u16::MAX } else { 0 },
+                }
+            }
+        } else {
             self.animation_state = if powered { u16::MAX } else { 0 };
         }
 
