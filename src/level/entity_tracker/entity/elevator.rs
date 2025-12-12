@@ -281,10 +281,10 @@ impl Elevator {
     }
 
     pub fn color_of_symbol(&self, alpha: f32) -> Color {
-        match self.powered {
-            Some(_) if self.is_symbol_bright() => logic_gate::power_color(self.animation_state),
-            None if matches!(self.action, GameAction::LoadLevel(_)) => colors::WHITE,
-            _ => Color::new(1.0, 1.0, 1.0, alpha),
+        if self.powered.is_some() && self.is_symbol_bright() {
+            logic_gate::power_color(self.animation_state)
+        } else {
+            Color::new(1.0, 1.0, 1.0, alpha)
         }
     }
 
@@ -620,7 +620,7 @@ impl Entity for Elevator {
     }
 
     fn draw_back(&mut self, texture_atlas: &Texture2D) {
-        self.draw_symbol(texture_atlas, self.color_of_symbol(1.0));
+        self.draw_symbol(texture_atlas, colors::WHITE);
     }
 
     fn draw_effect_back(&mut self, texture_atlas: &Texture2D) {
