@@ -1,4 +1,4 @@
-use std::{fs, mem, path::Path, str::FromStr};
+use std::{mem, str::FromStr};
 
 use macroquad::{
     color::{Color, colors},
@@ -122,13 +122,7 @@ impl FromStr for Command {
                             None | Some(&"loop") => GameAction::SoftReset,
                             Some(&"entry") => GameAction::HardResetKeepPlayer,
                             Some(&"exit") => GameAction::LoadLevel(match words.get(4) {
-                                Some(&path) => {
-                                    if !Path::new(path).exists() {
-                                        return Err(());
-                                    }
-
-                                    path.to_owned()
-                                }
+                                Some(&path) => path.to_owned(),
                                 None => return Err(()),
                             }),
                             _ => return Err(()),
@@ -363,41 +357,51 @@ impl Level {
                                     );
                                     self.editor.grabbing = Some(vector![0.0, 0.0]);
                                 }
-                                Command::Save(path) => {
-                                    if let Some(path) = path {
-                                        self.path = path;
-                                    }
+                                Command::Save(level_name) => {
+                                    let level_name = level_name.unwrap_or(self.level_name.clone());
 
-                                    if self.path.is_empty() {
+                                    if level_name.is_empty() {
                                         self.editor
                                             .command_input
-                                            .push_str("please specify a directory");
+                                            .push_str("Please specify a directory");
                                     } else {
                                         let level_data = self.save();
-                                        if fs::write(&self.path, &level_data).is_ok() {
-                                            self.level_data = Some(level_data);
-                                        } else {
-                                            self.editor.command_input.push_str("invalid directory");
+                                        match self.filesystem.save(&level_name, &level_data) {
+                                            Ok(()) => {
+                                                self.level_data = Some(level_data);
+                                                self.level_name = level_name;
+                                            }
+                                            Err(error) => {
+                                                self.editor.command_input = format!("{error}");
+                                            }
                                         }
                                     }
                                 }
-                                Command::Load(path) => {
-                                    if let Some(path) = path {
-                                        self.path = path;
-                                    }
+                                Command::Load(level_name) => {
+                                    let level_name = level_name.unwrap_or(self.level_name.clone());
 
-                                    if self.path.is_empty() {
+                                    if level_name.is_empty() {
                                         self.editor
                                             .command_input
-                                            .push_str("please specify a directory");
+                                            .push_str("Please specify a directory");
                                     } else {
-                                        self.level_data = None;
+                                        let old_level_name = mem::take(&mut self.level_name);
+                                        self.level_name = level_name;
+                                        let old_level_data = self.level_data.take();
 
-                                        self.reset();
+                                        match self.reset() {
+                                            Ok(()) => {}
+                                            Err(error) => {
+                                                self.level_name = old_level_name;
+                                                self.level_data = old_level_data;
+
+                                                self.editor.command_input = format!("{error}");
+                                            }
+                                        }
                                     }
                                 }
                                 Command::Clear => {
-                                    self.path = "".to_owned();
+                                    self.level_name.clear();
                                     self.level_data = None;
                                     self.tile_grid = TileGrid::default();
                                     self.hard_reset_state = SlotMap::default();

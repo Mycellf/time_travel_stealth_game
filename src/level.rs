@@ -1,4 +1,4 @@
-use std::{fs, mem};
+use std::mem;
 
 use macroquad::{
     camera::{self, Camera2D},
@@ -24,6 +24,7 @@ use crate::{
             EntityTracker,
             entity::{GameAction, ViewKind, player::PlayerState},
         },
+        filesystem::{FileSystem, LoadLevelError},
         level_editor::LevelEditor,
         light_grid::{LightGrid, Pixel},
         tile::{TILE_KINDS, Tile, TileKind},
@@ -31,6 +32,7 @@ use crate::{
 };
 
 pub(crate) mod entity_tracker;
+pub(crate) mod filesystem;
 pub(crate) mod level_editor;
 pub(crate) mod light_grid;
 pub(crate) mod tile;
@@ -41,9 +43,9 @@ pub const UPDATE_TPS: usize = 60;
 pub const UPDATE_DT: f64 = 1.0 / UPDATE_TPS as f64;
 pub const MAX_UPDATES_PER_TICK: usize = 4;
 
-/// TODO: Consider using the include_dir crate for embedding all of the levels into the binary
 pub struct Level {
-    pub path: String,
+    pub filesystem: FileSystem,
+    pub level_name: String,
     pub level_data: Option<Vec<u8>>,
 
     pub hard_reset_state: SlotMap<EntityKey, EntityTracker>,
@@ -84,7 +86,7 @@ new_key_type! {
 }
 
 impl Level {
-    pub fn new(path: String) -> Level {
+    pub fn new(level: String) -> Level {
         let texture_atlas = Texture2D::from_image(
             &Image::from_file_with_format(crate::TEXTURE_ATLAS, None).unwrap(),
         );
@@ -114,7 +116,8 @@ impl Level {
         }
 
         Level {
-            path,
+            filesystem: FileSystem::default(),
+            level_name: level,
             level_data: None,
 
             hard_reset_state: SlotMap::default(),
@@ -188,11 +191,16 @@ impl Level {
         level
     }
 
-    pub fn load_from_level_data(&mut self) {
+    pub fn load_from_level_data(&mut self) -> Result<(), LoadLevelError> {
         let data = if let Some(level_data) = &self.level_data {
             level_data
         } else {
-            let data = fs::read(&self.path).unwrap();
+            let data = match self.filesystem.load(&self.level_name) {
+                Ok(data) => data,
+                Err(error) => {
+                    return Err(error);
+                }
+            };
             self.level_data = Some(data);
 
             self.level_data.as_ref().unwrap()
@@ -222,6 +230,8 @@ impl Level {
                 }
             }
         }
+
+        Ok(())
     }
 
     pub fn set_tile(&mut self, index: TileIndex, tile: Option<Tile>) {
@@ -252,12 +262,14 @@ impl Level {
         entities
     }
 
-    pub fn reset(&mut self) {
-        self.load_from_level_data();
+    pub fn reset(&mut self) -> Result<(), LoadLevelError> {
+        self.load_from_level_data()?;
 
         self.soft_reset_state = Self::entities_from_initial_state(&self.hard_reset_state);
 
         self.load_initial_entities();
+
+        Ok(())
     }
 
     pub fn load_initial_entities(&mut self) {
@@ -349,17 +361,33 @@ impl Level {
             .checked_add(1)
             .expect("Game should not run for a galactically long time.");
 
-        match actions.iter().max() {
-            Some(GameAction::StartFadeOut) => {
+        if let Some(action) = actions.iter().max() {
+            let old_level_name = self.level_name.clone();
+
+            match self.evaluate_game_action(action) {
+                Ok(()) => (),
+                Err(error) => {
+                    self.level_name = old_level_name;
+
+                    self.level_editor_active = true;
+                    self.editor.command_input = format!("{error}");
+                }
+            }
+        }
+    }
+
+    pub fn evaluate_game_action(&mut self, game_action: &GameAction) -> Result<(), LoadLevelError> {
+        match game_action {
+            GameAction::StartFadeOut => {
                 if self.fade_out_frame.is_none() {
                     self.fade_out_frame = Some(self.frame + 16);
                 }
             }
-            Some(GameAction::HardReset) => {
-                self.reset();
+            GameAction::HardReset => {
+                self.reset()?;
                 self.step_at_level_start();
             }
-            Some(GameAction::HardResetKeepPlayer) => {
+            GameAction::HardResetKeepPlayer => {
                 let mut saved_player = None;
 
                 for &key in &self.input_readers {
@@ -376,7 +404,7 @@ impl Level {
                     }
                 }
 
-                self.reset();
+                self.reset()?;
 
                 if let Some(saved_player) = saved_player {
                     for &key in &self.input_readers {
@@ -391,19 +419,20 @@ impl Level {
 
                 self.step_at_level_start();
             }
-            Some(GameAction::SoftReset) => {
+            GameAction::SoftReset => {
                 self.load_initial_entities();
                 self.step_at_level_start();
             }
-            Some(GameAction::LoadLevel(path)) => {
-                self.path.clone_from(path);
+            GameAction::LoadLevel(path) => {
+                self.level_name.clone_from(path);
                 self.level_data = None;
 
-                self.reset();
+                self.reset()?;
                 self.step_at_level_start();
             }
-            None => (),
         }
+
+        Ok(())
     }
 
     pub fn draw(&mut self) {
@@ -722,12 +751,18 @@ impl Level {
                 self.level_editor_active ^= true;
 
                 if !self.level_editor_active {
-                    self.exit_level_editor();
-
                     self.level_data = Some(self.save());
 
-                    self.reset();
-                    self.step_at_level_start();
+                    match self.reset() {
+                        Ok(()) => {
+                            self.exit_level_editor();
+                            self.step_at_level_start();
+                        }
+                        Err(error) => {
+                            self.editor.cursor = None;
+                            self.editor.command_input = format!("{error}");
+                        }
+                    }
                 }
             }
             KeyCode::Escape => {
