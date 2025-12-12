@@ -5,7 +5,6 @@ use macroquad::{
     color::{Color, colors},
     input::{KeyCode, MouseButton},
     material,
-    miniquad::{BlendFactor, BlendState, BlendValue, Equation},
     prelude::{Material, MaterialParams, PipelineParams, ShaderSource},
     shapes,
     texture::{self, DrawTextureParams, FilterMode, Image, Texture2D},
@@ -63,8 +62,6 @@ pub struct Level {
 
     pub wall_texture: Camera2D,
     pub wall_mask_material: Material,
-
-    pub inverse_mask_material: Material,
 
     pub tile_grid: TileGrid<Option<Tile>>,
     pub light_grid: LightGrid,
@@ -156,25 +153,6 @@ impl Level {
                 MaterialParams {
                     pipeline_params: PipelineParams {
                         color_write: (true, true, true, true),
-                        ..Default::default()
-                    },
-                    ..Default::default()
-                },
-            )
-            .unwrap(),
-
-            inverse_mask_material: material::load_material(
-                ShaderSource::Glsl {
-                    vertex: INVERSE_MASK_VERTEX_SHADER,
-                    fragment: INVERSE_MASK_FRAGMENT_SHADER,
-                },
-                MaterialParams {
-                    pipeline_params: PipelineParams {
-                        color_blend: Some(BlendState::new(
-                            Equation::Add,
-                            BlendFactor::Value(BlendValue::SourceAlpha),
-                            BlendFactor::OneMinusValue(BlendValue::SourceAlpha),
-                        )),
                         ..Default::default()
                     },
                     ..Default::default()
@@ -666,15 +644,6 @@ impl Level {
         for (_, entity) in &mut self.entities {
             entity.inner.draw_overlay_front(&self.texture_atlas);
         }
-
-        material::gl_use_material(&self.inverse_mask_material);
-
-        // Inverse masked entities
-        for (_, entity) in &mut self.entities {
-            entity.inner.draw_inverse_mask(&self.texture_atlas);
-        }
-
-        material::gl_use_default_material();
     }
 
     pub fn draw_wires(entities: &SlotMap<EntityKey, EntityTracker>, hidden_color: Option<Color>) {
@@ -936,52 +905,6 @@ pub const MASK_FRAGMENT_SHADER: &str = r#"
     void main() {
         if (texture2D(Texture, uv) == vec4(0.0, 0.0, 0.0, 0.0)) {
             gl_FragColor = vec4(0.0, 0.0, 0.0, 1.0);
-        } else {
-            discard;
-        }
-    }
-"#;
-
-pub const INVERSE_MASK_VERTEX_SHADER: &str = r#"
-    #version 100
-    attribute vec3 position;
-    attribute vec2 texcoord;
-    attribute vec4 color0;
-    attribute vec4 normal;
-
-    varying lowp vec2 uv;
-    varying lowp vec2 uv1;
-    varying lowp vec4 color;
-
-    uniform mat4 Model;
-    uniform mat4 Projection;
-
-    void main() {
-        lowp vec4 uv_position = Projection * Model * vec4(position, 1);
-        gl_Position = uv_position;
-        color = color0 / 255.0;
-        uv = texcoord;
-        uv1 = uv_position.xy / 2.0 + vec2(0.5, 0.5);
-    }
-"#;
-
-pub const INVERSE_MASK_FRAGMENT_SHADER: &str = r#"
-    #version 100
-    varying lowp vec4 color;
-    varying lowp vec2 uv;
-    varying lowp vec2 uv1;
-
-    uniform sampler2D Texture;
-    uniform sampler2D _ScreenTexture;
-
-    void main() {
-        if (texture2D(_ScreenTexture, uv1).xyz == vec3(0.0, 0.0, 0.0)) {
-            // if (uv1.y < 0.0) {
-            //     gl_FragColor = vec4(1, 0, 0, 1);
-            // } else {
-            //     gl_FragColor = vec4(uv1, 0, 1);
-            // }
-            gl_FragColor = color * texture2D(Texture, uv);
         } else {
             discard;
         }

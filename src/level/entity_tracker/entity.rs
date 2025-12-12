@@ -74,9 +74,6 @@ pub trait Entity: 'static + Debug {
     /// Not occluded by light. Drawn just in front of `draw_effect_front`.
     fn draw_overlay_front(&mut self, _texture_atlas: &Texture2D) {}
 
-    /// Not occluded by light. Drawn just in front of `draw_effect_front`.
-    fn draw_inverse_mask(&mut self, _texture_atlas: &Texture2D) {}
-
     /// The set of tiles an entity would collide with, if applicable.
     fn collision_rect(&self) -> Option<TileRect> {
         None
