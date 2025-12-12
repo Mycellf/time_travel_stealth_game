@@ -228,7 +228,14 @@ impl Entity for LogicGate {
 
 pub fn power_color(powered: bool, time_powered: usize) -> Color {
     if powered {
-        let transition = time_powered.min(UPDATE_TPS * 5) as f32 / (UPDATE_TPS as f32 * 5.0);
+        let time_powered = time_powered as f32 / UPDATE_TPS as f32;
+        let transition = match time_powered {
+            ..0.1 => 0.0,
+            0.1..0.6 => (time_powered - 0.1) / 0.5,
+            0.6.. => 1.0,
+            _ => 0.0,
+        };
+
         Color::new(
             transition,
             0.9 + 0.1 * 2.0 * (transition - 0.5).abs(),
