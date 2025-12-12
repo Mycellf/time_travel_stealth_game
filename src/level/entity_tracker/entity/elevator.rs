@@ -40,6 +40,9 @@ pub const ELEVATOR_FLOOR_TEXTURE_SIZE: Vector2<f32> = vector![16.0, 16.0];
 pub const ELEVATOR_WALLS_TEXTURE_POSITION: Point2<f32> = point![24.0, 24.0];
 pub const ELEVATOR_WALLS_TEXTURE_SIZE: Vector2<f32> = vector![24.0, 24.0];
 
+pub const ELEVATOR_OUTLINE_TEXTURE_POSITION: Point2<f32> = point![48.0, 24.0];
+pub const ELEVATOR_OUTLINE_TEXTURE_SIZE: Vector2<f32> = vector![24.0, 24.0];
+
 pub const ELEVATOR_SYMBOL_TEXTURE_POSITION: Point2<f32> = point![0.0, 40.0];
 pub const ELEVATOR_SYMBOL_TEXTURE_SIZE: Vector2<f32> = vector![8.0, 8.0];
 
@@ -280,11 +283,14 @@ impl Elevator {
         );
     }
 
-    pub fn color_of_symbol(&self, alpha: f32) -> Color {
-        if self.powered.is_some() && self.is_symbol_bright() {
+    pub fn color_of_symbol(&self, darker: bool) -> Color {
+        let is_bright = self.is_symbol_bright();
+
+        if self.powered.is_some() && is_bright {
             logic_gate::power_color(self.animation_state)
         } else {
-            Color::new(1.0, 1.0, 1.0, alpha)
+            let brightness = if is_bright && !darker { 0.5 } else { 0.2 };
+            Color::new(brightness, brightness, brightness, 1.0)
         }
     }
 
@@ -623,13 +629,6 @@ impl Entity for Elevator {
         self.draw_symbol(texture_atlas, colors::WHITE);
     }
 
-    fn draw_effect_back(&mut self, texture_atlas: &Texture2D) {
-        self.draw_symbol(
-            texture_atlas,
-            self.color_of_symbol(if self.is_symbol_bright() { 0.5 } else { 0.2 }),
-        );
-    }
-
     fn draw_effect_front(&mut self, _texture_atlas: &Texture2D) {
         for spark in &self.sparks {
             shapes::draw_rectangle(
@@ -644,6 +643,33 @@ impl Entity for Elevator {
                 },
             );
         }
+    }
+
+    fn draw_inverse_mask(&mut self, texture_atlas: &Texture2D) {
+        self.draw_symbol(texture_atlas, self.color_of_symbol(false));
+
+        texture::draw_texture_ex(
+            texture_atlas,
+            self.position.x as f32 - ELEVATOR_OUTLINE_TEXTURE_SIZE.x / 2.0,
+            self.position.y as f32 - ELEVATOR_OUTLINE_TEXTURE_SIZE.y / 2.0,
+            self.color_of_symbol(true),
+            DrawTextureParams {
+                source: Some(crate::new_texture_rect(
+                    ELEVATOR_OUTLINE_TEXTURE_POSITION
+                        + vector![
+                            if self.is_door_open() {
+                                0.0
+                            } else {
+                                ELEVATOR_OUTLINE_TEXTURE_SIZE.x
+                            },
+                            0.0,
+                        ],
+                    ELEVATOR_OUTLINE_TEXTURE_SIZE,
+                )),
+                rotation: self.direction.angle() as f32,
+                ..Default::default()
+            },
+        );
     }
 
     fn position(&self) -> Point2<f64> {
@@ -716,13 +742,13 @@ impl Entity for Elevator {
         self.is_loop_complete()
     }
 
-    fn as_elevator(&mut self) -> Option<&mut Elevator> {
-        Some(self)
-    }
-
     fn offset_of_wire(&self, wire_end: Vector2<f64>) -> Vector2<f64> {
-        const DISTANCE: f64 = 12.0;
+        const DISTANCE: f64 = 13.0;
 
         wire_end.map(|x| x.clamp(-DISTANCE, DISTANCE))
+    }
+
+    fn as_elevator(&mut self) -> Option<&mut Elevator> {
+        Some(self)
     }
 }
