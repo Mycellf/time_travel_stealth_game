@@ -4,7 +4,7 @@ use std::{
     ops::{Index, IndexMut},
 };
 
-use slotmap::{DenseSlotMap, HopSlotMap, Key, SlotMap};
+use slotmap::{DenseSlotMap, Key, SlotMap};
 
 use crate::collections::small_map::{SmallKey, SmallMap};
 
@@ -103,7 +103,6 @@ pub unsafe trait Guardable {}
 unsafe impl<T, const N: usize> Guardable for [T; N] {}
 
 unsafe impl<K: Key, V> Guardable for SlotMap<K, V> {}
-unsafe impl<K: Key, V> Guardable for HopSlotMap<K, V> {}
 unsafe impl<K: Key, V> Guardable for DenseSlotMap<K, V> {}
 
 unsafe impl<K: SmallKey, V> Guardable for SmallMap<K, V> {}
