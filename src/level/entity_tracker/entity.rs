@@ -177,21 +177,42 @@ pub trait Entity: 'static + Debug {
     /// If this entity is a `Player`, return Some(self).
     ///
     /// This should only be overridden by something which is or contains a `Player`.
-    fn as_player(&mut self) -> Option<&mut Player> {
+    fn as_player(&self) -> Option<&Player> {
+        None
+    }
+
+    /// If this entity is a `Player`, return Some(self).
+    ///
+    /// This should only be overridden by something which is or contains a `Player`.
+    fn as_player_mut(&mut self) -> Option<&mut Player> {
         None
     }
 
     /// If this entity is an `ElevatorDoor`, return Some(self).
     ///
     /// This should only be overridden by something which is or contains an `ElevatorDoor`.
-    fn as_door(&mut self) -> Option<&mut ElevatorDoor> {
+    fn as_door(&self) -> Option<&ElevatorDoor> {
+        None
+    }
+
+    /// If this entity is an `ElevatorDoor`, return Some(self).
+    ///
+    /// This should only be overridden by something which is or contains an `ElevatorDoor`.
+    fn as_door_mut(&mut self) -> Option<&mut ElevatorDoor> {
         None
     }
 
     /// If this entity is an `Elevator`, return Some(self).
     ///
     /// This should only be overridden by something which is or contains an `Elevator`.
-    fn as_elevator(&mut self) -> Option<&mut Elevator> {
+    fn as_elevator(&self) -> Option<&Elevator> {
+        None
+    }
+
+    /// If this entity is an `Elevator`, return Some(self).
+    ///
+    /// This should only be overridden by something which is or contains an `Elevator`.
+    fn as_elevator_mut(&mut self) -> Option<&mut Elevator> {
         None
     }
 
@@ -216,19 +237,20 @@ pub enum GameAction {
     HardResetKeepPlayer,
     HardReset,
     LoadLevel(String),
+    SoftResetInverse,
+    StartEndSequence,
 }
 
 #[derive(Clone, Copy, Debug)]
 pub enum ViewKind {
-    Present,
+    Present { confusion: f64 },
     Past { confusion: f64 },
 }
 
 impl ViewKind {
     pub fn confusion(self) -> f64 {
         match self {
-            ViewKind::Present => -f64::INFINITY,
-            ViewKind::Past { confusion } => confusion,
+            ViewKind::Present { confusion } | ViewKind::Past { confusion } => confusion,
         }
     }
 }

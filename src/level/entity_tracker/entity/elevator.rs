@@ -55,6 +55,8 @@ pub struct Elevator {
     #[serde(skip)]
     pub animation_state: u16,
     #[serde(skip)]
+    pub damaged_brightness: f32,
+    #[serde(skip)]
     pub door: Option<EntityKey>,
     #[serde(skip)]
     pub state: ElevatorState,
@@ -148,6 +150,7 @@ impl Elevator {
             input: None,
 
             powered: None,
+            damaged_brightness: 0.0,
             animation_state: 0,
             door: None,
             state: ElevatorState::default(),
@@ -226,7 +229,7 @@ impl Elevator {
     ) -> &'a mut ElevatorDoor {
         entities[key.expect("Elevators should have a door")]
             .inner
-            .as_door()
+            .as_door_mut()
             .expect("The door should be a door")
     }
 
@@ -267,7 +270,7 @@ impl Elevator {
                         + vector![
                             match self.action {
                                 GameAction::HardResetKeepPlayer => 0.0,
-                                GameAction::SoftReset => 8.0,
+                                GameAction::SoftReset | GameAction::SoftResetInverse => 8.0,
                                 GameAction::LoadLevel(_) => 16.0,
                                 _ => 0.0,
                             },
@@ -334,6 +337,15 @@ impl Entity for Elevator {
         light_grid: &mut LightGrid,
         initial_state: &mut SlotMap<EntityKey, EntityTracker>,
     ) -> Option<GameAction> {
+        match self.action {
+            GameAction::SoftResetInverse => {
+                if macroquad::rand::gen_range(1, 60) <= 10 {
+                    self.damaged_brightness = macroquad::rand::gen_range(0.0, 1.0);
+                }
+            }
+            _ => (),
+        }
+
         self.animation_state = if self.powered.unwrap_or(false) {
             self.animation_state
                 .saturating_add(LogicGate::ANIMATION_STEP)
@@ -471,7 +483,8 @@ impl Entity for Elevator {
 
                         if broken {
                             for &mut expected_occupant in expected_occupants {
-                                if let Some(player) = entities[expected_occupant].inner.as_player()
+                                if let Some(player) =
+                                    entities[expected_occupant].inner.as_player_mut()
                                 {
                                     player.state = PlayerState::Dead;
                                     player.confusion = 1.0;
@@ -511,25 +524,42 @@ impl Entity for Elevator {
                         Self::occupants(entities.iter(), Self::inner_collision_rect(self.position))
                             .collect::<Vec<_>>();
 
-                    if matches!(self.action, GameAction::SoftReset) {
-                        for &key in &occupants {
-                            let entity = &mut entities[key];
-                            entity.inner.travel_to_beginning(&mut initial_state[key]);
-                            initial_state.insert(entity.clone());
+                    match self.action {
+                        GameAction::SoftReset => {
+                            for &key in &occupants {
+                                let entity = &mut entities[key];
+                                entity.inner.travel_to_beginning(&mut initial_state[key]);
+                                initial_state.insert(entity.clone());
+                            }
+
+                            let next_state = initial_state[*entities.protected_slot()]
+                                .inner
+                                .as_elevator_mut()
+                                .expect("Initial state of elevator should be an elevator");
+
+                            next_state.state = ElevatorState::Running {
+                                held_open: true,
+                                state: ElevatorRunningState::Recording {
+                                    close_time: *close_time,
+                                    expected_occupants: occupants,
+                                },
+                            };
                         }
+                        GameAction::SoftResetInverse => {
+                            let next_state = initial_state[*entities.protected_slot()]
+                                .inner
+                                .as_elevator_mut()
+                                .expect("Initial state of elevator should be an elevator");
 
-                        let next_state = initial_state[*entities.protected_slot()]
-                            .inner
-                            .as_elevator()
-                            .expect("Initial state of elevator should be an elevator");
-
-                        next_state.state = ElevatorState::Running {
-                            held_open: true,
-                            state: ElevatorRunningState::Recording {
-                                close_time: *close_time,
-                                expected_occupants: occupants,
-                            },
-                        };
+                            next_state.state = ElevatorState::Running {
+                                held_open: true,
+                                state: ElevatorRunningState::Recording {
+                                    close_time: usize::MAX,
+                                    expected_occupants: occupants,
+                                },
+                            };
+                        }
+                        _ => (),
                     }
 
                     self.state = ElevatorState::Used;
@@ -629,7 +659,16 @@ impl Entity for Elevator {
     }
 
     fn draw_back(&mut self, texture_atlas: &Texture2D) {
-        self.draw_symbol(texture_atlas, colors::WHITE);
+        self.draw_symbol(
+            texture_atlas,
+            match self.action {
+                GameAction::SoftResetInverse => {
+                    let brightness = self.damaged_brightness;
+                    Color::new(brightness, brightness, brightness, 1.0)
+                }
+                _ => colors::WHITE,
+            },
+        );
     }
 
     fn draw_effect_back(&mut self, texture_atlas: &Texture2D) {
@@ -732,7 +771,11 @@ impl Entity for Elevator {
         wire_end.map(|x| x.clamp(-DISTANCE, DISTANCE))
     }
 
-    fn as_elevator(&mut self) -> Option<&mut Elevator> {
+    fn as_elevator(&self) -> Option<&Elevator> {
+        Some(self)
+    }
+
+    fn as_elevator_mut(&mut self) -> Option<&mut Elevator> {
         Some(self)
     }
 }

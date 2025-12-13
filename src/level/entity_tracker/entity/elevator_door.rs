@@ -234,7 +234,11 @@ impl Entity for ElevatorDoor {
         false
     }
 
-    fn as_door(&mut self) -> Option<&mut ElevatorDoor> {
+    fn as_door(&self) -> Option<&ElevatorDoor> {
+        Some(self)
+    }
+
+    fn as_door_mut(&mut self) -> Option<&mut ElevatorDoor> {
         Some(self)
     }
 }

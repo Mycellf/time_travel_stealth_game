@@ -399,7 +399,7 @@ impl Level {
                 let mut saved_player = None;
 
                 for &key in &self.input_readers {
-                    if let Some(player) = self.entities[key].inner.as_player()
+                    if let Some(player) = self.entities[key].inner.as_player_mut()
                         && player.state == PlayerState::Active
                     {
                         let mut player = player.clone();
@@ -416,7 +416,7 @@ impl Level {
 
                 if let Some(saved_player) = saved_player {
                     for &key in &self.input_readers {
-                        if let Some(player) = self.entities[key].inner.as_player()
+                        if let Some(player) = self.entities[key].inner.as_player_mut()
                             && player.state == PlayerState::Active
                         {
                             *player = saved_player;
@@ -431,12 +431,42 @@ impl Level {
                 self.load_initial_entities();
                 self.step_at_level_start();
             }
+            GameAction::SoftResetInverse => {
+                let mut saved_player = None;
+
+                for &key in &self.input_readers {
+                    if let Some(player) = self.entities[key].inner.as_player_mut()
+                        && player.state == PlayerState::Active
+                    {
+                        let mut player = player.clone();
+
+                        player.history = History::default();
+                        player.environment_history.clear();
+
+                        saved_player = Some(player);
+                        break;
+                    }
+                }
+
+                self.load_initial_entities();
+                self.step_at_level_start();
+
+                if let Some(mut saved_player) = saved_player {
+                    saved_player.state = PlayerState::Future;
+
+                    self.entities
+                        .insert(EntityTracker::new(Box::new(saved_player)));
+                }
+            }
             GameAction::LoadLevel(path) => {
                 self.level_name.clone_from(path);
                 self.level_data = None;
 
                 self.reset()?;
                 self.step_at_level_start();
+            }
+            GameAction::StartEndSequence => {
+                todo!()
             }
         }
 
@@ -603,8 +633,9 @@ impl Level {
             let &(ref area, kind) = &view_areas[i];
 
             match kind {
-                ViewKind::Present => {
-                    area.draw_wall_lighting(colors::BLANK);
+                ViewKind::Present { confusion } => {
+                    let show = (confusion as f32 / 0.1).clamp(0.0, 1.0);
+                    area.draw_wall_lighting(Color::new(show, confusion as f32, 0.0, show * 0.2));
                 }
                 ViewKind::Past { confusion } => {
                     area.draw_wall_lighting(Color::new(
@@ -638,8 +669,9 @@ impl Level {
             let &(ref area, kind) = &view_areas[i];
 
             match kind {
-                ViewKind::Present => {
-                    area.draw_direct_lighting(colors::BLANK);
+                ViewKind::Present { confusion } => {
+                    let show = (confusion as f32 / 0.1).clamp(0.0, 1.0);
+                    area.draw_direct_lighting(Color::new(show, confusion as f32, 0.0, show * 0.2));
                 }
                 ViewKind::Past { confusion } => {
                     area.draw_direct_lighting(Color::new(

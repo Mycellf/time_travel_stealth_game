@@ -148,6 +148,7 @@ impl FromStr for Command {
                                 Some(&path) => path.to_owned(),
                                 None => return Err(()),
                             }),
+                            Some(&"inverse_loop") => GameAction::SoftResetInverse,
                             _ => return Err(()),
                         },
                     )),

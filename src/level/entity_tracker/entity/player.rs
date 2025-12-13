@@ -109,6 +109,7 @@ pub enum PlayerState {
     Active,
     Recording,
     Dead,
+    Future,
 }
 
 #[derive(Clone, Copy, PartialEq, Debug)]
@@ -274,6 +275,8 @@ impl Entity for Player {
         light_grid: &mut LightGrid,
         _initial_state: &mut SlotMap<EntityKey, EntityTracker>,
     ) -> Option<GameAction> {
+        let mut action = None;
+
         match self.state {
             PlayerState::Active => {
                 let input = if self.arrows_motion_input.raw_output() == vector![0, 0] {
@@ -300,6 +303,28 @@ impl Entity for Player {
                             }
 
                             self.environment_history[key].try_insert(frame, state);
+
+                            if let Some(player) = entity.inner.as_player()
+                                && player.state == PlayerState::Future
+                            {
+                                let paradox_level = self.compare_states(
+                                    Some(EntityVisibleState::new(player.position, 0)),
+                                    None,
+                                );
+                                let paradox_position = player.position;
+
+                                if let Some(paradox_level) = paradox_level {
+                                    self.confusion +=
+                                        (paradox_level / Self::CONFUSION_TIME) * UPDATE_DT;
+                                    self.paradox_position = Some((paradox_level, paradox_position));
+
+                                    if self.confusion > 1.0 {
+                                        self.state = PlayerState::Dead;
+                                        action = Some(GameAction::StartEndSequence);
+                                        break;
+                                    }
+                                }
+                            }
                         }
                     }
                 }
@@ -343,11 +368,12 @@ impl Entity for Player {
             PlayerState::Dead => {
                 self.confusion -= (1.0 / Self::RECOVERY_TIME) * UPDATE_DT;
             }
+            PlayerState::Future => {}
         }
 
         self.confusion = self.confusion.clamp(0.0, 1.0);
 
-        None
+        action
     }
 
     fn update_view_area(&mut self, light_grid: &mut LightGrid) {
@@ -359,12 +385,12 @@ impl Entity for Player {
                     self.view_width,
                 )),
             )),
-            PlayerState::Dead => None,
+            PlayerState::Dead | PlayerState::Future => None,
         };
     }
 
     fn travel_to_beginning(&mut self, past: &mut EntityTracker) {
-        let old_self = past.inner.as_player().unwrap();
+        let old_self = past.inner.as_player_mut().unwrap();
 
         if old_self.state == PlayerState::Active {
             old_self.state = PlayerState::Recording;
@@ -375,7 +401,7 @@ impl Entity for Player {
 
     fn draw_overlay_back(&mut self, _texture_atlas: &Texture2D) {
         if let Some((_, paradox_position)) = self.paradox_position
-            && self.state == PlayerState::Recording
+            && matches!(self.state, PlayerState::Recording | PlayerState::Active)
             && self.confusion > 0.0
         {
             let mut color = 1.0;
@@ -481,11 +507,13 @@ impl Entity for Player {
 
     fn view_kind(&self) -> Option<ViewKind> {
         match self.state {
-            PlayerState::Active => Some(ViewKind::Present),
+            PlayerState::Active => Some(ViewKind::Present {
+                confusion: self.confusion,
+            }),
             PlayerState::Recording => Some(ViewKind::Past {
                 confusion: self.confusion,
             }),
-            PlayerState::Dead => None,
+            PlayerState::Dead | PlayerState::Future => None,
         }
     }
 
@@ -523,7 +551,11 @@ impl Entity for Player {
         self.mouse_position = position;
     }
 
-    fn as_player(&mut self) -> Option<&mut Player> {
+    fn as_player(&self) -> Option<&Player> {
+        Some(self)
+    }
+
+    fn as_player_mut(&mut self) -> Option<&mut Player> {
         Some(self)
     }
 }
