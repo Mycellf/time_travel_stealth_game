@@ -161,19 +161,12 @@ impl LightGrid {
             >= (end - start).magnitude_squared() - 1e-6
     }
 
+    /// TODO: There are still a few buggy cases
     pub fn trace_light_from(
         &mut self,
-        mut origin: Point2<f64>,
+        origin: Point2<f64>,
         angle_range: Option<AngleRange>,
     ) -> LightArea {
-        if (origin.x.round() - origin.x).abs() <= 1e-6 {
-            origin.x = origin.x.round();
-        }
-
-        if (origin.y.round() - origin.y).abs() <= 1e-6 {
-            origin.y = origin.y.round();
-        }
-
         let mut area = LightArea {
             origin,
             rays: Vec::new(),
