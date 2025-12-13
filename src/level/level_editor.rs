@@ -112,15 +112,15 @@ impl FromStr for Command {
                     Some(&"player") => Box::new(Player::default()),
                     Some(&"elevator") => Box::new(Elevator::new(
                         point![0.0, 0.0],
-                        match words.get(2) {
+                        match words.get(3) {
                             Some(&"east") => ElevatorDirection::East,
                             Some(&"north") => ElevatorDirection::North,
                             Some(&"west") => ElevatorDirection::West,
                             Some(&"south") => ElevatorDirection::South,
                             _ => return Err(()),
                         },
-                        match words.get(3) {
-                            None | Some(&"loop") => GameAction::SoftReset,
+                        match words.get(2) {
+                            Some(&"loop") => GameAction::SoftReset,
                             Some(&"entry") => GameAction::HardResetKeepPlayer,
                             Some(&"exit") => GameAction::LoadLevel(match words.get(4) {
                                 Some(&path) => path.to_owned(),
