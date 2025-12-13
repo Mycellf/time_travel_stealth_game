@@ -799,11 +799,11 @@ impl Level {
                 self.level_editor_active ^= true;
 
                 if !self.level_editor_active {
+                    self.exit_level_editor();
                     self.level_data = Some(self.save());
 
                     match self.reset() {
                         Ok(()) => {
-                            self.exit_level_editor();
                             self.step_at_level_start();
                         }
                         Err(error) => {
