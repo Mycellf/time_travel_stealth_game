@@ -275,6 +275,10 @@ impl Elevator {
                         ],
                     ELEVATOR_SYMBOL_TEXTURE_SIZE,
                 )),
+                flip_x: matches!(
+                    (&self.action, self.direction),
+                    (GameAction::LoadLevel(_), ElevatorDirection::East)
+                ),
                 ..Default::default()
             },
         );
