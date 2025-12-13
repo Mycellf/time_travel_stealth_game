@@ -43,7 +43,7 @@ pub struct LevelEditor {
 }
 
 pub const LEVEL_EDITOR_TOGGLE_MESSAGE: &str = if cfg!(target_family = "wasm") {
-    "Press F3 or shift+0 to toggle the editor (some keys don't work on the web build)"
+    "Press F3 or shift+0 to toggle the editor (some keys don't work on the web version)"
 } else {
     "Press F3 or shift+0 to toggle the editor"
 };
@@ -326,7 +326,11 @@ impl Level {
         if !self.editor.command_input.is_empty() || self.editor.cursor.is_some() {
             const MINIMUM_CURSOR_DISTANCE: f32 = 25.0;
 
-            let text = format!("/{}", self.editor.command_input);
+            let text = if self.editor.cursor.is_some() {
+                &format!("/{}", self.editor.command_input)
+            } else {
+                &self.editor.command_input
+            };
 
             let mut start = point![screen_rect.x, screen_rect.y + screen_rect.h - 2.0];
 
