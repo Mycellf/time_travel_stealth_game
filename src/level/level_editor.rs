@@ -29,7 +29,7 @@ use crate::{
     },
 };
 
-#[derive(Clone, Default, Debug)]
+#[derive(Clone, Debug)]
 pub struct LevelEditor {
     pub command_input: String,
     pub cursor: Option<usize>,
@@ -40,6 +40,28 @@ pub struct LevelEditor {
     pub command: Option<Command>,
     pub selected_entity: Option<EntityKey>,
     pub grabbing: Option<Vector2<f64>>,
+}
+
+pub const LEVEL_EDITOR_TOGGLE_MESSAGE: &str = if cfg!(target_family = "wasm") {
+    "Press F3 or shift+0 to toggle the editor (some keys don't work on the web build)"
+} else {
+    "Press F3 or shift+0 to toggle the editor"
+};
+
+impl Default for LevelEditor {
+    fn default() -> Self {
+        Self {
+            command_input: LEVEL_EDITOR_TOGGLE_MESSAGE.to_owned(),
+            cursor: None,
+
+            command_input_history: Vec::new(),
+            command_input_history_index: 0,
+
+            command: None,
+            selected_entity: None,
+            grabbing: None,
+        }
+    }
 }
 
 #[derive(Clone, Debug)]
@@ -202,6 +224,7 @@ impl Level {
         self.editor = LevelEditor {
             command_input_history_index: self.editor.command_input_history.len(),
             command_input_history: mem::take(&mut self.editor.command_input_history),
+            command_input: LEVEL_EDITOR_TOGGLE_MESSAGE.to_owned(),
             ..Default::default()
         };
     }

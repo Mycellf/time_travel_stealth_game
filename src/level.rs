@@ -376,7 +376,9 @@ impl Level {
                     self.level_name = old_level_name;
 
                     self.level_editor_active = true;
-                    self.editor.command_input = format!("{error}");
+                    self.editor
+                        .command_input
+                        .push_str(&format!(". Error: {error}"));
                 }
             }
         }
@@ -808,7 +810,9 @@ impl Level {
                         }
                         Err(error) => {
                             self.editor.cursor = None;
-                            self.editor.command_input = format!("{error}");
+                            self.editor
+                                .command_input
+                                .push_str(&format!(". Error: {error}"));
                         }
                     }
                 }
