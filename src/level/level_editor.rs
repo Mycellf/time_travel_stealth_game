@@ -46,7 +46,7 @@ pub struct LevelEditor {
 pub enum Command {
     Delete,
     Tile(Option<Tile>, Option<Tile>, Option<Tile>),
-    Entity(Box<dyn Entity>),
+    Entity(Option<Box<dyn Entity>>),
     Save(Option<String>),
     Load(Option<String>),
     Clear,
@@ -72,7 +72,7 @@ impl Command {
         match self {
             Command::Delete => false,
             Command::Tile(..) => false,
-            Command::Entity(_) => true,
+            Command::Entity(_) => false,
             Command::Save(_) => true,
             Command::Load(_) => true,
             Command::Clear => true,
@@ -167,7 +167,7 @@ impl FromStr for Command {
                     _ => return Err(()),
                 };
 
-                Ok(Command::Entity(entity))
+                Ok(Command::Entity(Some(entity)))
             }
             Some(&"save") => Ok(Command::Save(words.get(1).map(|&path| path.to_owned()))),
             Some(&"load") => Ok(Command::Load(words.get(1).map(|&path| path.to_owned()))),
@@ -191,6 +191,13 @@ impl FromStr for Command {
 
 impl Level {
     pub fn exit_level_editor(&mut self) {
+        if let Some(selection) = self.editor.selected_entity
+            && self.editor.grabbing.is_some()
+            && matches!(self.editor.command, Some(Command::Entity(_)))
+        {
+            self.hard_reset_state.remove(selection);
+        }
+
         self.editor = LevelEditor {
             command_input_history_index: self.editor.command_input_history.len(),
             command_input_history: mem::take(&mut self.editor.command_input_history),
@@ -359,17 +366,11 @@ impl Level {
 
                     self.editor.command = self.editor.command_input.parse().ok();
 
-                    if let Some(command) = &self.editor.command {
+                    if let Some(command) = &mut self.editor.command {
                         if command.is_single_use() {
                             self.editor.command_input.clear();
 
                             match self.editor.command.take().unwrap() {
-                                Command::Entity(entity) => {
-                                    self.editor.selected_entity = Some(
-                                        self.hard_reset_state.insert(EntityTracker::new(entity)),
-                                    );
-                                    self.editor.grabbing = Some(vector![0.0, 0.0]);
-                                }
                                 Command::Save(level_name) => {
                                     let level_name = level_name.unwrap_or(self.level_name.clone());
 
@@ -432,6 +433,15 @@ impl Level {
                             }
                         } else {
                             match command {
+                                Command::Entity(entity) => {
+                                    if let Some(entity) = entity.take() {
+                                        self.editor.selected_entity = Some(
+                                            self.hard_reset_state
+                                                .insert(EntityTracker::new(entity)),
+                                        );
+                                        self.editor.grabbing = Some(vector![0.0, 0.0]);
+                                    }
+                                }
                                 _ => (),
                             }
                         }
@@ -472,6 +482,14 @@ impl Level {
                 '/' if self.editor.cursor.is_none() => {
                     self.editor.command_input.clear();
                     self.editor.cursor = Some(0);
+
+                    if let Some(selection) = self.editor.selected_entity
+                        && self.editor.grabbing.is_some()
+                    {
+                        self.editor.grabbing = None;
+                        self.hard_reset_state.remove(selection);
+                        self.editor.selected_entity = None;
+                    }
                 }
                 _ => (),
             }
@@ -485,6 +503,14 @@ impl Level {
                 self.editor.cursor = None;
 
                 self.editor.command = None;
+
+                if let Some(selection) = self.editor.selected_entity
+                    && self.editor.grabbing.is_some()
+                {
+                    self.editor.grabbing = None;
+                    self.hard_reset_state.remove(selection);
+                    self.editor.selected_entity = None;
+                }
             }
             _ => (),
         }
@@ -632,7 +658,16 @@ impl Level {
     pub fn level_editor_mouse_up(&mut self, input: MouseButton, _position: Point2<f64>) {
         match input {
             MouseButton::Left => {
-                self.editor.grabbing = None;
+                if let Some(selection) = &mut self.editor.selected_entity
+                    && self.editor.grabbing.is_some()
+                    && matches!(self.editor.command, Some(Command::Entity(_)))
+                {
+                    *selection = self
+                        .hard_reset_state
+                        .insert(self.hard_reset_state[*selection].clone());
+                } else {
+                    self.editor.grabbing = None;
+                }
             }
             _ => (),
         }
