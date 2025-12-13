@@ -51,7 +51,7 @@ impl ElevatorDoor {
 
         let start_position = (self.position + self.offset()).map(|x| x.floor() as isize);
 
-        let air = if self.open {
+        let air = if self.open || self.blocked {
             Pixel::None
         } else {
             Pixel::Transparent
@@ -120,6 +120,7 @@ impl Entity for ElevatorDoor {
         _initial_state: &mut SlotMap<EntityKey, EntityTracker>,
     ) -> Option<GameAction> {
         let previous_extent = self.extent;
+        let previous_blocked = self.blocked;
         self.blocked = false;
         if self.open {
             self.extent = self.extent.saturating_sub(1);
@@ -148,7 +149,10 @@ impl Entity for ElevatorDoor {
             }
         }
 
-        if self.extent != previous_extent || self.lighting_needs_update {
+        if self.extent != previous_extent
+            || self.blocked != previous_blocked
+            || self.lighting_needs_update
+        {
             self.update_light_grid(light_grid);
         }
 
