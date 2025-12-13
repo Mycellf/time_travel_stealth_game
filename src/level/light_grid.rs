@@ -314,7 +314,7 @@ impl LightGrid {
             .sort_unstable_by(|&lhs, &rhs| compare_ray_angles(lhs, rhs, reference, 0.0));
 
         for chunk in unorganized_rays
-            .chunk_by(|&lhs, &rhs| compare_ray_angles(lhs, rhs, reference, 1e-6) == Ordering::Equal)
+            .chunk_by(|&lhs, &rhs| compare_ray_angles(lhs, rhs, reference, 1e-3) == Ordering::Equal)
         {
             if chunk.len() <= 1 {
                 area.rays.push(chunk[0].into());
