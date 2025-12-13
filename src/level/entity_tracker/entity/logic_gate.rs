@@ -66,6 +66,7 @@ pub enum LogicGateKind {
     Start,
     End,
     Delay { state: bool },
+    ElevatorOutput,
 }
 
 impl LogicGateKind {
@@ -80,6 +81,7 @@ impl LogicGateKind {
             LogicGateKind::Start => true,
             LogicGateKind::End => true,
             LogicGateKind::Delay { .. } => true,
+            LogicGateKind::ElevatorOutput => true,
         }
     }
 }
@@ -115,6 +117,7 @@ impl Entity for LogicGate {
                 LogicGateKind::Passthrough => vector![3.0, 0.0],
                 LogicGateKind::Toggle { .. } => vector![4.0, 0.0],
                 LogicGateKind::Hold { .. } => vector![5.0, 0.0],
+                LogicGateKind::ElevatorOutput => vector![6.0, 0.0],
                 LogicGateKind::Start | LogicGateKind::End | LogicGateKind::Delay { .. } => return,
             });
 
@@ -188,9 +191,10 @@ impl Entity for LogicGate {
             LogicGateKind::And => inputs.iter().copied().reduce(|a, b| a && b),
             LogicGateKind::Or => inputs.iter().copied().reduce(|a, b| a || b),
             LogicGateKind::Not => inputs.first().copied().map(|x| !x),
-            LogicGateKind::Passthrough | LogicGateKind::Start | LogicGateKind::End => {
-                inputs.first().copied()
-            }
+            LogicGateKind::Passthrough
+            | LogicGateKind::Start
+            | LogicGateKind::End
+            | LogicGateKind::ElevatorOutput => inputs.first().copied(),
             LogicGateKind::Toggle { state, active } => {
                 if inputs.first().copied().unwrap_or_default() {
                     if *active {
@@ -243,7 +247,8 @@ impl Entity for LogicGate {
             LogicGateKind::Passthrough
             | LogicGateKind::Start
             | LogicGateKind::End
-            | LogicGateKind::Delay { .. } => 0.0,
+            | LogicGateKind::Delay { .. }
+            | LogicGateKind::ElevatorOutput => 0.0,
             LogicGateKind::Toggle { .. } => 6.0,
             LogicGateKind::Hold { .. } => {
                 return vector![wire_end.x.clamp(-4.0, 4.0), wire_end.y.clamp(-9.0, 9.0)];
