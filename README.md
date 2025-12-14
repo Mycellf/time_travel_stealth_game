@@ -4,15 +4,15 @@ A game with (actual) time travel mechanics.
 
 ## Level Editor Info
 
-The level editor will save and load levels into the `resources/levels` directory it is within. The game will start at the level called `start`.
+The level editor will save and load levels into the `resources/levels` directory found in the same folder it is run from, if found. The game will start at the level called `start`.
 
 Press `F3` or `shift + 0` to toggle the level editor.
 
 You can click and drag entities. Hold shift to snap to the nearest half tile.
 
 Commands: 
-* `/save ?name` saves the level to the provided name. Adding characters that could be potentially interpreted as file path delimeters such as `/` or `\` may cause unexpected behavior. If `name` is not provided it will save to the currently loaded level.
-* `/load ?name` loads the level with the provided name. As above, don't add `/` or `\`. If `name` is not provided it will load the last saved state of the current level.
+* `/save ?name` saves the level to the provided name. Adding characters that could be potentially interpreted as file path delimeters such as `/` or `\` may cause unexpected behavior. No spaces are allowed and anything after the first space will be ignored. If `name` is not provided it will save to the currently loaded level.
+* `/load ?name` loads the level with the provided name. As above, don't add spaces, `/`, or `\`. If `name` is not provided it will load the last saved state of the current level.
 * `/clear` clears the loaded level without effecting any level files. Using `/save` or `/load` immediately after calling this will require that `name` is specified.
 * `/tile ?leftclick ?rightclick ?middleclick` enters tile painting mode. The available tiles are `empty`, `brick1`, `brick2`, `wood`, and `hourglass`. If an argument is not provided, it will default to `empty`. Press `escape` or `/` to exit tile painting mode.
 * `/entity (...)` will enter entity placing mode with the entity you specified. Hold `shift` to snap to the nearest half tile. Its subcommands are:
