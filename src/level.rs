@@ -919,15 +919,15 @@ impl Level {
                     }
                 }
             }
-            KeyCode::Escape => {
-                if !self.level_editor_active
-                    || self.editor.cursor.is_none()
-                        && self.editor.command_input.is_empty()
-                        && self.alt_held
-                {
-                    window::miniquad::window::quit();
-                }
-            }
+            // KeyCode::Escape => {
+            //     if !self.level_editor_active
+            //         || self.editor.cursor.is_none()
+            //             && self.editor.command_input.is_empty()
+            //             && self.alt_held
+            //     {
+            //         window::miniquad::window::quit();
+            //     }
+            // }
             _ => (),
         }
 
