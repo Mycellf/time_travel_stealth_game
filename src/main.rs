@@ -8,7 +8,7 @@ use macroquad::{
 };
 use nalgebra::{Point2, Vector2, point, vector};
 
-use crate::level::{Level, MAX_UPDATES_PER_TICK, UPDATE_DT};
+use crate::level::{Level, MAX_UPDATES_PER_TICK, UPDATE_DT, filesystem::FileSystem};
 
 #[allow(dead_code)]
 pub(crate) mod collections;
@@ -105,6 +105,16 @@ pub(crate) struct State {
 impl State {
     fn new() -> Self {
         let mut level = Level::new("start".to_owned());
+
+        if matches!(level.filesystem, FileSystem::Direct { .. })
+            && level.filesystem.load("start").is_err()
+        {
+            let data = level.save();
+            level
+                .filesystem
+                .save("start", &data)
+                .expect("Saving the default level should be valid");
+        }
 
         level.reset().expect("Default level should be valid");
         level.step_at_level_start();
