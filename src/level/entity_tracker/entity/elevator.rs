@@ -555,7 +555,7 @@ impl Entity for Elevator {
                                 held_open: true,
                                 state: ElevatorRunningState::Recording {
                                     close_time: usize::MAX,
-                                    expected_occupants: occupants,
+                                    expected_occupants: Vec::new(),
                                 },
                             };
                         }

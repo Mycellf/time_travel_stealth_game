@@ -22,7 +22,7 @@ use crate::{
     level::{
         entity_tracker::{
             EntityTracker,
-            entity::{GameAction, ViewKind, player::PlayerState},
+            entity::{GameAction, ViewKind, elevator::ElevatorState, player::PlayerState},
         },
         filesystem::{FileSystem, LoadLevelError},
         level_editor::LevelEditor,
@@ -42,6 +42,9 @@ pub const TILE_SIZE: isize = 8;
 pub const UPDATE_TPS: usize = 60;
 pub const UPDATE_DT: f64 = 1.0 / UPDATE_TPS as f64;
 pub const MAX_UPDATES_PER_TICK: usize = 4;
+
+pub const THE_END_TEXTURE_POSITION: Point2<f32> = point![0.0, 64.0];
+pub const THE_END_TEXTURE_SIZE: Vector2<f32> = vector![64.0, 16.0];
 
 pub struct Level {
     pub filesystem: FileSystem,
@@ -81,6 +84,8 @@ pub struct Level {
     pub editor: LevelEditor,
 
     pub occlude_wall_shadows: bool,
+
+    pub the_end: Option<f64>,
 }
 
 new_key_type! {
@@ -181,6 +186,8 @@ impl Level {
             editor: LevelEditor::default(),
 
             occlude_wall_shadows: true,
+
+            the_end: None,
         }
     }
 
@@ -382,6 +389,10 @@ impl Level {
                 }
             }
         }
+
+        if let Some(time) = &mut self.the_end {
+            *time += UPDATE_DT;
+        }
     }
 
     pub fn evaluate_game_action(&mut self, game_action: &GameAction) -> Result<(), LoadLevelError> {
@@ -457,6 +468,20 @@ impl Level {
                     self.entities
                         .insert(EntityTracker::new(Box::new(saved_player)));
                 }
+
+                for (_, entity) in &mut self.entities {
+                    if let Some(elevator) = entity.inner.as_elevator_mut() {
+                        match elevator.action {
+                            GameAction::SoftResetInverse => {
+                                elevator.state = ElevatorState::Broken;
+                            }
+                            GameAction::HardResetKeepPlayer => {
+                                elevator.state = ElevatorState::Explode;
+                            }
+                            _ => (),
+                        }
+                    }
+                }
             }
             GameAction::LoadLevel(path) => {
                 self.level_name.clone_from(path);
@@ -466,7 +491,7 @@ impl Level {
                 self.step_at_level_start();
             }
             GameAction::StartEndSequence => {
-                todo!()
+                self.the_end = Some(0.0);
             }
         }
 
@@ -734,6 +759,50 @@ impl Level {
 
         Self::draw_wires(&self.entities, None);
 
+        if let Some(time) = self.the_end {
+            let texture_index = match time {
+                ..5.0 => {
+                    shapes::draw_rectangle(
+                        screen_rect.x,
+                        screen_rect.y,
+                        screen_rect.w,
+                        screen_rect.h,
+                        Color::new(0.0, 0.0, 0.0, time as f32 / 5.0),
+                    );
+                    None
+                }
+                ..6.0 => Some(0),
+                ..7.0 => Some(1),
+                ..8.0 => Some(2),
+                _ => Some(3),
+            };
+
+            if let Some(texture_index) = texture_index {
+                let brightness = ((time as f32 - 10.0) / 10.0).clamp(0.0, 1.0);
+                let background = Color::new(brightness, brightness, brightness, 1.0);
+
+                let brightness = 1.0 - brightness;
+                let foreground = Color::new(brightness, brightness, brightness, 1.0);
+
+                window::clear_background(background);
+
+                texture::draw_texture_ex(
+                    &self.texture_atlas,
+                    -THE_END_TEXTURE_SIZE.x / 2.0,
+                    -THE_END_TEXTURE_SIZE.y / 2.0,
+                    foreground,
+                    DrawTextureParams {
+                        source: Some(crate::new_texture_rect(
+                            THE_END_TEXTURE_POSITION
+                                + vector![0.0, texture_index as f32 * THE_END_TEXTURE_SIZE.y],
+                            THE_END_TEXTURE_SIZE,
+                        )),
+                        ..Default::default()
+                    },
+                );
+            }
+        }
+
         Self::draw_pixel_perfect_camera(&self.default_texture);
 
         camera::pop_camera_state();
@@ -830,6 +899,7 @@ impl Level {
             KeyCode::Key0 | KeyCode::Kp0 | KeyCode::F3
                 if self.shift_held || input == KeyCode::F3 =>
             {
+                self.the_end = None;
                 self.level_editor_active ^= true;
 
                 if !self.level_editor_active {

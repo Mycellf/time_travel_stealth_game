@@ -294,6 +294,8 @@ impl Entity for Player {
 
                 self.history.try_insert(frame, self.get_history_entry());
 
+                self.paradox_position = None;
+
                 if let Some(view_area) = &self.view_area {
                     for (key, entity) in entities.iter() {
                         if entity.inner.is_within_view_area(light_grid, view_area) {
@@ -315,7 +317,7 @@ impl Entity for Player {
 
                                 if let Some(paradox_level) = paradox_level {
                                     self.confusion +=
-                                        (paradox_level / Self::CONFUSION_TIME) * UPDATE_DT;
+                                        (paradox_level / Self::CONFUSION_TIME) * UPDATE_DT / 10.0;
                                     self.paradox_position = Some((paradox_level, paradox_position));
 
                                     if self.confusion > 1.0 {
@@ -327,6 +329,10 @@ impl Entity for Player {
                             }
                         }
                     }
+                }
+
+                if self.paradox_position.is_none() {
+                    self.confusion -= (1.0 / Self::RECOVERY_TIME) * UPDATE_DT;
                 }
             }
             PlayerState::Recording => {

@@ -250,7 +250,14 @@ pub enum ViewKind {
 impl ViewKind {
     pub fn confusion(self) -> f64 {
         match self {
-            ViewKind::Present { confusion } | ViewKind::Past { confusion } => confusion,
+            ViewKind::Present { confusion } => {
+                if confusion <= f64::EPSILON {
+                    -f64::INFINITY
+                } else {
+                    confusion
+                }
+            }
+            ViewKind::Past { confusion } => confusion,
         }
     }
 }
