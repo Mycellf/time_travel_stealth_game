@@ -88,6 +88,9 @@ impl<T> Record<T> {
     /// constant record.
     const CONVERSION_THRESHOLD: usize = 5;
 
+    /// This should prevent stuttering on WASM.
+    const MAXIMUM_RECORD_LENGTH: usize = 256;
+
     fn size(&self) -> usize {
         mem::size_of::<Self>()
             + match self {
@@ -161,10 +164,13 @@ impl<T> Record<T> {
                             unreachable!();
                         };
 
-                        *self = Record::Variable {
-                            start,
-                            values: vec![value, entry],
-                        };
+                        // let mut values = Vec::with_capacity(Self::MAXIMUM_RECORD_LENGTH);
+                        let mut values = Vec::new();
+
+                        values.push(value);
+                        values.push(entry);
+
+                        *self = Record::Variable { start, values };
                         None
                     }
                     _ => Some(Record::new(finish.get(), entry)),
@@ -184,7 +190,8 @@ impl<T> Record<T> {
                             };
                             return None;
                         } else {
-                            values.drain(values.len() - count..);
+                            values.truncate(values.len() - count);
+                            // values.shrink_to_fit();
 
                             let new_start = *start + values.len();
 
@@ -196,6 +203,19 @@ impl<T> Record<T> {
                             });
                         }
                     }
+                }
+
+                if values.len() > Self::MAXIMUM_RECORD_LENGTH {
+                    println!("Finishing");
+
+                    let new_start = *start + values.len();
+
+                    return Some(Record::Constant {
+                        start: new_start,
+                        // Add 1 because we're adding another entry
+                        finish: NonZero::new(new_start + 1).unwrap(),
+                        value: entry,
+                    });
                 }
 
                 values.push(entry);
