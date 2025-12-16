@@ -463,7 +463,7 @@ impl Entity for Player {
 
     fn draw_overlay_front(&mut self, texture_atlas: &Texture2D) {
         match self.state {
-            PlayerState::Recording => {
+            PlayerState::Recording | PlayerState::Active => {
                 if self.confusion > 0.0 {
                     self.draw_question_mark(texture_atlas, self.confusion, colors::WHITE);
                 }
