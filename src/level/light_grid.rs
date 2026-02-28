@@ -967,6 +967,7 @@ impl AngleRange {
     }
 }
 
+/// CREDIT: <https://theshoemaker.de/posts/ray-casting-in-2d-grids>
 #[must_use]
 pub fn raycast(
     mut function: impl FnMut(Point2<f64>, TileIndex) -> bool,
