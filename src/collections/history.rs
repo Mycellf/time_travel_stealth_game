@@ -206,8 +206,6 @@ impl<T> Record<T> {
                 }
 
                 if values.len() > Self::MAXIMUM_RECORD_LENGTH {
-                    println!("Finishing");
-
                     let new_start = *start + values.len();
 
                     return Some(Record::Constant {
